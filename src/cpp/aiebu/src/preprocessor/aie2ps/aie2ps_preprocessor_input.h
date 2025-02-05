@@ -48,7 +48,7 @@ public:
                         const std::vector<char>& /*buffer2*/,
                         const std::vector<std::string>& /* libs */,
                         const std::vector<std::string>& libpaths,
-                        const std::map<uint8_t, std::vector<char> >& /*ctrlpkt*/) override
+                        const std::map<uint32_t, std::vector<char> >& /*ctrlpkt*/) override
   {
     m_libpaths = libpaths;
     m_data["control_code"] = control_code;

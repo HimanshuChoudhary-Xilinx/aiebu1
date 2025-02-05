@@ -62,7 +62,7 @@ protected:
   };
 
   std::map<uint32_t, std::string> xrt_id_map;
-  std::vector<uint8_t> pm_id_list;
+  std::vector<uint32_t> pm_id_list;
   bool haspreempt = false;
   virtual uint32_t extractSymbolFromBuffer(std::vector<char>& mc_code, const std::string& section_name, const std::string& argname) = 0;
   void aiecompiler_json_parser(const boost::property_tree::ptree& pt);
@@ -81,7 +81,7 @@ public:
                         const std::vector<char>& control_packet,
                         const std::vector<std::string>& /*libs*/,
                         const std::vector<std::string>& /*libpaths*/,
-                        const std::map<uint8_t, std::vector<char> >& ctrlpkt) override
+                        const std::map<uint32_t, std::vector<char> >& ctrlpkt) override
   {
     m_data[".ctrltext"] = mc_code;
 
@@ -153,7 +153,7 @@ public:
                         const std::vector<char>& control_packet,
                         const std::vector<std::string>& libs,
                         const std::vector<std::string>& libpaths,
-                        const std::map<uint8_t, std::vector<char> >& ctrlpkt) override
+                        const std::map<uint32_t, std::vector<char> >& ctrlpkt) override
   {
     aie2_blob_preprocessor_input::set_args(mc_code, patch_json, control_packet, libs, libpaths, ctrlpkt);
     resize_scratchpad(preempt_save);
@@ -258,7 +258,7 @@ public:
                 const std::vector<char>& control_packet,
                 const std::vector<std::string>& libs,
                 const std::vector<std::string>& libpaths,
-                const std::map<uint8_t, std::vector<char> >& ctrlpkt) override
+                const std::map<uint32_t, std::vector<char> >& ctrlpkt) override
   {
     const std::vector<char> mc_code = encode(mc_asm_code);
     aie2_blob_transaction_preprocessor_input::set_args(mc_code, patch_json, control_packet, libs, libpaths, ctrlpkt);

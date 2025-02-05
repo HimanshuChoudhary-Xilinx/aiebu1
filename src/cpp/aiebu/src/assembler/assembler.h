@@ -41,7 +41,7 @@ public:
                             const std::vector<std::string>& libpaths = {},
                             const std::vector<char>& patch_json = {},
                             const std::vector<char>& buffer2 = {},
-                            const std::map<uint8_t, std::vector<char> >& ctrlpkt = {});
+                            const std::map<uint32_t, std::vector<char> >& ctrlpkt = {});
 
 };
 
