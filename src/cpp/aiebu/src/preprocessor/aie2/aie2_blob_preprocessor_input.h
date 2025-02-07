@@ -36,7 +36,7 @@ protected:
   constexpr static uint32_t MEM_DMA_BD_NUM = 48;
   constexpr static uint32_t MEM_DMA_BD_SIZE = 0x20; // 8*4bytes
   constexpr static uint32_t byte_in_word = 4;
-  constexpr static uint32_t MAX_ARG_INDEX = 32; // approximated value 24 to limit the number of arguments in XRT kernel call
+  constexpr static uint32_t MAX_ARG_INDEX = 512; // approximated value 512 to limit the number of arguments in XRT kernel call
 
   constexpr static uint64_t RANGE_32BIT = 0xFFFFFFFF; // Max value supported in 32bit elf supported
 

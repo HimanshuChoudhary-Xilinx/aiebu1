@@ -15,7 +15,7 @@ namespace aiebu {
 
 class aie2ps_preprocessor_input : public preprocessor_input
 {
-  constexpr static uint32_t MAX_ARG_INDEX = 32; // approximated value 24 to limit the number of arguments in XRT kernel call
+  constexpr static uint32_t MAX_ARG_INDEX = 512; // approximated value 512 to limit the number of arguments in XRT kernel call
 
   constexpr static uint64_t RANGE_32BIT = 0xFFFFFFFF; // Max value supported in 32bit elf supported
   // For transaction buffer flow. In Xclbin kernel argument, actual argument start from 3,
