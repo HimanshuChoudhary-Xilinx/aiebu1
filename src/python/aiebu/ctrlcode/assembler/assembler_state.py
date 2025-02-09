@@ -138,6 +138,7 @@ class AssemblerState:
         self.statecreator(makeunique)
 
     def getjobsize(self, jobid):
+        assert jobid in self._jobs, f"Jobid {jobid} not found"
         return self._jobs[jobid].getsize()
 
     def containlabel(self, label):
@@ -180,6 +181,7 @@ class AssemblerState:
         return self._local_barriers
 
     def getjob(self, jobid):
+        assert jobid in self._jobs, f"Jobid {jobid} not found"
         return self._jobs[jobid]
 
     def getlabel(self, labelid):

@@ -263,6 +263,9 @@ assignpagenumber(assembler_state& state, uint32_t colnum,
     }
   }
   // add eof at end of page
+  if (state.m_jobmap.find(EOF_ID) == state.m_jobmap.end())
+    throw error(error::error_code::invalid_asm , "INVALID ASM, EOF job not found");
+
   lpage.m_text.emplace_back(state.m_data[state.m_jobmap[EOF_ID]->get_start_index()]);
   auto aligner = dsize ? datasectionaligner(tsize) : 0;
   // add align for data section
