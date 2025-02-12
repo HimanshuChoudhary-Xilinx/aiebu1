@@ -21,7 +21,7 @@ jobs:
 
     - name: Merge changes from upstream to main-ge branch
       run: |
-        git checkout main-ge
+        git checkout --track origin/main-ge
         git reset --hard ghec/main-ge
 
     - name: Force push changes
