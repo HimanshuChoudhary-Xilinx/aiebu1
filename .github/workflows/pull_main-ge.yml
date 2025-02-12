@@ -1,4 +1,4 @@
-name: Sync with github.com/Xilinx/aiebu/tree/main-ge
+name: Sync with upstream main-ge
 
 on:
   workflow_dispatch:
@@ -21,8 +21,8 @@ jobs:
         git checkout main-ge
         git reset --hard upstream/main-ge
 
-    # - name: Force push changes
-    #   env:
-    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    #   run: |
-    #     git push --force
+    - name: Force push changes
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        git push --force origin main-ge
