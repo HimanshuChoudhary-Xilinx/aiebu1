@@ -3,6 +3,9 @@ name: Sync with upstream main-ge
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   sync-upstream:
     runs-on: xcosimnow01-XRT_aiebu
