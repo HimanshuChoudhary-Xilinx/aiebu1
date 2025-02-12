@@ -16,13 +16,13 @@ jobs:
 
     - name: Set up upstream repo
       run: |
-        git remote add upstream https://github.com/Xilinx/aiebu.git
-        git fetch upstream
+        git remote add ghec https://github.com/Xilinx/aiebu.git
+        git fetch ghec
 
     - name: Merge changes from upstream to main-ge branch
       run: |
         git checkout main-ge
-        git reset --hard upstream/main-ge
+        git reset --hard ghec/main-ge
 
     - name: Force push changes
       env:
