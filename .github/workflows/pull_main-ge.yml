@@ -25,6 +25,12 @@ jobs:
           echo "ghec remote does not exist"
           git remote add ghec https://github.com/Xilinx/aiebu.git
         fi
+        if git remote | grep -1 "^ghes$"; then
+          echo "ghes remote exists"
+        else
+          echo "ghes remote does not exist"
+          git remote add ghes https://gitenterprise.xilinx.com/XRT/aiebu.git
+        fi
 
     - name: Merge changes from upstream to main-ge branch
       run: |
@@ -35,4 +41,4 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        git push --force origin main-ge
+        git push --force ghes main-ge
