@@ -32,8 +32,8 @@ jobs:
         git fetch ghec
         git rebase ghec/main-ge
 
-    - name: Force push changes
+    - name: Push changes to origin
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.Z1AIEBUILD_GHE_PAT }}
       run: |
         git push
