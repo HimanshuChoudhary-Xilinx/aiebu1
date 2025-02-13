@@ -30,10 +30,10 @@ jobs:
     - name: Merge changes from upstream to main-ge branch
       run: |
         git fetch ghec
-        git reset --hard ghec/main-ge
+        git rebase ghec/main-ge
 
     - name: Force push changes
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        git push --force
+        git push
