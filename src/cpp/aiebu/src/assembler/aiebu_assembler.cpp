@@ -34,7 +34,7 @@ aiebu_assembler(buffer_type type,
                 const std::vector<char>& patch_json,
                 const std::vector<std::string>& libs,
                 const std::vector<std::string>& libpaths,
-                const std::map<uint8_t, std::vector<char> >& ctrlpkt) : _type(type)
+                const std::map<uint32_t, std::vector<char> >& ctrlpkt) : _type(type)
 {
   if (type == buffer_type::blob_instr_dpu)
   {
@@ -125,7 +125,7 @@ aiebu_assembler_get_elf(enum aiebu_assembler_buffer_type type,
     v1.assign(buffer1, buffer1+buffer1_size);
     v2.assign(buffer2, buffer2+buffer2_size);
     v3.assign(patch_json, patch_json+patch_json_size);
-    std::map<uint8_t, std::vector<char> > mctrlpkt;
+    std::map<uint32_t, std::vector<char> > mctrlpkt;
 
     std::vector<std::string> vlibs;
     if (libs)

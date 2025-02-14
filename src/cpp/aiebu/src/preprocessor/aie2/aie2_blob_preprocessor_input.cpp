@@ -381,7 +381,7 @@ add_preemption_code(uint32_t col)
     auto txn_header = reinterpret_cast<const XAie_TxnHeader *>(ptr);
     uint32_t loadsequence = 0;
     bool pm_exist = false;
-    uint8_t pm_id = 0;
+    uint32_t pm_id = 0;
 
     ptr += sizeof(XAie_TxnHeader);
     for(uint32_t num = 0; num < txn_header->NumOps; num++) {
@@ -447,7 +447,7 @@ add_preemption_code(uint32_t col)
           loadsequence = mp_header->LoadSequenceCount[2] << 16 | mp_header->LoadSequenceCount[1] << 8 | mp_header->LoadSequenceCount[0];
           // loadsequence cannot be zero
           if (loadsequence == 0) {
-            auto error_msg = boost::format("PM control packet: %d has zero loadsequence") % (int)pm_id;
+            auto error_msg = boost::format("PM control packet: %u has zero loadsequence") % pm_id;
             throw error(error::error_code::invalid_asm, error_msg.str());
           }
           loadsequence = loadsequence + 1;
@@ -456,7 +456,7 @@ add_preemption_code(uint32_t col)
           if (std::find(pm_id_list.begin(), pm_id_list.end(), pm_id) == pm_id_list.end())
           {
             pm_exist = false;
-            std::cout << "PM id:" << std::hex << (int)pm_id << std::dec
+            std::cout << "PM id:" << std::hex << pm_id << std::dec
                       << " has no corresponding pm control packet given by user!!!\n";
           }
           ptr += sizeof(XAie_PmLoadHdr);
@@ -522,7 +522,7 @@ add_preemption_code(uint32_t col)
     auto txn_header = reinterpret_cast<const XAie_TxnHeader *>(ptr);
     uint32_t loadsequence = 0;
     bool pm_exist = false;
-    uint8_t pm_id = 0;
+    uint32_t pm_id = 0;
 
     ptr += sizeof(XAie_TxnHeader);
     for(uint32_t num = 0; num < txn_header->NumOps; num++) {
@@ -542,7 +542,7 @@ add_preemption_code(uint32_t col)
             uint64_t buffer_length_in_bytes = reinterpret_cast<const uint32_t*>(payload)[0] * byte_in_word;
             uint64_t pm_size = m_data[".ctrlpkt.pm." + std::to_string(pm_id)].size();
             if (pm_size < buffer_length_in_bytes) {
-              auto error_msg = boost::format("PM control packet: %d size: %lx is lesser then size in blockwrite: %lx")
+              auto error_msg = boost::format("PM control packet: %u size: %lx is lesser then size in blockwrite: %lx")
                                              % pm_id % pm_size % buffer_length_in_bytes;
               throw error(error::error_code::invalid_asm, error_msg.str());
             }
@@ -584,7 +584,7 @@ add_preemption_code(uint32_t col)
           pm_id = mp_header->PmLoadId;
           loadsequence = mp_header->LoadSequenceCount[2] << 16 | mp_header->LoadSequenceCount[1] << 8 | mp_header->LoadSequenceCount[0];
           if (loadsequence == 0) {
-            auto error_msg = boost::format("PM control packet: %d has zero loadsequence") % (int)pm_id;
+            auto error_msg = boost::format("PM control packet: %u has zero loadsequence") % pm_id;
             throw error(error::error_code::invalid_asm, error_msg.str());
           }
           loadsequence = loadsequence + 1;
@@ -592,7 +592,7 @@ add_preemption_code(uint32_t col)
           if (std::find(pm_id_list.begin(), pm_id_list.end(), pm_id) == pm_id_list.end())
           {
             pm_exist = false;
-            std::cout << "PM id:" << std::hex << (int)pm_id << std::dec
+            std::cout << "PM id:" << std::hex << pm_id << std::dec
                       << " has no corresponding pm control packet given by user!!!\n";
           }
           ptr += sizeof(XAie_PmLoadHdr);

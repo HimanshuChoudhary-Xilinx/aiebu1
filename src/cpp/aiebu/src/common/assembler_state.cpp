@@ -37,7 +37,6 @@ process(bool makeunique)
   jobid_type cjob_id = "";
   for (auto data : m_data)
   {
-
     if (data->isLabel())
     {
       csection = code_section::data;
@@ -116,7 +115,10 @@ process(bool makeunique)
       throw error(error::error_code::internal_error, "Unknown type found!!!");
     }
 
-    if (!clabelname.empty() && data->get_operation()->get_name().compare(".align") && data->get_operation()->get_name().compare(".eop"))
+    if (!clabelname.empty()
+        && data->get_operation()->get_name().compare(".align")
+        && data->get_operation()->get_name().compare(".eop")
+        && data->get_operation()->get_name().compare("eof"))
     {
       m_labelmap[clabelname]->increment_count(1);
       m_labelmap[clabelname]->increment_size(data->get_size());
@@ -124,7 +126,6 @@ process(bool makeunique)
     ++index;
     data->set_section(csection);
   }
-
   //TODO launch job id sanity check
 }
 

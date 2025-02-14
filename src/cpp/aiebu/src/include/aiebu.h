@@ -37,7 +37,7 @@ enum aiebu_assembler_buffer_type {
 };
 
 struct pm_ctrlpkt {
-  uint8_t pm_id;
+  uint32_t pm_id;
   const char* pm_buffer;
   size_t pm_buffer_size;
 };

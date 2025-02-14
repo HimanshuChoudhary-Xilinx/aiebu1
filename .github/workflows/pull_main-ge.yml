@@ -1,0 +1,40 @@
+name: Sync with upstream main-ge
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: write
+
+jobs:
+  sync-upstream:
+    runs-on: xcosimnow01-XRT_aiebu
+    
+    steps:
+    - name: Checkout this repository
+      uses: actions/checkout@v3
+      with:
+        ref: main-ge
+        token: ${{ secrets.WORKFLOW_PAT }}
+
+    - name: Set up upstream repo
+      run: |
+        # add remote if necessary
+        if git remote | grep -1 "^ghec$"; then
+          echo "ghec remote exists"
+        else
+          echo "ghec remote does not exist"
+          git remote add ghec https://github.com/Xilinx/aiebu.git
+        fi
+
+    - name: Merge changes from upstream to main-ge branch
+      run: |
+        git fetch ghec
+        git rebase ghec/main-ge
+
+    - name: Push changes to origin
+      env:
+        GITHUB_TOKEN: ${{ secrets.WORKFLOW_PAT }}
+      run: |
+        git push
