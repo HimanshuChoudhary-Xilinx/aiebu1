@@ -2,26 +2,39 @@
 // Copyright (C) 2024 Advanced Micro Devices, Inc. All rights reserved.
 
 #include <iostream>
+#include <limits>
 #include <boost/format.hpp>
 
 #include "target.h"
 #include "utils.h"
 
-std::map<uint8_t, std::vector<char> >
+std::map<uint32_t, std::vector<char> >
 aiebu::utilities::
 target_aie2blob::parse_pmctrlpkt(const std::vector<std::string> pm_key_value_pairs)
 {
-  std::map<uint8_t, std::vector<char> > mappmctrl;
+  std::map<uint32_t, std::vector<char> > mappmctrl;
 
   for (const auto& kv : pm_key_value_pairs) {
+    std::cout << "-->" << kv << "\n";
     size_t pos = kv.find(':');
     if (pos == std::string::npos) {
       auto errMsg = boost::format("Invalid key:value pair: %s in pmctrl\n") % kv ;
       throw std::runtime_error(errMsg.str());
     }
-
     std::string key = kv.substr(0, pos);
-    uint8_t ikey = std::stoi(key);
+    uint32_t ikey = 0;
+    try {
+      uint64_t num = std::stoul(key);
+      // stoul not throwing out_of_range if value overflowing
+      if (num > std::numeric_limits<uint32_t>::max() || num < std::numeric_limits<uint32_t>::min())
+        throw std::out_of_range("Value is out of range for uint32_t");
+      ikey = static_cast<uint32_t>(num);
+    } catch (const std::invalid_argument& e) {
+      throw std::runtime_error(e.what());
+    } catch (const std::out_of_range& e) {
+      throw std::runtime_error(e.what());
+    }
+
     std::string value = kv.substr(pos + 1);
     std::vector<char> buffer;
     readfile(value, buffer);

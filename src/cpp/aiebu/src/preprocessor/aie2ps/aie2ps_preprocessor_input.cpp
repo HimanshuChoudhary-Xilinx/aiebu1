@@ -82,7 +82,7 @@ namespace aiebu {
 
       // TODO added symbols name hardcoded to ".pad.0" and col 0
       // this will change once compiler decide on how to generate multi col control packet design
-      add_symbol({name, offset, 0, 0, addend, 0, ".pad.0", symbol::patch_schema::control_packet_48});
+      add_symbol({name, offset, 0, 0, addend, 0, ".pad.0", symbol::patch_schema::control_packet_57});
     }
   }
 

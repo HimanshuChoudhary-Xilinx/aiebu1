@@ -15,7 +15,7 @@ namespace aiebu {
 
 class aie2ps_preprocessor_input : public preprocessor_input
 {
-  constexpr static uint32_t MAX_ARG_INDEX = 32; // approximated value 24 to limit the number of arguments in XRT kernel call
+  constexpr static uint32_t MAX_ARG_INDEX = 512; // approximated value 512 to limit the number of arguments in XRT kernel call
 
   constexpr static uint64_t RANGE_32BIT = 0xFFFFFFFF; // Max value supported in 32bit elf supported
   // For transaction buffer flow. In Xclbin kernel argument, actual argument start from 3,
@@ -48,7 +48,7 @@ public:
                         const std::vector<char>& /*buffer2*/,
                         const std::vector<std::string>& /* libs */,
                         const std::vector<std::string>& libpaths,
-                        const std::map<uint8_t, std::vector<char> >& /*ctrlpkt*/) override
+                        const std::map<uint32_t, std::vector<char> >& /*ctrlpkt*/) override
   {
     m_libpaths = libpaths;
     m_data["control_code"] = control_code;

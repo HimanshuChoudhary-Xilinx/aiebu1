@@ -27,7 +27,7 @@ public:
                         const std::vector<char>&,
                         const std::vector<std::string>&,
                         const std::vector<std::string>&,
-                        const std::map<uint8_t, std::vector<char> >& ctrlpkt) = 0;
+                        const std::map<uint32_t, std::vector<char> >& ctrlpkt) = 0;
 
   const std::vector<std::string> get_keys()
   {
