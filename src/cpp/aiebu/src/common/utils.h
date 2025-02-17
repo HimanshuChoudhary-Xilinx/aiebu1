@@ -13,6 +13,7 @@
 #include <string_view>
 #include <sstream>
 #include <vector>
+#include <regex>
 #include "aiebu_error.h"
 
 #define BYTE_MASK 0xFF
@@ -144,11 +145,47 @@ inline std::string get_pagelabel(const std::string& label)
 // Custom stream buffer that reads from a vector<char>
 class vector_streambuf : public std::streambuf {
 public:
-    vector_streambuf(const std::vector<char>& vec) {
+    explicit vector_streambuf(const std::vector<char>& vec) {
         char* begin = const_cast<char*>(vec.data());
         this->setg(begin, begin, begin + vec.size());
     }
 };
+
+namespace utilities {
+inline std::vector<const char*>
+vector_of_string_to_vector_of_char(const std::vector<std::string>& args)
+{
+  std::vector<const char*> char_vec;
+  for (auto& arg : args)
+    char_vec.push_back(arg.c_str());
+
+  return char_vec;
+}
+}
+
+enum class fragment{
+  begin_anchor_re,
+  end_anchor_re,
+  hex_re,
+  l_brack_re,
+  r_brack_re,
+};
+
+std::regex get_regex(const std::vector<fragment>& pattern);
+
+constexpr unsigned hexbase = 0x10;
+
+template <typename UIntType>
+UIntType
+to_uinteger(const std::string& token) {
+  const unsigned long long result = (std::is_same<UIntType, uint64_t>::value) ? std::stoull(token, nullptr, 0) :
+    std::stoul(token, nullptr, 0);
+  auto max = std::numeric_limits<UIntType>::max();
+  if (result > max)
+    throw error(error::error_code::invalid_asm, "Value " + token + " is out of range");
+
+  return static_cast<UIntType>(result);
+}
 
 }
 #endif // _AIEBU_COMMOM_UTILS_H_
