@@ -6,6 +6,7 @@
 
 #include "aie2_blob_preprocessor_input.h"
 #include "asm/asm_parser.h"
+#include "utils.h"
 
 #include "xaiengine.h"
 #include "xaiengine/xaiegbl.h"
@@ -14,7 +15,7 @@ namespace aiebu {
 
 class aie2_isa_op;
 
-const std::map<std::string, XAie_Preempt_level> preempt_level_table = {
+const std::map<std::string, XAie_Preempt_level> preempt_level_table = { //NOLINT
     {"NOOP",          NOOP},
     {"MEM_TILE",      MEM_TILE},
     {"AIE_TILE",      AIE_TILE},
@@ -22,43 +23,49 @@ const std::map<std::string, XAie_Preempt_level> preempt_level_table = {
     {"INVALID",       INVALID},
 };
 
-const std::map<XAie_TxnOpcode, std::string> opcode_table = {
-    {XAIE_IO_WRITE,                   "XAIE_IO_WRITE"},
-    {XAIE_IO_BLOCKWRITE,              "XAIE_IO_BLOCKWRITE"},
-    {XAIE_IO_MASKWRITE,               "XAIE_IO_MASKWRITE"},
-    {XAIE_IO_MASKPOLL,                "XAIE_IO_MASKPOLL"},
-    {XAIE_IO_NOOP,                    "XAIE_IO_NOOP"},
-    {XAIE_IO_PREEMPT,                 "XAIE_IO_PREEMPT"},
-    {XAIE_IO_MASKPOLL_BUSY,           "XAIE_IO_MASKPOLL_BUSY"},
-    {XAIE_IO_LOADPDI,                 "XAIE_IO_LOADPDI"},
-    {XAIE_IO_LOAD_PM_START,           "XAIE_IO_LOAD_PM_START"},
-    {XAIE_CONFIG_SHIMDMA_BD,          "XAIE_CONFIG_SHIMDMA_BD"},
-    {XAIE_CONFIG_SHIMDMA_DMABUF_BD,  "XAIE_CONFIG_SHIMDMA_DMABUF_BD"},
-    {XAIE_IO_CUSTOM_OP_TCT,          "XAIE_IO_CUSTOM_OP_TCT"},
-    {XAIE_IO_CUSTOM_OP_DDR_PATCH,    "XAIE_IO_CUSTOM_OP_DDR_PATCH"},
-    {XAIE_IO_CUSTOM_OP_READ_REGS,    "XAIE_IO_CUSTOM_OP_READ_REGS"},
-    {XAIE_IO_CUSTOM_OP_RECORD_TIMER, "XAIE_IO_CUSTOM_OP_RECORD_TIMER"},
-    {XAIE_IO_CUSTOM_OP_MERGE_SYNC,   "XAIE_IO_CUSTOM_OP_MERGE_SYNC"},
-    {XAIE_IO_CUSTOM_OP_NEXT,         "XAIE_IO_CUSTOM_OP_NEXT"},
-    {XAIE_IO_LOAD_PM_END_INTERNAL,   "XAIE_IO_LOAD_PM_END_INTERNAL"}
+const std::map<XAie_TxnOpcode, std::string> opcode_table = { //NOLINT
+    {XAIE_IO_WRITE,                   "xaie_io_write"},
+    {XAIE_IO_BLOCKWRITE,              "xaie_io_blockwrite"},
+    {XAIE_IO_MASKWRITE,               "xaie_io_maskwrite"},
+    {XAIE_IO_MASKPOLL,                "xaie_io_maskpoll"},
+    {XAIE_IO_NOOP,                    "xaie_io_noop"},
+    {XAIE_IO_PREEMPT,                 "xaie_io_preempt"},
+    {XAIE_IO_MASKPOLL_BUSY,           "xaie_io_maskpoll_busy"},
+    {XAIE_IO_LOADPDI,                 "xaie_io_loadpdi"},
+    {XAIE_IO_LOAD_PM_START,           "xaie_io_load_pm_start"},
+    {XAIE_CONFIG_SHIMDMA_BD,          "xaie_config_shimdma_bd"},
+    {XAIE_CONFIG_SHIMDMA_DMABUF_BD,  "xaie_config_shimdma_dmabuf_bd"},
+    {XAIE_IO_CUSTOM_OP_TCT,          "xaie_io_custom_op_tct"},
+    {XAIE_IO_CUSTOM_OP_DDR_PATCH,    "xaie_io_custom_op_ddr_patch"},
+    {XAIE_IO_CUSTOM_OP_READ_REGS,    "xaie_io_custom_op_read_regs"},
+    {XAIE_IO_CUSTOM_OP_RECORD_TIMER, "xaie_io_custom_op_record_timer"},
+    {XAIE_IO_CUSTOM_OP_MERGE_SYNC,   "xaie_io_custom_op_merge_sync"},
+    {XAIE_IO_CUSTOM_OP_NEXT,         "xaie_io_custom_op_next"},
+    {XAIE_IO_LOAD_PM_END_INTERNAL,   "xaie_io_load_pm_end_internal"}
 };
 
 /*
- * Base class to represent a ctrlcode instance. Each ctrlcode operation defined by the
- * specification requires its own derived class which are defined below.
+ * Base class to represent a ctrlcode operation instance. Each ctrlcode operation defined
+ * by the specification requires its own derived class which are defined below.
  * Derived classed encapsulate the appropriate 'specialized' version of XAie_OpHdr.
  */
 class aie2_isa_op {
-protected:
-  const XAie_TxnOpcode m_code;
-  XAie_OpHdr *m_op =  nullptr;
+private:
   /*
    * Total size of this op instance in binary including extended attributes.
-   * It is populated by the derived class
+   * It is populated by the derived class as some operations are variable sized.
    */
   size_t m_size = 0;
+  const XAie_TxnOpcode m_code;
 
 protected:
+  XAie_OpHdr *m_op =  nullptr;
+
+protected:
+  /*
+   * Method to get access to the variable size portion of the operation.
+   * e.g. BLOCKWRITE, TCT, etc.
+   */
   template <typename RAWTYPE> [[nodiscard]] RAWTYPE *get_extended_storage() const {
     char *start = reinterpret_cast<char *>(m_op);
     start += get_op_base_size();
@@ -66,7 +73,8 @@ protected:
     return reinterpret_cast<RAWTYPE *>(start);
   }
 
-  void initialize_OpHdr()  {
+  void initialize_OpHdr(size_t size)  {
+    m_size = size;
     char *storage = new char[m_size];
     std::memset(storage, 0, m_size);
     m_op = reinterpret_cast<XAie_OpHdr *>(storage);
@@ -92,9 +100,9 @@ public:
     m_op = nullptr;
   }
 
-  aie2_isa_op(aie2_isa_op&& o) noexcept : m_code(o.m_code),
-                                          m_op(o.m_op),
-                                          m_size(o.m_size) {
+  aie2_isa_op(aie2_isa_op&& o) noexcept : m_size(o.m_size),
+                                          m_code(o.m_code),
+                                          m_op(o.m_op) {
     o.m_op = nullptr;
     o.m_size = 0;
   }
@@ -113,17 +121,30 @@ public:
   }
 
   [[nodiscard]] virtual size_t get_op_base_size() const = 0;
+
+  [[nodiscard]] size_t get_op_size() const {
+    return m_size;
+  }
+
+  [[nodiscard]] virtual unsigned int outstanding_ext_op_count() const {
+    return 0;
+  }
+
+  virtual void process_outstanding_ext_op(const std::shared_ptr<operation> op) {
+    const std::vector<std::string>& args = op->get_args();
+    throw error(error::error_code::internal_error, opcode_table.at(m_code) +
+                    " does not require extended operands" + args[0]);
+  }
 };
 
 class XAIE_IO_WRITE_op : public aie2_isa_op {
 public:
   explicit XAIE_IO_WRITE_op(const std::vector<std::string>& args) : aie2_isa_op(XAIE_IO_WRITE)
   {
-    // e.g. XAIE_IO_WRITE,                  @0x801d214, 0x30005
+    // e.g. XAIE_IO_WRITE                  @0x801d214, 0x30005
     operand_count_check(args, 2);
     std::string regoff = args[0].substr(1);
-    m_size = sizeof(XAie_Write32Hdr);
-    initialize_OpHdr();
+    initialize_OpHdr(sizeof(XAie_Write32Hdr));
 
     auto op = reinterpret_cast<XAie_Write32Hdr *>(m_op);
     op->RegOff = to_uinteger<uint64_t>(regoff);
@@ -138,44 +159,104 @@ public:
 
 
 class XAIE_IO_BLOCKWRITE_op : public aie2_isa_op {
+private:
+  unsigned int outstanding_extended_operand_count = 0;
+
+  [[nodiscard]] unsigned int get_extended_operand_index() const {
+    size_t ex_op_size = get_op_size() - get_op_base_size();
+    return ex_op_size / sizeof(uint32_t) - outstanding_extended_operand_count;
+  }
+
 public:
   explicit XAIE_IO_BLOCKWRITE_op(const std::vector<std::string>& args) : aie2_isa_op(XAIE_IO_BLOCKWRITE)
   {
-    // e.g. XAIE_IO_BLOCKWRITE,             @0x801d060, 0x3, 0x0, 0x0, 0x0, 0x80000000, 0x2000000, 0x100007, 0x2000000
+    // e.g. XAIE_IO_BLOCKWRITE             @0x801d060, [8]
+    //      XAIE_IO_BLOCKWRITE.0           0x6
+    //      XAIE_IO_BLOCKWRITE.1           0x0
+    //      XAIE_IO_BLOCKWRITE.2           0x0
+    //      XAIE_IO_BLOCKWRITE.3           0x0
+    //      XAIE_IO_BLOCKWRITE.4           0x80000000
+    //      XAIE_IO_BLOCKWRITE.5           0x2000000
+    //      XAIE_IO_BLOCKWRITE.6           0x300007
+    //      XAIE_IO_BLOCKWRITE.7           0x2000000
+
     operand_count_check(args, 2);
-    unsigned idx = 0;
+    unsigned int idx = 0;
     std::string regoff = args[idx++].substr(1);
     // Determine the total size including extended storage by counting the number of writes
-    m_size = sizeof(XAie_BlockWrite32Hdr) + sizeof(uint32_t) * (args.size() - idx);
-    initialize_OpHdr();
+
+    const std::regex index_regex = get_regex({fragment::index_re});
+
+    std::smatch matches;
+    if (!std::regex_match(args[idx], matches, index_regex))
+        throw error(error::error_code::invalid_asm, args[idx]);
+
+    if (matches.size() != 2)
+        throw error(error::error_code::invalid_asm, args[1]);
+
+    outstanding_extended_operand_count = to_uinteger<uint32_t>(matches[1]);
+    initialize_OpHdr(sizeof(XAie_BlockWrite32Hdr) +
+                     sizeof(uint32_t) * outstanding_extended_operand_count);
 
     auto op = reinterpret_cast<XAie_BlockWrite32Hdr *>(m_op);
     op->RegOff = to_uinteger<uint64_t>(regoff);
-    op->Size = m_size;
-    // Capture the extended values
-    auto values = get_extended_storage<unsigned int>();
-    for (unsigned int i = 0; idx < args.size(); idx++, i++)
-      values[i] = to_uinteger<uint32_t>(args[idx]);
+    op->Size = get_op_size();
   }
 
   [[nodiscard]] size_t get_op_base_size() const override {
     return sizeof(XAie_BlockWrite32Hdr);
+  }
+
+  [[nodiscard]] unsigned int outstanding_ext_op_count() const override {
+    return outstanding_extended_operand_count;
+  }
+
+  [[nodiscard]] unsigned int total_extended_operand_count() const {
+    return (get_op_size() - get_op_base_size()) / sizeof(uint32_t);
+  }
+
+  void process_outstanding_ext_op(const std::shared_ptr<operation> op) override {
+    if (outstanding_extended_operand_count == 0)
+      throw error(error::error_code::invalid_asm, "This instance of " + get_mnemonic() +
+                      " cannot have more than " + std::to_string(total_extended_operand_count()) + " operands");
+
+    const std::vector<std::string>& args = op->get_args();
+    std::string base = opcode_table.at(XAIE_IO_BLOCKWRITE);
+    base += ".";
+    base += std::to_string(get_extended_operand_index());
+
+    if (base.compare(op->get_name()))
+      throw error(error::error_code::invalid_asm, "Invalid operand " + op->get_name());
+
+    auto values = get_extended_storage<unsigned int>();
+    values[get_extended_operand_index()] = to_uinteger<uint32_t>(args[0]);
+    outstanding_extended_operand_count--;
   }
 };
 
 class XAIE_IO_MASKWRITE_op : public aie2_isa_op {
 public:
   explicit XAIE_IO_MASKWRITE_op(const std::vector<std::string>& args) : aie2_isa_op(XAIE_IO_MASKWRITE) {
+    // e.g. XAIE_IO_MASKWRITE             @0x801d060, 0x30005(), 0x3
     operand_count_check(args, 3);
-    m_size = sizeof(XAie_MaskWrite32Hdr);
-    initialize_OpHdr();
+    initialize_OpHdr(sizeof(XAie_MaskWrite32Hdr));
     std::string regoff = args[0].substr(1);
 
     auto op = reinterpret_cast<XAie_MaskWrite32Hdr *>(m_op);
     op->RegOff = to_uinteger<uint64_t>(regoff);
-    op->Value = to_uinteger<uint32_t>(args[1]);
+    const std::regex mask_regex = get_regex({fragment::begin_anchor_re, fragment::hex_re, fragment::l_brack_re,
+        fragment::r_brack_re, fragment::end_anchor_re});
+
+    std::smatch matches;
+    if (!std::regex_match(args[1], matches, mask_regex))
+        throw error(error::error_code::invalid_asm, args[1]);
+
+    if (matches.size() != 2)
+        throw error(error::error_code::invalid_asm, args[1]);
+
+    op->Value = to_uinteger<uint32_t>(matches[1]);
     op->Mask = to_uinteger<uint32_t>(args[2]);
-    op->Size = sizeof(XAie_Write32Hdr);
+    op->Size = get_op_size();
   }
 
   [[nodiscard]] size_t get_op_base_size() const override {
@@ -185,19 +266,31 @@ public:
 
 class XAIE_IO_MASKPOLL_op : public aie2_isa_op {
 public:
-  explicit XAIE_IO_MASKPOLL_op(const std::vector<std::string>& args) : aie2_isa_op(XAIE_IO_MASKPOLL) {
-    // e.g. XAIE_IO_MASKPOLL,               @0x801d228, 0x78003c, 0x0
-    operand_count_check(args, 3);
-    m_size = sizeof(XAie_MaskPoll32Hdr);
-    initialize_OpHdr();
-    unsigned idx = 0;
+  explicit XAIE_IO_MASKPOLL_op(const std::vector<std::string> &args,
+                               XAie_TxnOpcode code = XAIE_IO_MASKPOLL) : aie2_isa_op(code) {
+    // e.g. XAIE_IO_MASKPOLL,               @0x801d228, 0x78003c()==0x0
+    operand_count_check(args, 2);
+    initialize_OpHdr(sizeof(XAie_MaskPoll32Hdr));
+    unsigned int idx = 0;
     const std::string regoff = args[idx++].substr(1);
 
     auto op = reinterpret_cast<XAie_MaskPoll32Hdr *>(m_op);
     op->RegOff = to_uinteger<uint64_t>(regoff);
-    op->Mask = to_uinteger<uint32_t>(args[idx++]);
-    op->Value = to_uinteger<uint32_t>(args[idx++]);
-    op->Size = sizeof(XAie_MaskPoll32Hdr);
+
+    const std::regex mask_poll_regex = get_regex({fragment::begin_anchor_re, fragment::hex_re, fragment::l_brack_re,
+        fragment::r_brack_re, fragment::equal_re, fragment::hex_re, fragment::end_anchor_re});
+
+    std::smatch matches;
+    if (!std::regex_match(args[idx], matches, mask_poll_regex))
+        throw error(error::error_code::invalid_asm, args[idx]);
+
+    if (matches.size() != 3)
+        throw error(error::error_code::invalid_asm, args[idx]);
+
+
+    op->Mask = to_uinteger<uint32_t>(matches[1]);
+    op->Value = to_uinteger<uint32_t>(matches[2]);
+    op->Size = get_op_size();
   }
 
   [[nodiscard]] size_t get_op_base_size() const override {
@@ -206,12 +299,22 @@ public:
 };
 
 
+class XAIE_IO_MASKPOLL_BUSY_op : public XAIE_IO_MASKPOLL_op {
+public:
+  /* Only difference from XAIE_IO_MASKPOLL_op is the code */
+  explicit XAIE_IO_MASKPOLL_BUSY_op(const std::vector<std::string> &args)
+      : XAIE_IO_MASKPOLL_op(args, XAIE_IO_MASKPOLL_BUSY) {
+    // e.g. XAIE_IO_MASKPOLL_BUSY               @0x801d228, 0x78003c()==0x0
+  }
+};
+
+
 class XAIE_IO_NOOP_op : public aie2_isa_op {
 public:
+  // e.g. XAIE_IO_NOOP
   explicit XAIE_IO_NOOP_op(const std::vector<std::string>& args) : aie2_isa_op(XAIE_IO_NOOP) {
     operand_count_check(args, 0);
-    m_size = sizeof(XAie_NoOpHdr);
-    initialize_OpHdr();
+    initialize_OpHdr(sizeof(XAie_NoOpHdr));
   }
   [[nodiscard]] size_t get_op_base_size() const override {
     return sizeof(XAie_NoOpHdr);
@@ -221,10 +324,10 @@ public:
 
 class XAIE_IO_PREEMPT_op : public aie2_isa_op {
 public:
+  // e.g. XAIE_IO_PREEMPT MEM_TILE
   explicit XAIE_IO_PREEMPT_op(const std::vector<std::string>& args) : aie2_isa_op(XAIE_IO_PREEMPT) {
     operand_count_check(args, 1);
-    m_size = sizeof(XAie_PreemptHdr);
-    initialize_OpHdr();
+    initialize_OpHdr(sizeof(XAie_PreemptHdr));
 
     auto op = reinterpret_cast<XAie_PreemptHdr *>(m_op);
     op->Preempt_level = preempt_level_table.at(args[0]);
@@ -240,8 +343,7 @@ class XAIE_IO_LOADPDI_op : public aie2_isa_op {
 public:
   explicit XAIE_IO_LOADPDI_op(const std::vector<std::string>& args) : aie2_isa_op(XAIE_IO_LOADPDI) {
     operand_count_check(args, 3);
-    m_size = sizeof(XAie_LoadPdiHdr);
-    initialize_OpHdr();
+    initialize_OpHdr(sizeof(XAie_LoadPdiHdr));
 
     auto op = reinterpret_cast<XAie_LoadPdiHdr *>(m_op);
     op->PdiId = to_uinteger<uint16_t>(args[0]);
@@ -257,10 +359,10 @@ public:
 
 class XAIE_IO_LOAD_PM_START_op : public aie2_isa_op {
 public:
-  explicit XAIE_IO_LOAD_PM_START_op(const std::vector<std::string>& args) : aie2_isa_op(XAIE_IO_LOAD_PM_START) {
+  explicit XAIE_IO_LOAD_PM_START_op(const std::vector<std::string> &args)
+      : aie2_isa_op(XAIE_IO_LOAD_PM_START) {
     operand_count_check(args, 2);
-    m_size = sizeof(XAie_PmLoadHdr);
-    initialize_OpHdr();
+    initialize_OpHdr(sizeof(XAie_PmLoadHdr));
 
     auto op = reinterpret_cast<XAie_PmLoadHdr *>(m_op);
     const auto load_seq = to_uinteger<uint32_t>(args[0]);
@@ -280,11 +382,10 @@ class XAIE_IO_CUSTOM_OP_TCT_op : public aie2_isa_op {
 public:
   explicit XAIE_IO_CUSTOM_OP_TCT_op(const std::vector<std::string>& args) : aie2_isa_op(XAIE_IO_CUSTOM_OP_TCT) {
     operand_count_check(args, 1);
-    m_size = sizeof(XAie_CustomOpHdr) + sizeof(tct_op_t);
-    initialize_OpHdr();
+    initialize_OpHdr(sizeof(XAie_CustomOpHdr) + sizeof(tct_op_t));
 
     auto op = reinterpret_cast<XAie_CustomOpHdr *>(m_op);
-    op->Size = m_size;
+    op->Size = get_op_size();
 
     auto values = get_extended_storage<tct_op_t>();
     values->word = to_uinteger<uint32_t>(args[0]);
@@ -299,13 +400,13 @@ public:
 
 class XAIE_IO_CUSTOM_OP_DDR_PATCH_op : public aie2_isa_op {
 public:
-  explicit XAIE_IO_CUSTOM_OP_DDR_PATCH_op(const std::vector<std::string>& args) : aie2_isa_op(XAIE_IO_CUSTOM_OP_DDR_PATCH) {
+  explicit XAIE_IO_CUSTOM_OP_DDR_PATCH_op(const std::vector<std::string> &args)
+      : aie2_isa_op(XAIE_IO_CUSTOM_OP_DDR_PATCH) {
     operand_count_check(args, 1);
-    m_size = sizeof(XAie_CustomOpHdr) + sizeof(patch_op_t);
-    initialize_OpHdr();
+    initialize_OpHdr(sizeof(XAie_CustomOpHdr) + sizeof(patch_op_t));
 
     auto op = reinterpret_cast<XAie_CustomOpHdr *>(m_op);
-    op->Size = m_size;
+    op->Size = get_op_size();
     auto values = get_extended_storage<patch_op_t>();
 
     const std::string regoff = args[0].substr(1);
@@ -354,27 +455,25 @@ const std::map<std::string, std::unique_ptr<aie2_isa_op_factory>> mnemonic_table
  * const but I ran into linker problems documented above.
  */
 aie2_asm_preprocessor_input::aie2_asm_preprocessor_input() {
-  m_mnemonic_table.emplace("XAIE_IO_WRITE", std::make_unique<aie2_isa_op_factory<XAIE_IO_WRITE_op>>());
-  m_mnemonic_table.emplace("XAIE_IO_BLOCKWRITE", std::make_unique<aie2_isa_op_factory<XAIE_IO_BLOCKWRITE_op>>());
-  m_mnemonic_table.emplace("XAIE_IO_MASKWRITE", std::make_unique<aie2_isa_op_factory<XAIE_IO_MASKWRITE_op>>());
-  m_mnemonic_table.emplace("XAIE_IO_MASKPOLL", std::make_unique<aie2_isa_op_factory<XAIE_IO_MASKPOLL_op>>());
-  m_mnemonic_table.emplace("XAIE_IO_NOOP", std::make_unique<aie2_isa_op_factory<XAIE_IO_NOOP_op>>());
-  m_mnemonic_table.emplace("XAIE_IO_PREEMPT", std::make_unique<aie2_isa_op_factory<XAIE_IO_PREEMPT_op>>());
-  m_mnemonic_table.emplace("XAIE_IO_LOADPDI", std::make_unique<aie2_isa_op_factory<XAIE_IO_LOADPDI_op>>());
-  m_mnemonic_table.emplace("XAIE_IO_LOAD_PM_START", std::make_unique<aie2_isa_op_factory<XAIE_IO_LOAD_PM_START_op>>());
-  m_mnemonic_table.emplace("XAIE_IO_CUSTOM_OP_DDR_PATCH", std::make_unique<aie2_isa_op_factory<XAIE_IO_CUSTOM_OP_DDR_PATCH_op>>());
+  m_mnemonic_table.emplace("xaie_io_write", std::make_unique<aie2_isa_op_factory<XAIE_IO_WRITE_op>>());
+  m_mnemonic_table.emplace("xaie_io_blockwrite", std::make_unique<aie2_isa_op_factory<XAIE_IO_BLOCKWRITE_op>>());
+  m_mnemonic_table.emplace("xaie_io_maskwrite", std::make_unique<aie2_isa_op_factory<XAIE_IO_MASKWRITE_op>>());
+  m_mnemonic_table.emplace("xaie_io_maskpoll", std::make_unique<aie2_isa_op_factory<XAIE_IO_MASKPOLL_op>>());
+  m_mnemonic_table.emplace("xaie_io_maskpoll_busy", std::make_unique<aie2_isa_op_factory<XAIE_IO_MASKPOLL_BUSY_op>>());
+  m_mnemonic_table.emplace("xaie_io_noop", std::make_unique<aie2_isa_op_factory<XAIE_IO_NOOP_op>>());
+  m_mnemonic_table.emplace("xaie_io_preempt", std::make_unique<aie2_isa_op_factory<XAIE_IO_PREEMPT_op>>());
+  m_mnemonic_table.emplace("xaie_io_loadpdi", std::make_unique<aie2_isa_op_factory<XAIE_IO_LOADPDI_op>>());
+  m_mnemonic_table.emplace("xaie_io_load_pm_start", std::make_unique<aie2_isa_op_factory<XAIE_IO_LOAD_PM_START_op>>());
+  m_mnemonic_table.emplace("xaie_io_custom_op_tct", std::make_unique<aie2_isa_op_factory<XAIE_IO_CUSTOM_OP_TCT_op>>());
+  m_mnemonic_table.emplace("xaie_io_custom_op_ddr_patch", std::make_unique<aie2_isa_op_factory<XAIE_IO_CUSTOM_OP_DDR_PATCH_op>>());
 }
 
 std::unique_ptr<aie2_isa_op> aie2_asm_preprocessor_input::assemble_operation(std::shared_ptr<operation> op)
 {
-  std::string name = op->get_name();
-  std::transform(name.begin(), name.end(), name.begin(), ::toupper);
-  auto iter  = m_mnemonic_table.find(name);
+  auto iter  = m_mnemonic_table.find(op->get_name());
 
-  if (iter == m_mnemonic_table.end()) {
-    const std::string msg = "Invalid opcode " + op->get_name();
-    throw error(error::error_code::invalid_asm, msg);
-  }
+  if (iter == m_mnemonic_table.end())
+    throw error(error::error_code::invalid_asm, "Invalid opcode " + op->get_name());
 
   /* Look up the matching factory and construct the aie2_isa_op */
   return iter->second->create_aie2_isa_op(op->get_args());;
@@ -398,6 +497,12 @@ aie2_asm_preprocessor_input::encode(const std::vector<char>& mc_asm_code) {
   if (labels.size() != 1)
     throw error(error::error_code::invalid_asm, "aie2 ctrlcode should have only one label");
   for (auto line : coldata.get_label_asmdata(labels.front())) {
+    // If the previous recorded operation is expecting extension operations continue
+    // populating the previous operation.
+    if (isa_op_list.size() && isa_op_list.back()->outstanding_ext_op_count()) {
+      isa_op_list.back()->process_outstanding_ext_op(line->get_operation());
+      continue;
+    }
     std::unique_ptr<aie2_isa_op> isa_op = assemble_operation(line->get_operation());
     isa_op_list.push_back(std::move(isa_op));
   }

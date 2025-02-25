@@ -256,33 +256,33 @@ private:
         const char *curr = (const char *)ptr;
         curr += sizeof(*bw_header);
         u32 *Payload = (u32 *)curr;
-        ss_ops_ << op_format << "XAIE_IO_BLOCKWRITE " << "@0x" << std::hex << bw_header->RegOff;
+        ss_ops_ << op_format << "XAIE_IO_BLOCKWRITE " << "@0x" << std::hex << bw_header->RegOff << ", [" <<
+          Size << "]" << std::endl;
         for (u32 i = 0; i < Size; i++) {
-            ss_ops_ << ", 0x" << std::hex << *Payload;
+            ss_ops_ << op_format << ("XAIE_IO_BLOCKWRITE." + std::to_string(i)) << "0x" << std::hex << *Payload << std::endl;
             Payload++;
         }
-        ss_ops_ << std::endl;
         return bw_size;
     }
 
     size_t stringify_mw32(const XAie_OpHdr *ptr, std::ostream &ss_ops_) const {
         auto mw_header = (const XAie_MaskWrite32Hdr *)(ptr);
         ss_ops_ << op_format << "XAIE_IO_MASKWRITE " << "@0x" << std::hex << mw_header->RegOff << ", 0x" << mw_header->Mask
-                << ", 0x" << mw_header->Value << std::endl;
+                << "(), 0x" << mw_header->Value << std::endl;
         return mw_header->Size;
     }
 
     size_t stringify_mp32(const XAie_OpHdr *ptr, std::ostream &ss_ops_) const {
         auto mp_header = (const XAie_MaskPoll32Hdr *)(ptr);
         ss_ops_ << op_format << "XAIE_IO_MASKPOLL " << "@0x" << std::hex << mp_header->RegOff << ", 0x" << mp_header->Mask
-                << ", 0x" << mp_header->Value << std::endl;
+                << "()==0x" << mp_header->Value << std::endl;
         return mp_header->Size;
     }
 
     size_t stringify_mp32_busy(const XAie_OpHdr *ptr, std::ostream &ss_ops_) const {
         auto mp_header = (const XAie_MaskPoll32Hdr *)(ptr);
         ss_ops_ << op_format << "XAIE_IO_MASKPOLL_BUSY " << "@0x" << std::hex << mp_header->RegOff << ", 0x" << mp_header->Mask
-                << ", 0x" << mp_header->Value << std::endl;
+                << "()==0x" << mp_header->Value << std::endl;
         return mp_header->Size;
     }
 
@@ -374,33 +374,33 @@ private:
         const char *curr = (const char *)ptr;
         curr += sizeof(*bw_header);
         u32 *Payload = (u32 *)curr;
-        ss_ops_ << op_format << "XAIE_IO_BLOCKWRITE " << "@0x" << std::hex << bw_header->RegOff;
+        ss_ops_ << op_format << "XAIE_IO_BLOCKWRITE " << "@0x" << std::hex << bw_header->RegOff << ", [" <<
+            Size << "]" << std::endl;
         for (u32 i = 0; i < Size; i++) {
-            ss_ops_ << ", 0x" << std::hex << *Payload;
+            ss_ops_ << op_format << ("XAIE_IO_BLOCKWRITE." + std::to_string(i)) << "0x" << std::hex << *Payload << std::endl;
             Payload++;
         }
-        ss_ops_ << std::endl;
         return bw_size;
     }
 
     size_t stringify_mw32_opt(const XAie_OpHdr_opt *ptr, std::ostream &ss_ops_) const {
         auto mw_header = (const XAie_MaskWrite32Hdr_opt *)(ptr);
 ss_ops_ << op_format << "XAIE_IO_MASKWRITE " << "@0x" << std::hex << mw_header->RegOff << ", 0x" << mw_header->Mask
-                << ", 0x" << mw_header->Value << std::endl;
+                << "(), 0x" << mw_header->Value << std::endl;
         return sizeof(XAie_MaskWrite32Hdr_opt);
     }
 
     size_t stringify_mp32_opt(const XAie_OpHdr_opt *ptr, std::ostream &ss_ops_) const {
         auto mp_header = (const XAie_MaskPoll32Hdr_opt *)(ptr);
 ss_ops_ << op_format << "XAIE_IO_MASKPOLL " << "@0x" << std::hex << mp_header->RegOff << ", 0x" << mp_header->Mask
-                << ", 0x" << mp_header->Value << std::endl;
+                << "()==0x" << mp_header->Value << std::endl;
         return sizeof(XAie_MaskPoll32Hdr_opt);
     }
 
     size_t stringify_mp32_busy_opt(const XAie_OpHdr_opt *ptr, std::ostream &ss_ops_) const {
         auto mp_header = (const XAie_MaskPoll32Hdr_opt *)(ptr);
 ss_ops_ << op_format << "XAIE_IO_MASKPOLL_BUSY " << "@0x" << std::hex << mp_header->RegOff << ", 0x" << mp_header->Mask
-                << ", 0x" << mp_header->Value << std::endl;
+                << "()==0x" << mp_header->Value << std::endl;
         return sizeof(XAie_MaskPoll32Hdr_opt);
     }
 

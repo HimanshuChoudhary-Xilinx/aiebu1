@@ -14,6 +14,8 @@ static const std::map<fragment, const char *> fragment_table = {
   {fragment::hex_re, "[[:space:]]*(0[xX][[:xdigit:]]+)[[:space:]]*"},
   {fragment::l_brack_re, "[[:space:]]*\\([[:space:]]*"},
   {fragment::r_brack_re, "[[:space:]]*\\)[[:space:]]*"},
+  {fragment::equal_re, "[[:space:]]*==[[:space:]]*"},
+  {fragment::index_re, "[[:space:]]*\\[[[:space:]]*([[:xdigit:]]+)[[:space:]]*\\][[:space:]]*"},
 };
 
 std::regex
@@ -25,6 +27,5 @@ get_regex(const std::vector<fragment>& pattern)
   }
   return std::regex(composite);
 }
-
 
 }
