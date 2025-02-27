@@ -73,17 +73,17 @@ jobs:
 
     - name: Build
       run: |
-        cmake --build ${{github.workspace}}/build/Release --config Release --target install
+        cmake --build ${{github.workspace}}/build/Release --config Release --target install -DAIEBU_PYTHON=ON
 
     - name: Test (Linux)
       if: runner.os == 'Linux'
       run: |
-        cmake --build ${{github.workspace}}/build/Release --config Release --target test
+        cmake --build ${{github.workspace}}/build/Release --config Release --target test -DAIEBU_PYTHON=ON
 
     - name: Test (Windows)
       if: runner.os == 'Windows'
       run: |
-        cmake --build ${{github.workspace}}/build/Release --config Release --target run_tests
+        cmake --build ${{github.workspace}}/build/Release --config Release --target run_tests -DAIEBU_PYTHON=ON
 
     - name: Package (Linux)
       if: runner.os == 'Linux'
@@ -109,4 +109,3 @@ jobs:
         name: aiebu_release_windows
         path: ${{github.workspace}}/build/Release/AIEBU-*-win64.zip
         retention-days: 7
-        
