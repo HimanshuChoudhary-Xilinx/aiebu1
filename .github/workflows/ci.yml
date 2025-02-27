@@ -46,7 +46,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install pyyaml jinja2 Markdown pylint colorama gitPython wrapt
         cmake -B ${{github.workspace}}/build/Release \
-        -DCMAKE_BUILD_TYPE=Release
+        -DCMAKE_BUILD_TYPE=Release -DAIEBU_PYTHON=ON
 
     - name: Save Python Path for ise with CMake
       if: runner.os == 'Windows'
@@ -69,21 +69,22 @@ jobs:
         cmake -B ${{github.workspace}}/build/Release `
         -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake `
         -DCMAKE_BUILD_TYPE=Release `
-        -DPython3_EXECUTABLE=${{ env.PYTHON_EXECUTABLE }}
+        -DPython3_EXECUTABLE=${{ env.PYTHON_EXECUTABLE }} `
+        -DAIEBU_PYTHON=ON
 
     - name: Build
       run: |
-        cmake --build ${{github.workspace}}/build/Release --config Release --target install -DAIEBU_PYTHON=ON
+        cmake --build ${{github.workspace}}/build/Release --config Release --target install
 
     - name: Test (Linux)
       if: runner.os == 'Linux'
       run: |
-        cmake --build ${{github.workspace}}/build/Release --config Release --target test -DAIEBU_PYTHON=ON
+        cmake --build ${{github.workspace}}/build/Release --config Release --target test
 
     - name: Test (Windows)
       if: runner.os == 'Windows'
       run: |
-        cmake --build ${{github.workspace}}/build/Release --config Release --target run_tests -DAIEBU_PYTHON=ON
+        cmake --build ${{github.workspace}}/build/Release --config Release --target run_tests
 
     - name: Package (Linux)
       if: runner.os == 'Linux'
