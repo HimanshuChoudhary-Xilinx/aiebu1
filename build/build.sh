@@ -18,7 +18,10 @@ here=$PWD
 function compile {
     local config=$1
     local build=$2
-    local cmakeflags="-DCMAKE_BUILD_TYPE=$config"
+    local cmakeflags="-DCMAKE_BUILD_TYPE=$config -DCMAKE_INSTALL_PREFIX=$PWD/$config"
+    if [[ $build == "python" ]]; then
+      cmakeflags="$cmakeflags -DAIEBU_PYTHON=ON"
+    fi
 
     mkdir -p $config
     cd $config
@@ -38,12 +41,15 @@ function compile {
 }
 
 build=""
-usage() { echo "Usage: $0 [-r]" 1>&2; exit 1; }
+usage() { echo "Usage: $0 [-rp]" 1>&2; exit 1; }
 
-while getopts ":rh" o; do
+while getopts ":rph" o; do
     case "${o}" in
         r)
             build="aie2"
+            ;;
+        p)
+            build="python"
             ;;
         h)
             usage

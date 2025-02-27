@@ -49,6 +49,9 @@ IF DEFINED MSVC_PARALLEL_JOBS ( SET LOCAL_MSVC_PARALLEL_JOBS=%MSVC_PARALLEL_JOBS
   if [%1] == [-r] (
     set AIEBU_BUILD="aie2"
   ) else (
+  if [%1] == [-p] (
+    set AIEBU_BUILD="python"
+  ) else (
   if [%1] == [-pkg] (
     set CREATE_PACKAGE=1
   ) else (
@@ -89,6 +92,7 @@ ECHO [-dbg]                     - Creates a debug build
 ECHO [-opt]                     - Creates a release build
 ECHO [-package]                 - Packages the release build to a MSI archive.
 ECHO [-r]                       - build only aie2
+ECHO [-p]                       - build python assembler also
 ECHO                              Note: Depends on the WIX application.
 GOTO:EOF
 
@@ -116,14 +120,13 @@ ECHO CMAKEFLAGS=%CMAKEFLAGS%
 MKDIR %BUILDDIR%\WDebug
 PUSHD %BUILDDIR%\WDebug
 
+if [%AIEBU_BUILD%] == ["python"] (
+  set CMAKEFLAGS=%CMAKEFLAGS% -DAIEBU_PYTHON=ON
+)
+
 if [%NOCMAKE%] == [0] (
    cmake -G "Visual Studio 17 2022" %CMAKEFLAGS% ../../
    IF errorlevel 1 (POPD & exit /B %errorlevel%)
-)
-
-if not [%AIEBU_BUILD%] == ["aie2"] (
-  cmake --build . --verbose --config Debug --target cpp-assembler-stubs
-  IF errorlevel 1 (POPD & exit /B %errorlevel%)
 )
 
 cmake --build . --verbose --config Debug
@@ -146,6 +149,10 @@ ECHO CMAKEFLAGS=%CMAKEFLAGS%
 
 MKDIR %BUILDDIR%\WRelease
 PUSHD %BUILDDIR%\WRelease
+
+if [%AIEBU_BUILD%] == ["python"] (
+  set CMAKEFLAGS=%CMAKEFLAGS% -DAIEBU_PYTHON=ON
+)
 
 if [%NOCMAKE%] == [0] (
    cmake -G "Visual Studio 17 2022" %CMAKEFLAGS% ../../
