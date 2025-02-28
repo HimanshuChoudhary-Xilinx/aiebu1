@@ -19,7 +19,7 @@ jobs:
         submodules: recursive
         fetch-depth: 0
 
-    - name: Post clang-tidy comments
+    - name: Create clang-tidy review
       id: review
       uses: stsoe/clang-tidy-review@6d2aee59f56cf41f32baa4123cc636fff8ef4eb7
       with:
@@ -30,5 +30,6 @@ jobs:
         clang_tidy_checks: ''
         split_workflow: true
 
-    - uses: stsoe/clang-tidy-review/upload@6d2aee59f56cf41f32baa4123cc636fff8ef4eb7
+    - name: Upload clang-tidy review
+      uses: stsoe/clang-tidy-review/upload@6d2aee59f56cf41f32baa4123cc636fff8ef4eb7
       id: upload-review
