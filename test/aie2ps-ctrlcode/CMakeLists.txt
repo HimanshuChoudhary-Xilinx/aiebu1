@@ -21,7 +21,7 @@ foreach(tfile ${tfiles})
   set(sampledisasm "${sample}.dis.asm")
 
   add_test(NAME ${sample}_cpp
-    COMMAND "${AIEBU_BINARY_DIR}/opt/xilinx/aiebu/bin/aiebu-asm"  -t aie2ps -c "${tfile}" -o "${samplecppelf}"
+    COMMAND aiebu-asm  -t aie2ps -c "${tfile}" -o "${samplecppelf}"
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
   if (AIEBU_PYTHON STREQUAL "ON")
