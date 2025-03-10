@@ -15,7 +15,8 @@ add_custom_target(aie2basicbins ALL
 
 # Assemble a ctrlcode txn binary, a ctrlpkt and associated JSON to ELF
 add_test(NAME "aie2_basic_txn"
-  COMMAND aiebu-asm -r -t aie2txn -c ml_txn.bin -p ctrl_pkt0.bin -j "${CMAKE_CURRENT_SOURCE_DIR}/external_buffer_id.json" -o basic.elf)
+  COMMAND aiebu-asm -r -t aie2txn -c ml_txn.bin -p ctrl_pkt0.bin -j "${CMAKE_CURRENT_SOURCE_DIR}/external_buffer_id.json" -o basic.elf
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 # Assemble a ctrlcode ASM text, a ctrlpkt and associated JSON to ELF
 add_test(NAME "aie2_basic_asm"

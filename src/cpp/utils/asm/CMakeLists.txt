@@ -35,7 +35,7 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
 endif()
 
 # This custom target fails if aiebu-asm has any dynamic dependencies
-add_custom_target(check_dynamic_deps ALL
+add_custom_target(asm_check_dynamic_deps ALL
   COMMAND ${CMAKE_COMMAND} -E echo "Checking for dynamic dependencies ..."
   COMMAND ${CMAKE_COMMAND} -P "${AIEBU_SOURCE_DIR}/cmake/depends.cmake" $<TARGET_FILE:aiebu-asm> aiebu-asm_depends.txt
   DEPENDS aiebu-asm

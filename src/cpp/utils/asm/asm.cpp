@@ -64,7 +64,7 @@ void main_helper(int argc, char** argv,
   }
 
   if (bhelp || subcmd_options.size() == 0)
-    subcmd_options.push_back("--help");
+    subcmd_options.emplace_back("--help");
 
   subcmd_options.insert(subcmd_options.begin(), _executable);
   starget->assemble(subcmd_options);
@@ -85,7 +85,7 @@ int main( int argc, char** argv )
   }
 
   // -- Program Description
-  const std::string description = 
+  const std::string description =
   "AIEBU Assembling utils (aiebu-asm)";
 
   try {
