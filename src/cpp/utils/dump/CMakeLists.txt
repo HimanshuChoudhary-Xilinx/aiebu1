@@ -7,6 +7,7 @@ add_library(aiebu_dump_objects OBJECT
 
 target_include_directories(aiebu_dump_objects
   PRIVATE
+  ${AIEBU_SOURCE_DIR}/src/cpp
   ${AIEBU_SOURCE_DIR}/src/cpp/include
   ${Boost_INCLUDE_DIRS}
   )
