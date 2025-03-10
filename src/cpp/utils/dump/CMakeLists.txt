@@ -3,20 +3,12 @@
 
 add_library(aiebu_dump_objects OBJECT
   dump.cpp
-  ${AIEBU_SOURCE_DIR}/src/cpp/utils/target/target.cpp
   )
 
 target_include_directories(aiebu_dump_objects
   PRIVATE
-  ${AIEBU_SOURCE_DIR}/src/cpp
+  ${AIEBU_SOURCE_DIR}/src/cpp/include
   ${Boost_INCLUDE_DIRS}
-
-  # these should be spelled out in source code
-  ${AIEBU_SOURCE_DIR}/src/cpp/include/aiebu
-  ${AIEBU_SOURCE_DIR}/src/cpp/assembler
-  ${AIEBU_SOURCE_DIR}/src/cpp/common
-  ${AIEBU_SOURCE_DIR}/src/cpp/utils/target
-  ${AIEBU_SOURCE_DIR}/src/cpp/cxxopts/include
   )
 
 add_executable(aiebu-dump $<TARGET_OBJECTS:aiebu_dump_objects>)
