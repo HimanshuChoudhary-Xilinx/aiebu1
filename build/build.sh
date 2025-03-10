@@ -17,9 +17,9 @@ here=$PWD
 
 function compile {
     local config=$1
-    local build=$2
+    local build_python=$2
     local cmakeflags="-DCMAKE_BUILD_TYPE=$config -DCMAKE_INSTALL_PREFIX=$PWD/$config"
-    if [[ $build == "python" ]]; then
+    if [[ $build_python == "yes" ]]; then
       cmakeflags="$cmakeflags -DAIEBU_PYTHON=ON"
     fi
 
@@ -40,16 +40,13 @@ function compile {
     fi
 }
 
-build=""
-usage() { echo "Usage: $0 [-rp]" 1>&2; exit 1; }
+build_python="yes"
+usage() { echo "Usage: $0 [-ph]" 1>&2; exit 1; }
 
 while getopts ":rph" o; do
     case "${o}" in
-        r)
-            build="aie2"
-            ;;
         p)
-            build="python"
+            build_python="yes"
             ;;
         h)
             usage
@@ -59,9 +56,9 @@ done
 shift $((OPTIND-1))
 
 cd $BUILDDIR
-compile Debug $build
+compile Debug $build_python
 
 cd $BUILDDIR
-compile Release $build
+compile Release $build_python
 
 cd $here
