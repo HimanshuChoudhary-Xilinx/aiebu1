@@ -185,7 +185,7 @@ public:
     std::string regoff = args[idx++].substr(1);
     // Determine the total size including extended storage by counting the number of writes
 
-    const std::regex index_regex = get_regex({fragment::index_re});
+    static const std::regex index_regex = get_regex({fragment::index_re});
 
     std::smatch matches;
     if (!std::regex_match(args[idx], matches, index_regex))
@@ -244,7 +244,7 @@ public:
 
     auto op = reinterpret_cast<XAie_MaskWrite32Hdr *>(m_op);
     op->RegOff = to_uinteger<uint64_t>(regoff);
-    const std::regex mask_regex = get_regex({fragment::begin_anchor_re, fragment::hex_re, fragment::l_brack_re,
+    static const std::regex mask_regex = get_regex({fragment::begin_anchor_re, fragment::hex_re, fragment::l_brack_re,
         fragment::r_brack_re, fragment::end_anchor_re});
 
     std::smatch matches;
@@ -254,8 +254,8 @@ public:
     if (matches.size() != 2)
         throw error(error::error_code::invalid_asm, args[1]);
 
-    op->Value = to_uinteger<uint32_t>(matches[1]);
-    op->Mask = to_uinteger<uint32_t>(args[2]);
+    op->Mask = to_uinteger<uint32_t>(matches[1]);
+    op->Value = to_uinteger<uint32_t>(args[2]);
     op->Size = get_op_size();
   }
 
@@ -277,7 +277,7 @@ public:
     auto op = reinterpret_cast<XAie_MaskPoll32Hdr *>(m_op);
     op->RegOff = to_uinteger<uint64_t>(regoff);
 
-    const std::regex mask_poll_regex = get_regex({fragment::begin_anchor_re, fragment::hex_re, fragment::l_brack_re,
+    static const std::regex mask_poll_regex = get_regex({fragment::begin_anchor_re, fragment::hex_re, fragment::l_brack_re,
         fragment::r_brack_re, fragment::equal_re, fragment::hex_re, fragment::end_anchor_re});
 
     std::smatch matches;
@@ -341,12 +341,13 @@ public:
 
 class XAIE_IO_LOADPDI_op : public aie2_isa_op {
 public:
+  // e.g. XAIE_IO_LOADPDI              #0, 0x100, 0x80004000
   explicit XAIE_IO_LOADPDI_op(const std::vector<std::string>& args) : aie2_isa_op(XAIE_IO_LOADPDI) {
     operand_count_check(args, 3);
     initialize_OpHdr(sizeof(XAie_LoadPdiHdr));
 
     auto op = reinterpret_cast<XAie_LoadPdiHdr *>(m_op);
-    op->PdiId = to_uinteger<uint16_t>(args[0]);
+    op->PdiId = to_uinteger<uint16_t>(args[0].substr(1));
     op->PdiSize = to_uinteger<uint16_t>(args[1]);
     op->PdiAddress = to_uinteger<uint64_t>(args[2]);
   }
@@ -359,6 +360,7 @@ public:
 
 class XAIE_IO_LOAD_PM_START_op : public aie2_isa_op {
 public:
+  // e.g. XAIE_IO_LOAD_PM_START           0x158, #0
   explicit XAIE_IO_LOAD_PM_START_op(const std::vector<std::string> &args)
       : aie2_isa_op(XAIE_IO_LOAD_PM_START) {
     operand_count_check(args, 2);
@@ -367,9 +369,9 @@ public:
     auto op = reinterpret_cast<XAie_PmLoadHdr *>(m_op);
     const auto load_seq = to_uinteger<uint32_t>(args[0]);
     for (unsigned int i = 0; i < 3; i++) {
-      op->LoadSequenceCount[i] = static_cast<uint8_t>((load_seq >> i) & 0xff);
+      op->LoadSequenceCount[i] = static_cast<uint8_t>((load_seq >> i * 8) & 0xff);
     }
-    op->PmLoadId = to_uinteger<uint32_t>(args[1]);
+    op->PmLoadId = to_uinteger<uint32_t>(args[1].substr(1));
   }
 
   [[nodiscard]] size_t get_op_base_size() const override {
