@@ -64,7 +64,7 @@ class target
 class target_aie2ps: public target
 {
   public:
-  virtual void assemble(const sub_cmd_options &_options);
+  void assemble(const sub_cmd_options &_options) override;
 
   target_aie2ps(const std::string& name): target(name, "aie2ps", "aie2ps asm assembler") {}
 };
@@ -97,13 +97,13 @@ class target_aie2blob_transaction: public target_aie2blob
   target_aie2blob_transaction(const std::string& exename, const std::string& name = "aie2txn",
                               const std::string& description = "aie2 txn blob assembler")
     : target_aie2blob(exename, name, description) {}
-  virtual void assemble(const sub_cmd_options &_options);
+  void assemble(const sub_cmd_options &_options) override;
 };
 
 class target_aie2: public target_aie2blob_transaction
 {
   public:
-  virtual void assemble(const sub_cmd_options &_options);
+  void assemble(const sub_cmd_options &_options) override;
   target_aie2(const std::string& exename): target_aie2blob_transaction(exename, "aie2asm", "aie2 asm assembler") {}
 };
 
@@ -112,9 +112,15 @@ class target_aie2blob_dpu: public target_aie2blob
   public:
   target_aie2blob_dpu(const std::string& exename)
     : target_aie2blob(exename, "aie2dpu", "aie2 dpu blob assembler") {}
-  virtual void assemble(const sub_cmd_options &_options);
+  void assemble(const sub_cmd_options &_options) override;
 };
 
+class target_config: public target
+{
+  public:
+  void assemble(const sub_cmd_options &_options) override;
+  explicit target_config(const std::string& name): target(name, "config", "generate config elf") {}
+};
 } //namespace aiebu::utilities
 
 #endif // AIEBU_UTILITIES_TARGET_H_

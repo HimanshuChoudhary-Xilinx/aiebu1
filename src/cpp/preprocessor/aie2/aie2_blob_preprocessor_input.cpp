@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
-// Copyright (C) 2024, Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (C) 2024-2025, Advanced Micro Devices, Inc. All rights reserved.
 
+#include <filesystem>
 #include "aie2_blob_preprocessor_input.h"
 #include "xaiengine.h"
 #include "stx_save_restore_map.h"
@@ -199,7 +200,8 @@ add_preemption_code(uint32_t col)
   void
   aie2_blob_preprocessor_input::
   extract_coalesed_buffers(const std::string& name,
-                           const boost::property_tree::ptree& pt)
+                           const boost::property_tree::ptree& pt,
+                           const std::string& instance_id)
   {
     uint32_t buffer_size = get_32_bit_property(pt, "size_in_bytes");
     const auto coalesed_buffers_pt = pt.get_child_optional("coalesed_buffers");
@@ -213,37 +215,43 @@ add_preemption_code(uint32_t col)
       // Check if the buffer offset is within the buffer size
       validate_json(buffer_offset, buffer_size, arg_index, offset_type::COALESED_BUFFER);
       // extract control packet patch
-      extract_control_packet_patch(name, arg_index, coalesed_buffer.second);
+      extract_control_packet_patch(name, arg_index, coalesed_buffer.second, instance_id);
     }
   }
 
   void
   aie2_blob_preprocessor_input::
   extract_control_packet_patch(const std::string& name,
-                               const uint32_t arg_index,
-                               const boost::property_tree::ptree& pt)
+                               uint32_t arg_index,
+                               const boost::property_tree::ptree& pt,
+                               const std::string& instance_id)
   {
     const uint32_t addend = get_32_bit_property(pt, "offset_in_bytes", true);
     const auto control_packet_patch_pt = pt.get_child_optional("control_packet_patch_locations");
     if (!control_packet_patch_pt)
       return;
     const auto patchs = control_packet_patch_pt.get();
+    std::string ctrldata_name = ctrl_data;
+    if (!instance_id.empty())
+      ctrldata_name += "." + instance_id;
     for (auto pat : patchs)
     {
       auto patch = pat.second;
-      uint32_t control_packet_size = m_data[".ctrldata"].size();
+      if (m_data.find(ctrldata_name) == m_data.end())
+        throw error(error::error_code::invalid_asm, "control packet for id " + instance_id + " not present");
+      uint32_t control_packet_size = m_data[ctrldata_name].size();
       uint32_t control_packet_offset = get_32_bit_property(patch, "offset");
       // Check if the control packet offset is within the control packet size
       validate_json(control_packet_offset, control_packet_size, arg_index, offset_type::CONTROL_PACKET);
       // move 8 bytes(header) up for unifying the patching scheme between DPU sequence and transaction-buffer
       uint32_t offset = control_packet_offset - 8;
-      add_symbol({name, offset, 0, 0, addend, 0, ctrlData, symbol::patch_schema::control_packet_48});
+      add_symbol({name, offset, 0, 0, addend, 0, ctrldata_name, symbol::patch_schema::control_packet_48});
     }
   }
 
   void
   aie2_blob_preprocessor_input::
-  aiecompiler_json_parser(const boost::property_tree::ptree& pt)
+  aiecompiler_json_parser(const boost::property_tree::ptree& pt, const std::string& instance_id)
   {
     const auto pt_external_buffers = pt.get_child_optional("external_buffers");
     if (!pt_external_buffers)
@@ -253,18 +261,18 @@ add_preemption_code(uint32_t col)
     for (auto& external_buffer : external_buffers)
     {
       const auto pt_coalesed_buffers = external_buffer.second.get_child_optional("coalesed_buffers");
-      // added ARG_OFFSET to argidx to match with kernel argument index in xclbin
+      // added arg_offset to argidx to match with kernel argument index in xclbin
       auto arg = get_32_bit_property(external_buffer.second, "xrt_id");
-      std::string name = std::to_string(arg + ARG_OFFSET);
+      std::string name = std::to_string(arg + arg_offset);
       if (external_buffer.second.get<bool>("ctrl_pkt_buffer", false))
         xrt_id_map.insert({arg, "control-packet"});
       else
         xrt_id_map.insert({arg, name});
 
       if (pt_coalesed_buffers)
-        extract_coalesed_buffers(name, external_buffer.second);
+        extract_coalesed_buffers(name, external_buffer.second, instance_id);
       else
-        extract_control_packet_patch(name, arg, external_buffer.second);
+        extract_control_packet_patch(name, arg, external_buffer.second, instance_id);
     }
   }
 
@@ -306,14 +314,14 @@ add_preemption_code(uint32_t col)
       // move 8 bytes(header) up for unifying the patching scheme between DPU sequence and transaction-buffer
       uint32_t offset = control_packet_offset - 8;
       const uint32_t addend = get_32_bit_property(patch, "bo_offset");
-      add_symbol({std::to_string(arg_index + ARG_OFFSET), offset, 0, 0, addend, 0, ctrlData, symbol::patch_schema::control_packet_48});
+      add_symbol({std::to_string(arg_index + arg_offset), offset, 0, 0, addend, 0, ctrl_data, symbol::patch_schema::control_packet_48});
     }
 
   }
 
   void
   aie2_blob_preprocessor_input::
-  readmetajson(std::istream& patch_json)
+  readmetajson(std::istream& patch_json, const std::string& instance_id)
   {
     boost::property_tree::ptree pt;
     boost::property_tree::read_json(patch_json, pt);
@@ -321,7 +329,7 @@ add_preemption_code(uint32_t col)
     const auto aiecompiler_json = pt.get_child_optional("external_buffers");
     if (aiecompiler_json)
     {
-      aiecompiler_json_parser(pt);
+      aiecompiler_json_parser(pt, instance_id);
       return;
     }
 
@@ -421,6 +429,16 @@ add_preemption_code(uint32_t col)
           ptr += bw_header->Size;
           break;
         }
+        case XAIE_IO_LOADPDI: {
+          auto lp_header = reinterpret_cast<const XAie_LoadPdiHdr *>(ptr);
+          std::string pdiname = get_pdi_name(lp_header->PdiId);
+          if (m_data.find(pdiname) == m_data.end())
+            throw error(error::error_code::invalid_asm, "pdi for id " + pdiname + " not present");
+          add_symbol({pdiname, static_cast<uint32_t>(reinterpret_cast<const char*>(&(lp_header->PdiAddress))-mc_code.data()),
+                      0, 0, 0, lp_header->PdiSize, section_name, symbol::patch_schema::address_64});
+          ptr += sizeof(XAie_LoadPdiHdr);
+          break;
+        }
         case XAIE_IO_MASKWRITE: {
           auto mw_header = reinterpret_cast<const XAie_MaskWrite32Hdr *>(ptr);
           ptr += mw_header->Size;
@@ -485,7 +503,7 @@ add_preemption_code(uint32_t col)
           uint32_t offset = blockWriteRegOffsetMap[reg].first;
           uint64_t buffer_length_in_bytes = blockWriteRegOffsetMap[reg].second;
           patch_helper_input input = {section_name, argname, static_cast<uint32_t>(GET_REG(op->regaddr)),
-                                      static_cast<uint32_t>(op->argidx + ARG_OFFSET), offset,
+                                      static_cast<uint32_t>(op->argidx + arg_offset), offset,
                                       buffer_length_in_bytes, op->argplus};
           patch_helper(mc_code, input);
           ptr += hdr->Size;
@@ -561,6 +579,16 @@ add_preemption_code(uint32_t col)
           ptr += bw_header->Size;
           break;
         }
+        case XAIE_IO_LOADPDI: {
+          auto lp_header = reinterpret_cast<const XAie_LoadPdiHdr *>(ptr);
+          std::string pdiname = get_pdi_name(lp_header->PdiId);
+          if (m_data.find(pdiname) == m_data.end())
+            throw error(error::error_code::invalid_asm, "pdi for id " + pdiname + " not present");
+          add_symbol({pdiname, static_cast<uint32_t>(reinterpret_cast<const char*>(&(lp_header->PdiAddress))-mc_code.data()),
+                      0, 0, 0, lp_header->PdiSize, section_name, symbol::patch_schema::address_64});
+          ptr += sizeof(XAie_LoadPdiHdr);
+          break;
+        }
         case XAIE_IO_MASKWRITE: {
           ptr += sizeof(XAie_MaskWrite32Hdr_opt);
           break;
@@ -618,7 +646,7 @@ add_preemption_code(uint32_t col)
           uint32_t offset = blockWriteRegOffsetMap[reg].first;
           uint64_t buffer_length_in_bytes = blockWriteRegOffsetMap[reg].second;
           patch_helper_input input = {section_name, argname, static_cast<uint32_t>(GET_REG(op->regaddr)),
-                                      static_cast<uint32_t>(op->argidx + ARG_OFFSET), offset,
+                                      static_cast<uint32_t>(op->argidx + arg_offset), offset,
                                       buffer_length_in_bytes, op->argplus};
           patch_helper(mc_code, input);
           ptr += hdr->Size;
@@ -652,6 +680,11 @@ add_preemption_code(uint32_t col)
                           const std::string& section_name,
                           const std::string& argname)
   {
+    if (!mc_code.size())
+    {
+      std::cout << "txn buffer is empty\n";
+      return 0;
+    }
     const char *ptr = (mc_code.data());
     auto txn_header = reinterpret_cast<const XAie_TxnHeader *>(ptr);
 
@@ -692,7 +725,7 @@ add_preemption_code(uint32_t col)
     }
     uint32_t addend = static_cast<uint32_t>(input.addend);
 
-    if (argidx > (MAX_ARG_INDEX + ARG_OFFSET))
+    if (argidx > (MAX_ARG_INDEX + arg_offset))
     {
       auto error_msg = boost::format("Arg index: %d in patch opcode > 32") % argidx;
       throw error(error::error_code::invalid_asm, error_msg.str());
@@ -749,14 +782,14 @@ add_preemption_code(uint32_t col)
           // in case of scratchpad
           add_symbol({argname, offset, 0, 0, addend, buffer_length_in_bytes, section_name, symbol::patch_schema::shim_dma_48});
         }
-        else if (xrt_id_map.find(argidx-ARG_OFFSET) != xrt_id_map.end())
+        else if (xrt_id_map.find(argidx-arg_offset) != xrt_id_map.end())
         {
           // incase external buffer json is provided with xrt_id
-          add_symbol({xrt_id_map[argidx-ARG_OFFSET], offset, 0, 0, addend, buffer_length_in_bytes, section_name, symbol::patch_schema::shim_dma_48});
+          add_symbol({xrt_id_map[argidx-arg_offset], offset, 0, 0, addend, buffer_length_in_bytes, section_name, symbol::patch_schema::shim_dma_48});
         }
         else
         {
-          // added ARG_OFFSET to argidx to match with kernel argument index in xclbin
+          // added arg_offset to argidx to match with kernel argument index in xclbin
           add_symbol({std::to_string(argidx), offset, 0, 0, addend, buffer_length_in_bytes, section_name, symbol::patch_schema::shim_dma_48});
         }
         return;
@@ -861,5 +894,87 @@ add_preemption_code(uint32_t col)
       }
     }
     return 0;
+  }
+
+
+
+  void
+  config_preprocessor_input::
+  add_pdi(const boost::property_tree::ptree& pdis)
+  {
+    for (const auto& [unused, pdi] : pdis)
+      m_data[std::string(".pdi.") + pdi.get<std::string>("id")] = std::move(readfile(pdi.get<std::string>("PDI_file")));
+  }
+
+  void
+  config_preprocessor_input::
+  add_instance(const boost::property_tree::ptree& pinstance)
+  {
+    for (const auto& [unused, pic] : pinstance)
+    {
+      std::string tname = get_ctrltext_name(pic.get<std::string>("id"));
+      m_data[tname] = std::move(readfile(pic.get<std::string>("TXN_ctrl_code_file")));
+      //std::cout << "TXN_ctrl_code_file id:" << pic.get<std::string>("id") << std::endl;
+      //std::cout << "TXN_ctrl_code_file:" << pic.get<std::string>("TXN_ctrl_code_file") << std::endl;
+      if (!pic.get<std::string>("ctrl_packet_file", "").empty())
+        m_data[get_ctrldata_name(pic.get<std::string>("id"))] = std::move(readfile(pic.get<std::string>("ctrl_packet_file")));
+
+      if (!pic.get<std::string>("patch_info_file", "").empty())
+      {
+        std::vector<char> jdata = readfile(pic.get<std::string>("patch_info_file"));
+        vector_streambuf vsb(jdata);
+        std::istream elf_stream(&vsb);
+        readmetajson(elf_stream, pic.get<std::string>("id"));
+      }
+      // col is used to add corrosponding save/restore control code
+      col = extractSymbolFromBuffer(m_data[tname], tname, "");
+      xrt_id_map.clear();
+    }
+  }
+
+  void
+  config_preprocessor_input::
+  readconfigjson(std::istream& patch_json)
+  {
+    boost::property_tree::ptree pt;
+    boost::property_tree::read_json(patch_json, pt);
+
+    const auto& pt_xrt_kernel_instance = pt.get_child_optional("xrt-kernels");
+    if (!pt_xrt_kernel_instance) {
+      std::cout << "xrt-kernels instance not found returning\n";
+      return;
+    }
+    const auto& p_xrt_kernel_instance = pt_xrt_kernel_instance.get();
+    for (const auto& [unused, ctrlcode] : p_xrt_kernel_instance)
+    {
+      //const auto& ctrlcode = pt_ctrlcode.second;
+      //get mangled kernel name
+      function func;
+      func.name = ctrlcode.get<std::string>("name");
+      for (const auto& item : ctrlcode.get_child("arguments")) {
+        func.arguments.emplace_back(item.second.get<std::string>("name"),
+                                    item.second.get<std::string>("type"),
+                                    item.second.get<std::string>("offset"));
+      }
+      std::string mangled_name = mangle_function_name(func);
+      //std::cout << "Mangled Function Name: " << mangled_name << std::endl;
+      add_metadata("kernel.signature", mangled_name);
+
+      const auto& pt_pdis = ctrlcode.get_child_optional("PDIs");
+      if (pt_pdis) {
+        const auto& pdis = pt_pdis.get();
+        add_pdi(pdis);
+      } else {
+        std::cout << "PDIs not found\n";
+      }
+
+      const auto& pt_instance = ctrlcode.get_child_optional("instance");
+      if (pt_instance) {
+        const auto& pinstance = pt_instance.get();
+        add_instance(pinstance);
+      } else {
+        std::cout << "instance not found\n";
+      }
+    }
   }
 }

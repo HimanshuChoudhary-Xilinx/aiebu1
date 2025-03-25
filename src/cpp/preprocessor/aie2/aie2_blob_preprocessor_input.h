@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Copyright (C) 2024, Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (C) 2024-2025, Advanced Micro Devices, Inc. All rights reserved.
 
 #ifndef _AIEBU_PREPROCESSOR_AIE2_BLOB_PREPROCESSOR_INPUT_H_
 #define _AIEBU_PREPROCESSOR_AIE2_BLOB_PREPROCESSOR_INPUT_H_
@@ -7,6 +7,7 @@
 #include <map>
 #include "symbol.h"
 #include "utils.h"
+#include "file_utils.h"
 #include "preprocessor_input.h"
 #include <boost/format.hpp>
 #include <boost/property_tree/json_parser.hpp>
@@ -21,7 +22,7 @@ class aie2_blob_preprocessor_input : public preprocessor_input
 {
 protected:
   const std::string ctrlText = ".ctrltext";
-  const std::string ctrlData = ".ctrldata";
+  const std::string ctrl_data = ".ctrldata";
   const std::string preempt_save = ".preempt_save";
   const std::string preempt_restore = ".preempt_restore";
   const std::string preempt_lib = "preempt";
@@ -42,7 +43,7 @@ protected:
 
   // For transaction buffer flow. In Xclbin kernel argument, actual argument start from 3,
   // 0th is opcode, 1st is instruct buffer, 2nd is instruct buffer size.
-  constexpr static uint32_t ARG_OFFSET = 3;
+  uint32_t arg_offset = 3;
 
   enum class offset_type {
     CONTROL_PACKET,
@@ -65,15 +66,21 @@ protected:
   std::vector<uint32_t> pm_id_list;
   bool haspreempt = false;
   virtual uint32_t extractSymbolFromBuffer(std::vector<char>& mc_code, const std::string& section_name, const std::string& argname) = 0;
-  void aiecompiler_json_parser(const boost::property_tree::ptree& pt);
+  void aiecompiler_json_parser(const boost::property_tree::ptree& pt, const std::string& instance_id);
   void dmacompiler_json_parser(const boost::property_tree::ptree& pt);
-  void readmetajson(std::istream& patch_json);
-  void extract_control_packet_patch(const std::string& name, const uint32_t arg_index, const boost::property_tree::ptree& _pt);
-  void extract_coalesed_buffers(const std::string& name, const boost::property_tree::ptree& _pt);
+  void readmetajson(std::istream& patch_json, const std::string& instance_id);
+  void extract_control_packet_patch(const std::string& name, uint32_t arg_index,
+                                    const boost::property_tree::ptree& _pt, const std::string& instance_id);
+  void extract_coalesed_buffers(const std::string& name, const boost::property_tree::ptree& _pt, const std::string& instance_id);
   void clear_shimBD_address_bits(std::vector<char>& mc_code, uint32_t offset) const;
   void validate_json(uint32_t offset, uint32_t size, uint32_t arg_index, offset_type type) const;
   uint32_t get_32_bit_property(const boost::property_tree::ptree& pt, const std::string& property, bool defaultvalue = false) const;
   void add_preemption_code(uint32_t col);
+  std::string get_pdi_name(uint16_t pdi_id)
+  {
+    return ".pdi." + std::to_string(pdi_id);
+  }
+
 public:
   aie2_blob_preprocessor_input() = default;
   virtual void set_args(const std::vector<char>& mc_code,
@@ -98,7 +105,7 @@ public:
     {
       vector_streambuf vsb(patch_json);
       std::istream elf_stream(&vsb);
-      readmetajson(elf_stream);
+      readmetajson(elf_stream, "");
     }
 
     auto col = extractSymbolFromBuffer(m_data[".ctrltext"], ctrlText, "");
@@ -267,6 +274,81 @@ public:
   {
     const std::vector<char> mc_code = encode(mc_asm_code);
     aie2_blob_transaction_preprocessor_input::set_args(mc_code, patch_json, control_packet, libs, libpaths, ctrlpkt);
+  }
+};
+
+class config_preprocessor_input : public aie2_blob_transaction_preprocessor_input
+{
+  uint32_t col = 0;
+protected:
+  void readconfigjson(std::istream& patch_json);
+  void add_pdi(const boost::property_tree::ptree& pinstance);
+  void add_instance(const boost::property_tree::ptree& pinstance);
+  std::string get_ctrltext_name(std::string instance_id)
+  {
+    return ".ctrltext." + instance_id;
+  }
+  std::string get_ctrldata_name(std::string instance_id)
+  {
+    return ".ctrldata." + instance_id;
+  }
+  class argument {
+    public:
+    std::string name;
+    std::string type;
+    std::string offset;
+
+    argument(std::string na, std::string ty, std::string off):
+             name(std::move(na)),
+             type(std::move(ty)),
+             offset(std::move(off)) {}
+    argument(const argument& rhs) = default;
+    argument& operator=(const argument& rhs) = default;
+    argument(argument &&s) = default;
+    ~argument() = default;
+  };
+
+  struct function {
+    std::string name;
+    std::vector<argument> arguments;
+  };
+
+  std::string mangle_function_name(const function& func) {
+    std::string mangled_name = "_Z" + std::to_string(func.name.length()) + func.name;
+    for (const auto& arg : func.arguments) {
+        if (arg.type == "char *") {
+            mangled_name += "Pc"; // 'Pc' represents 'char *' in Itanium C++ ABI
+        } else if (arg.type == "void *") {
+            mangled_name += "Pv"; // 'Pv' represents 'void *' in Itanium C++ ABI
+        } else if (arg.type == "scalar") {
+            mangled_name += "i"; // 'i' represents 'int' in Itanium C++ ABI for scalar
+        } else if (arg.type == "int *") {
+            mangled_name += "Pi"; // 'Pi' represents 'int *' in Itanium C++ ABI
+        }
+    }
+    return mangled_name;
+  }
+public:
+  config_preprocessor_input() = default;
+  void set_args(const std::vector<char>& /*mc_code*/,
+                const std::vector<char>& patch_json,
+                const std::vector<char>& /*control_packet*/,
+                const std::vector<std::string>& /*libs*/,
+                const std::vector<std::string>& /*libpaths*/,
+                const std::map<uint32_t, std::vector<char> >& /*ctrlpkt*/) override
+  {
+    arg_offset = 0;
+    if (patch_json.size() !=0)
+    {
+      vector_streambuf vsb(patch_json);
+      std::istream elf_stream(&vsb);
+      readconfigjson(elf_stream);
+    }
+
+    add_metadata("configuration", std::to_string(col));
+
+    if (haspreempt)
+      add_preemption_code(col);
   }
 };
 }

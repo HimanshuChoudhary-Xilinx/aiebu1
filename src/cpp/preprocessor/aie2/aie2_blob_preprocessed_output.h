@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
-// Copyright (C) 2024, Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (C) 2024-2025, Advanced Micro Devices, Inc. All rights reserved.
 
 #ifndef _AIEBU_PREPROCESSOR_AIE2_BLOB_PREPROCESSED_OUTPUT_H_
 #define _AIEBU_PREPROCESSOR_AIE2_BLOB_PREPROCESSED_OUTPUT_H_
 
 #include <string>
 #include <map>
+#include <unordered_map>
 #include "symbol.h"
 #include "preprocessed_output.h"
 
@@ -19,6 +20,7 @@ class aie2_blob_preprocessed_output : public preprocessed_output
   // ELF binaries produced on Linux and Windows to look different .
   std::map<std::string, std::vector<uint8_t>> m_data;
   std::vector<symbol> m_sym;
+  std::unordered_map<std::string, std::string> m_metadata;
 
 public:
   aie2_blob_preprocessed_output() {}
@@ -57,6 +59,16 @@ public:
     if (it == m_data.end())
       throw error(error::error_code::internal_error, "Key (" + key + ") not found!!!");
     return m_data[key];
+  }
+
+  void add_metadata(std::unordered_map<std::string, std::string>&& metadata)
+  {
+    m_metadata = std::move(metadata);
+  }
+
+  std::unordered_map<std::string, std::string>& get_metadata()
+  {
+    return m_metadata;
   }
 };
 

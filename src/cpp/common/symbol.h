@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Copyright (C) 2024, Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (C) 2024-2025, Advanced Micro Devices, Inc. All rights reserved.
 
 #ifndef _AIEBU_COMMOM_SYMBOL_H_
 #define _AIEBU_COMMOM_SYMBOL_H_
@@ -22,7 +22,8 @@ public:
     shim_dma_48 = 5,
     shim_dma_57_aie4 = 6,
     control_packet_57 = 7,
-    unknown = 8,
+    address_64 = 8,
+    unknown = 9,
   };
 
 private:

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Copyright (C) 2024 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (C) 2024-2025 Advanced Micro Devices, Inc. All rights reserved.
 
 #include <iostream>
 #include <limits>
@@ -47,7 +47,7 @@ target_aie2blob::parse_pmctrlpkt(const std::vector<std::string> pm_key_value_pai
 
 bool
 aiebu::utilities::
-target_aie2blob::parseOption(const sub_cmd_options &_options)
+target_aie2blob::parseOption(const sub_cmd_options &options)
 {
   std::vector<std::string> pm_key_value_pairs;
   cxxopts::Options all_options("Target aie2blob Options", m_description);
@@ -65,7 +65,7 @@ target_aie2blob::parseOption(const sub_cmd_options &_options)
             ("h,help", "show help message and exit", cxxopts::value<bool>()->default_value("false"))
     ;
 
-    auto char_ver = aiebu::utilities::vector_of_string_to_vector_of_char(_options);
+    auto char_ver = aiebu::utilities::vector_of_string_to_vector_of_char(options);
 
     auto result = all_options.parse(char_ver.size(), char_ver.data());
 
@@ -107,7 +107,8 @@ target_aie2blob::parseOption(const sub_cmd_options &_options)
     throw std::runtime_error(errMsg.str());
   }
 
-  readfile(m_transaction_file, m_transaction_buffer);
+  if (!m_transaction_file.empty())
+    readfile(m_transaction_file, m_transaction_buffer);
 
   m_ctrlpkt = parse_pmctrlpkt(pm_key_value_pairs);
 
@@ -122,9 +123,9 @@ target_aie2blob::parseOption(const sub_cmd_options &_options)
 
 void
 aiebu::utilities::
-target_aie2blob_dpu::assemble(const sub_cmd_options &_options)
+target_aie2blob_dpu::assemble(const sub_cmd_options &options)
 {
-  if (!parseOption(_options))
+  if (!parseOption(options))
     return;
 
   try {
@@ -142,9 +143,9 @@ target_aie2blob_dpu::assemble(const sub_cmd_options &_options)
 
 void
 aiebu::utilities::
-target_aie2blob_transaction::assemble(const sub_cmd_options &_options)
+target_aie2blob_transaction::assemble(const sub_cmd_options &options)
 {
-  if (!parseOption(_options))
+  if (!parseOption(options))
     return;
 
   try {
@@ -167,9 +168,9 @@ target_aie2blob_transaction::assemble(const sub_cmd_options &_options)
 
 void
 aiebu::utilities::
-target_aie2::assemble(const sub_cmd_options &_options)
+target_aie2::assemble(const sub_cmd_options &options)
 {
-  if (!parseOption(_options))
+  if (!parseOption(options))
     return;
 
   try {
@@ -193,7 +194,7 @@ target_aie2::assemble(const sub_cmd_options &_options)
 
 void
 aiebu::utilities::
-target_aie2ps::assemble(const sub_cmd_options &_options)
+target_aie2ps::assemble(const sub_cmd_options &options)
 {
   std::string output_elffile;
   std::string input_file;
@@ -211,7 +212,7 @@ target_aie2ps::assemble(const sub_cmd_options &_options)
             ("help,h", "show help message and exit", cxxopts::value<bool>()->default_value("false"))
     ;
 
-    auto char_ver = aiebu::utilities::vector_of_string_to_vector_of_char(_options);
+    auto char_ver = aiebu::utilities::vector_of_string_to_vector_of_char(options);
     auto result = all_options.parse(char_ver.size(), char_ver.data());
 
     if (result.count("help")) {
@@ -258,6 +259,59 @@ target_aie2ps::assemble(const sub_cmd_options &_options)
     aiebu::aiebu_assembler as(aiebu::aiebu_assembler::buffer_type::asm_aie2ps, asmBuffer, {}, libpaths, patch_data_buffer);
     write_elf(as, output_elffile);
   } catch (aiebu::error &ex) {
+    auto errMsg = boost::format("Error: %s, code:%d\n") % ex.what() % ex.get_code() ;
+    throw std::runtime_error(errMsg.str());
+  }
+}
+
+void
+aiebu::utilities::
+target_config::assemble(const sub_cmd_options &options)
+{
+  std::string output_elffile;
+  std::string json_file;
+  cxxopts::Options all_options("Target config Options", m_description);
+
+  try {
+    all_options.add_options()
+            ("o,outputelf", "ELF output file name", cxxopts::value<decltype(output_elffile)>())
+            ("j,json", "control packet Patching json file", cxxopts::value<decltype(json_file)>())
+            ("h,help", "show help message and exit", cxxopts::value<bool>()->default_value("false"))
+    ;
+
+
+    auto char_ver = aiebu::utilities::vector_of_string_to_vector_of_char(options);
+
+    auto result = all_options.parse(static_cast<int>(char_ver.size()), char_ver.data());
+
+    if (result.count("help")) {
+      std::cout << all_options.help({"", "Target config Options"});
+      return;
+    }
+
+    if (result.count("outputelf"))
+      output_elffile = result["outputelf"].as<decltype(output_elffile)>();
+    else
+      throw std::runtime_error("the option '--outputelf' is required but missing\n");
+
+    if (result.count("json"))
+      json_file = result["json"].as<decltype(json_file)>();
+  }
+  catch (const cxxopts::exceptions::exception& e) {
+    std::cout << all_options.help({"", "Target config Options"});
+    auto errMsg = boost::format("Error parsing options: %s\n") % e.what() ;
+    throw std::runtime_error(errMsg.str());
+  }
+
+  std::vector<char> json_buffer;
+  if (!json_file.empty())
+    readfile(json_file, json_buffer);
+
+  try {
+    aiebu::aiebu_assembler as(aiebu::aiebu_assembler::buffer_type::config, {}, {}, {}, json_buffer);
+    write_elf(as, output_elffile);
+  }
+  catch (aiebu::error &ex) {
     auto errMsg = boost::format("Error: %s, code:%d\n") % ex.what() % ex.get_code() ;
     throw std::runtime_error(errMsg.str());
   }

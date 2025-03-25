@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Copyright (C) 2024, Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (C) 2024-2025, Advanced Micro Devices, Inc. All rights reserved.
 
 #ifndef _AIEBU_COMMON_WRITER_H_
 #define _AIEBU_COMMON_WRITER_H_
@@ -7,6 +7,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <unordered_map>
 #include "symbol.h"
 #include "code_section.h"
 
@@ -19,10 +20,14 @@ class writer
   const code_section m_type;
   std::vector<uint8_t> m_data;
   std::vector<symbol> m_symbols;
+  std::unordered_map<std::string, std::string> m_metadata;
 
 public:
-  writer(const std::string name, code_section type, std::vector<uint8_t>& data): m_name(name), m_type(type), m_data(std::move(data)) {}
-  writer(const std::string name, code_section type): m_name(name), m_type(type) {}
+  writer(std::string name, code_section type, std::vector<uint8_t>&& data)
+    : m_name(std::move(name)),
+      m_type(type),
+      m_data(std::move(data)) {}
+  writer(std::string name, code_section type): m_name(std::move(name)), m_type(type) {}
   virtual ~writer() = default;
 
   virtual void write_byte(uint8_t byte);
@@ -80,6 +85,17 @@ public:
   }
 
   void padding(offset_type size);
+
+  void add_metadata(std::unordered_map<std::string, std::string>&& metadata)
+  {
+    m_metadata = std::move(metadata);
+  }
+
+  std::string&
+  get_metadata(const std::string& key)
+  {
+    return m_metadata[key];
+  }
 };
 }
 #endif //_AIEBU_COMMON_WRITER_H_

@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
-// Copyright (C) 2024, Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (C) 2024-2025, Advanced Micro Devices, Inc. All rights reserved.
 
 #ifndef _AIEBU_ELF_ELF_WRITER_H_
 #define _AIEBU_ELF_ELF_WRITER_H_
 
 #include <sstream>
 #include <iterator>
+#include <mutex>
 #include "writer.h"
 #include "symbol.h"
 #include "elfio/elfio.hpp"
@@ -21,6 +22,8 @@ constexpr int program_header_static_count = 2;
 constexpr int program_header_dynamic_count = 3;
 
 constexpr ELFIO::Elf_Word NT_XRT_UID = 4;
+constexpr ELFIO::Elf_Word NT_XRT_UUID       = 5;
+constexpr ELFIO::Elf_Word NT_XRT_PARTITION_SIZE = 6;
 
 class elf_section
 {
@@ -69,6 +72,9 @@ class elf_writer
 {
 protected:
   ELFIO::elfio m_elfio;
+  ELFIO::section* str_sec = nullptr;
+  ELFIO::section* sym_sec = nullptr;
+  std::once_flag symtab_flag;
   uid_md5 m_uid;
 
   ELFIO::section* add_section(const elf_section& data);
@@ -80,7 +86,8 @@ protected:
   std::vector<char> finalize();
   void add_text_data_section(const std::vector<writer>& mwriter, std::vector<symbol>& syms);
   void add_note(ELFIO::Elf_Word type, const std::string& name, const std::vector<char>& dec);
-
+  void add_symtab(const std::string& name);
+  void process_common_helper(std::vector<writer>& mwriter);
 public:
 
   elf_writer(unsigned char abi, unsigned char version)
@@ -103,7 +110,7 @@ public:
 
   }
 
-  std::vector<char> process(std::vector<writer>& mwriter);
+  virtual std::vector<char> process(std::vector<writer>& mwriter);
 
   virtual ~elf_writer() = default;
 

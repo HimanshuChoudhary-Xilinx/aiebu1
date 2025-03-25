@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <map>
 #include <vector>
+#include <unordered_map>
 #include <string>
 
 namespace aiebu {
@@ -18,6 +19,7 @@ class preprocessor_input
 protected:
   std::map<std::string, std::vector<char>> m_data;
   std::vector<symbol> m_sym;
+  std::unordered_map<std::string, std::string> m_metadata;
 public:
   preprocessor_input() {}
   virtual ~preprocessor_input() = default;
@@ -37,7 +39,7 @@ public:
     return keys;
   }
 
-  virtual std::vector<char>& get_data(std::string& key)
+  virtual std::vector<char>& get_data(const std::string& key)
   {
     auto it = m_data.find(key);
     if (it == m_data.end())
@@ -58,6 +60,17 @@ public:
   void add_symbols(const std::vector<symbol>& syms)
   {
     m_sym.insert( m_sym.end(), syms.begin(), syms.end());
+  }
+
+  void add_metadata(const std::string& key, std::string val)
+  {
+    m_metadata[key] = std::move(val);
+  }
+
+  std::unordered_map<std::string, std::string>&
+  get_metadata()
+  {
+    return m_metadata;
   }
 };
 
