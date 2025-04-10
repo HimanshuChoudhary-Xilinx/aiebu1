@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Copyright (C) 2024, Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (C) 2024-2025, Advanced Micro Devices, Inc. All rights reserved.
 
 #ifndef _AIEBU_ENCODER_AIE2_BLOB_ENCODER_H_
 #define _AIEBU_ENCODER_AIE2_BLOB_ENCODER_H_
@@ -24,12 +24,12 @@ public:
 
     for(auto key : rinput->get_keys())
       if ( !key.compare(".ctrltext") )
-        rwriter.emplace_back(key, code_section::text, rinput->get_data(key));
+        rwriter.emplace_back(key, code_section::text, std::move(rinput->get_data(key)));
       else
-        rwriter.emplace_back(key, code_section::data, rinput->get_data(key));
+        rwriter.emplace_back(key, code_section::data, std::move(rinput->get_data(key)));
 
     rwriter[0].add_symbols(rinput->get_symbols());
-
+    rwriter[0].add_metadata(std::move(rinput->get_metadata()));
     return rwriter;
   }
 };

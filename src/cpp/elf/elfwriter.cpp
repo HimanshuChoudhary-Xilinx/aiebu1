@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Copyright (C) 2024, Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (C) 2024-2025, Advanced Micro Devices, Inc. All rights reserved.
 
 #include "elfwriter.h"
 
@@ -219,9 +219,33 @@ add_text_data_section(const std::vector<writer>& mwriter, std::vector<symbol>& s
   }
 }
 
-std::vector<char>
+void
 elf_writer::
-process(std::vector<writer>& mwriter)
+add_symtab(const std::string& name)
+{
+  std::call_once(symtab_flag, [this] {
+    str_sec = m_elfio.sections.add(".strtab");
+    str_sec->set_type(ELFIO::SHT_STRTAB);
+    str_sec->set_entry_size(0);
+    sym_sec = m_elfio.sections.add(".symtab");
+    sym_sec->set_type(ELFIO::SHT_SYMTAB);
+    sym_sec->set_info(1);
+    sym_sec->set_addr_align(0x4);
+    sym_sec->set_entry_size(m_elfio.get_default_entry_size(ELFIO::SHT_SYMTAB));
+    sym_sec->set_link(str_sec->get_index());
+  });
+
+  ELFIO::string_section_accessor stra(str_sec);
+  // Create symbol table writer
+  ELFIO::symbol_section_accessor syma( m_elfio, sym_sec );
+  // Another way to add symbol
+  syma.add_symbol( stra, name.c_str(), 0x00000000, 0, ELFIO::STB_WEAK, ELFIO::STT_FUNC, 0,
+                   ELFIO::SHN_UNDEF );
+}
+
+void
+elf_writer::
+process_common_helper(std::vector<writer>& mwriter)
 {
   // add sections
   std::vector<symbol> syms;
@@ -233,6 +257,13 @@ process(std::vector<writer>& mwriter)
     add_reldyn_section(syms);
     add_dynamic_section_segment();
   }
+}
+
+std::vector<char>
+elf_writer::
+process(std::vector<writer>& mwriter)
+{
+  process_common_helper(mwriter);
   return finalize();
 }
 

@@ -22,6 +22,10 @@ readfile(const std::string& filename)
 
   std::ifstream input(filename, std::ios::in | std::ios::binary);
   auto file_size = std::filesystem::file_size(filename);
+
+  if (!file_size)
+    throw error(error::error_code::invalid_asm, "filename " + filename + " is empty!!");
+
   std::vector<char> buffer(file_size);
   input.read(buffer.data(), static_cast<std::streamsize>(file_size));
   return buffer;

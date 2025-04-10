@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Copyright (C) 2024, Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (C) 2024-2025, Advanced Micro Devices, Inc. All rights reserved.
 
 #ifndef _ADSM_COMMOM_ASSEMBLER_H_
 #define _ADSM_COMMOM_ASSEMBLER_H_
@@ -29,7 +29,8 @@ public:
     aie2_transaction_blob,
     aie2_dpu_blob,
     aie2ps_asm,
-    aie2_asm
+    aie2_asm,
+    config
   };
 
   explicit assembler(const elf_type type);
