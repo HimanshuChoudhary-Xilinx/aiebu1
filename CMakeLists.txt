@@ -5,11 +5,14 @@ project(AIEBU HOMEPAGE_URL https://github.com/Xilinx/aiebu VERSION 1.0)
 
 include(cmake/settings.cmake)
 
+message("-- AIEBU_NATIVE_BUILD: ${AIEBU_NATIVE_BUILD}")
 add_subdirectory(src/cpp)
 
 add_subdirectory(specification)
 
-add_subdirectory(lib)
+if (${AIEBU_NATIVE_BUILD} STREQUAL "yes")
+  add_subdirectory(lib)
+endif()
 add_subdirectory(test)
 
 include(cmake/cpack.cmake)
