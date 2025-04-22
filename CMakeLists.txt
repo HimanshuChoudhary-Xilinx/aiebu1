@@ -10,9 +10,7 @@ add_subdirectory(src/cpp)
 
 add_subdirectory(specification)
 
-if (${AIEBU_NATIVE_BUILD} STREQUAL "yes")
-  add_subdirectory(lib)
-endif()
+add_subdirectory(lib)
 add_subdirectory(test)
 
 include(cmake/cpack.cmake)
