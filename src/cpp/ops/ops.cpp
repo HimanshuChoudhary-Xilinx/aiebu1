@@ -28,7 +28,7 @@ align_op_serializer::size(assembler_state& state)
 
 std::vector<uint8_t>
 isa_op_serializer::
-serialize(assembler_state& state, std::vector<symbol>& symbols,
+serialize(std::shared_ptr<assembler_state> state, std::vector<symbol>& symbols,
           uint32_t colnum, pageid_type pagenum)
 {
   //encode isa_op
@@ -49,13 +49,13 @@ serialize(assembler_state& state, std::vector<symbol>& symbols,
     } else if (arg.m_type == opArg::optype::JOBSIZE)
     {
       jobid_type jobid = m_args[0];
-      sval = std::to_string(state.m_jobmap[jobid]->get_size());
+      sval = std::to_string(state->m_jobmap[jobid]->get_size());
       atype = opArg::optype::CONST;
     } else if (arg.m_type == opArg::optype::PAGE_ID)
     {
-      if (state.m_labelpageindex.find(m_args[arg_index].substr(1)) == state.m_labelpageindex.end())
+      if (state->m_labelpageindex.find(m_args[arg_index].substr(1)) == state->m_labelpageindex.end())
         throw error(error::error_code::invalid_asm, "Label " + m_args[arg_index].substr(1) + "not present in label list\n");
-      sval = std::to_string(state.m_labelpageindex[m_args[arg_index].substr(1)]);
+      sval = std::to_string(state->m_labelpageindex[m_args[arg_index].substr(1)]);
       atype = opArg::optype::CONST;
       ++arg_index;
     } else
@@ -72,9 +72,9 @@ serialize(assembler_state& state, std::vector<symbol>& symbols,
     else if (atype == opArg::optype::CONST)
     {
       try {
-        val = state.parse_num_arg(sval);
+        val = state->parse_num_arg(sval);
       } catch (symbol_exception &s) {
-        symbols.emplace_back(sval, state.get_pos()+(uint32_t)ret.size(),
+        symbols.emplace_back(sval, state->get_pos()+(uint32_t)ret.size(),
                              colnum, pagenum, 0, 0, ".ctrltext." + std::to_string(colnum)
                              + "." + std::to_string(pagenum),
                              symbol::patch_schema::scaler_32);
@@ -92,26 +92,26 @@ serialize(assembler_state& state, std::vector<symbol>& symbols,
         // For opcode is 'apply_offset_57' and arg is 'offset',
         // if val is 0xFFFF means we need to patch the host address of 1st page of controlcode
         // and we can patch in host and firmware, we send "control-code-X" as symbol name and 0xFFFF in apply_offset_57
-        // if val == self.state.control_packet_index, we add "control-code-X" as symbol name and 0xFFFF in apply_offset_57
-        // if val is not 0xFFFF or self.state.control_packet_index, we can do patching in cert or host so add symbol info in elf
+        // if val == self.state->control_packet_index, we add "control-code-X" as symbol name and 0xFFFF in apply_offset_57
+        // if val is not 0xFFFF or self.state->control_packet_index, we can do patching in cert or host so add symbol info in elf
         //    we send "arg index" as symbol name and arg offset in apply_offset_57
         if (!m_opcode->get_code_name().compare("apply_offset_57") && !arg.get_name().compare("offset"))
         {
-          if (val == state.m_control_packet_index || val == 0xFFFF)
+          if (val == state->m_control_packet_index || val == 0xFFFF)       // NOLINT
             sval = "control-code-" + std::to_string(colnum);
-          symbols.emplace_back(sval, state.parse_num_arg(m_args[0]),
+          symbols.emplace_back(sval, state->parse_num_arg(m_args[0]),
                                colnum, pagenum, 0, 0, ".ctrltext." + std::to_string(colnum)
                                + "." + std::to_string(pagenum),
-                               symbol::patch_schema::shim_dma_57);
+                               state->get_shim_dma_patching());
 
-          if (val == state.m_control_packet_index && !arg.get_name().compare("offset") && m_args.size() == 4)
-            state.m_controlpacket_padname = m_args[3];
+          if (val == state->m_control_packet_index && !arg.get_name().compare("offset") && m_args.size() == 4)
+            state->m_controlpacket_padname = m_args[3];
 
           // arg 0 to 6 and be patched in CERT.
           // Beyond that its elfloader/host responsibility to patch mandatorily
           if (val > 6 && val != 0xFFFF)
             std::cout <<"WARNING: Apply_offset_57 has arg index " << val << " > 6, Should be mandatorily patched in host!!!\n";
-          if (val == state.m_control_packet_index)
+          if (val == state->m_control_packet_index)
             val = 0xFFFF;
           else if (val != 0xFFFF)
           {
@@ -122,9 +122,9 @@ serialize(assembler_state& state, std::vector<symbol>& symbols,
           if (!arg.get_name().compare("offset") && m_args.size() == 4)
           {
             auto usymbo = m_args[3].substr(1);
-            if (state.m_scratchpad.find(usymbo) != state.m_scratchpad.end())
+            if (state->m_scratchpad.find(usymbo) != state->m_scratchpad.end())
             {
-              state.m_patch[m_args[3]].emplace_back(m_args[0]);
+              state->m_patch[m_args[3]].emplace_back(m_args[0]);
             }
           }
 
@@ -150,22 +150,22 @@ serialize(assembler_state& state, std::vector<symbol>& symbols,
 
 std::vector<uint8_t>
 ucDmaBd_op_serializer::
-serialize(assembler_state& state,
+serialize(std::shared_ptr<assembler_state> state,
           std::vector<symbol>& /*symbols*/,
           uint32_t /*colnum*/, pageid_type /*pagenum*/)
 {
   //encode ucDmaBd
   std::vector<uint8_t> ret;
-  uint32_t remote_ptr_high = state.parse_num_arg(m_args[0]);
-  uint32_t remote_ptr_low  = state.parse_num_arg(m_args[1]);
-  uint32_t local_ptr_absolute  = state.parse_num_arg(m_args[2]);
-  uint32_t size  = state.parse_num_arg(m_args[3]);
-  bool ctrl_external  = state.parse_num_arg(m_args[4]) != 0;
-  bool ctrl_next_BD  = state.parse_num_arg(m_args[5]) != 0;
+  uint32_t remote_ptr_high = state->parse_num_arg(m_args[0]);
+  uint32_t remote_ptr_low  = state->parse_num_arg(m_args[1]);
+  uint32_t local_ptr_absolute  = state->parse_num_arg(m_args[2]);
+  uint32_t size  = state->parse_num_arg(m_args[3]);
+  bool ctrl_external  = state->parse_num_arg(m_args[4]) != 0;
+  bool ctrl_next_BD  = state->parse_num_arg(m_args[5]) != 0;        //NOLINT
   bool ctrl_local_relative = true;
 
   // TODO assert
-  uint32_t local_ptr = local_ptr_absolute - state.get_pos();
+  uint32_t local_ptr = local_ptr_absolute - state->get_pos();
 
   //TODO assert
   ret.push_back(size & BYTE_MASK);
@@ -197,14 +197,14 @@ serialize(assembler_state& state,
 
 std::vector<uint8_t>
 long_op_serializer::
-serialize(assembler_state& state,
+serialize(std::shared_ptr<assembler_state> state,
           std::vector<symbol>& /*symbols*/,
           uint32_t /*colnum*/,
           pageid_type /*pagenum*/)
 {
   //encode long
   std::vector<uint8_t> ret;
-  uint32_t val = state.parse_num_arg(m_args[0]);
+  uint32_t val = state->parse_num_arg(m_args[0]);
   ret.push_back((val >> FIRST_BYTE_SHIFT) & BYTE_MASK);
   ret.push_back((val >> SECOND_BYTE_SHIFT) & BYTE_MASK);
   ret.push_back((val >> THIRD_BYTE_SHIFT) & BYTE_MASK);
@@ -215,13 +215,13 @@ serialize(assembler_state& state,
 
 std::vector<uint8_t>
 align_op_serializer::
-serialize(assembler_state& state,
+serialize(std::shared_ptr<assembler_state> state,
           std::vector<symbol>& /*symbols*/,
           uint32_t /*colnum*/, pageid_type /*pagenum*/)
 {
   //encode align
   std::vector<uint8_t> ret;
-  for (uint32_t i=0;i < size(state); ++i)
+  for (uint32_t i=0;i < size(*state); ++i)
     ret.push_back(m_opcode->get_code());
 
   return ret;

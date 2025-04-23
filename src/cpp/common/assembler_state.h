@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Copyright (C) 2024, Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (C) 2024-2025, Advanced Micro Devices, Inc. All rights reserved.
 
 #ifndef _AIEBU_COMMON_ASSEMBLER_STATE_H_
 #define _AIEBU_COMMON_ASSEMBLER_STATE_H_
@@ -103,9 +103,11 @@ public:
   }
 };
 
-class assembler_state
+class assembler_state : public std::enable_shared_from_this<assembler_state>
 {
+protected:
   offset_type m_pos = 0;
+
   inline std::string gen_label_name(bool makeunique, const std::shared_ptr<asm_data> data)
   {
     return makeunique ? data->get_file() + ":" + data->get_operation()->get_name() : data->get_operation()->get_name();
@@ -126,22 +128,23 @@ class assembler_state
     uint32_t base_actor_offset; //base channel
   };
 
-  const std::unordered_map<std::string, ActionId> actor_id = {
-    {"mm2s", {5, 6}},
-    {"s2mm", {5, 0}},
-    {"tile_mm2s", {10, 6}},
-    {"tile_s2mm", {10, 0}},
-    {"shim_mm2s", {10, 6}},
-    {"shim_s2mm", {10, 0}},
-    {"mem_mm2s", {9, 6}},
-    {"mem_s2mm", {9, 0}}
-  };
+  //std::unordered_map<std::string, ActionId> actor_id;
 
+  virtual std::unordered_map<std::string, ActionId>& get_actor_id_map() const = 0;
   uint32_t get_actor(const std::string& prefix, const std::string& s) const
   {
+    std::unordered_map<std::string, ActionId>& actor_id = get_actor_id_map();
     uint32_t actor = std::stoi(s.substr(actor_id.at(prefix).actor_start));
     return actor_id.at(prefix).base_actor_offset + actor;
   }
+
+  assembler_state(std::shared_ptr<std::map<std::string, std::shared_ptr<isa_op>>> isa,
+                  std::vector<std::shared_ptr<asm_data>>& data,
+                  std::map<std::string, std::shared_ptr<scratchpad_info>>& scratchpad,
+                  std::map<std::string, uint32_t>& labelpageindex, uint32_t control_packet_index, bool makeunique);
+  assembler_state(const assembler_state& rhs) = default;
+  assembler_state& operator=(const assembler_state& rhs) = default;
+  assembler_state(assembler_state &&s) = default;
 public:
   std::shared_ptr<std::map<std::string, std::shared_ptr<isa_op>>> m_isa;
   std::vector<std::shared_ptr<asm_data>>& m_data;
@@ -155,11 +158,6 @@ public:
   std::map<std::string, uint32_t>& m_labelpageindex;
   uint32_t m_control_packet_index;
   std::string m_controlpacket_padname;
-
-  assembler_state(std::shared_ptr<std::map<std::string, std::shared_ptr<isa_op>>> isa,
-                  std::vector<std::shared_ptr<asm_data>>& data,
-                  std::map<std::string, std::shared_ptr<scratchpad_info>>& scratchpad,
-                  std::map<std::string, uint32_t>& labelpageindex, uint32_t control_packet_index, bool makeunique);
 
   HEADER_ACCESS_GET_SET(offset_type, pos);
 
@@ -200,7 +198,77 @@ public:
       [](const std::map<std::string, std::shared_ptr<label>>::value_type &pair){return pair.first;});
     return keys;
   }
+
+  virtual symbol::patch_schema get_shim_dma_patching() const = 0;
+  virtual symbol::patch_schema get_control_packet_patching() const = 0;
+  virtual ~assembler_state() = default;
 };
 
+
+class assembler_state_aie2ps : public assembler_state
+{
+  std::unordered_map<std::string, ActionId>&
+  get_actor_id_map() const override
+  {
+    static std::unordered_map<std::string, ActionId> actor_id = {
+      {"mm2s", {5, 6}},          //NOLINT
+      {"s2mm", {5, 0}},          //NOLINT
+      {"tile_mm2s", {10, 6}},    //NOLINT
+      {"tile_s2mm", {10, 0}},    //NOLINT
+      {"shim_mm2s", {10, 6}},    //NOLINT
+      {"shim_s2mm", {10, 0}},    //NOLINT
+      {"mem_mm2s", {9, 6}},      //NOLINT
+      {"mem_s2mm", {9, 0}}       //NOLINT
+    };
+    return actor_id;
+  }
+  public:
+  assembler_state_aie2ps(std::shared_ptr<std::map<std::string, std::shared_ptr<isa_op>>> isa,
+                         std::vector<std::shared_ptr<asm_data>>& data,
+                         std::map<std::string, std::shared_ptr<scratchpad_info>>& scratchpad,
+                         std::map<std::string, uint32_t>& labelpageindex, uint32_t control_packet_index, bool makeunique)
+                  : assembler_state(isa, data, scratchpad, labelpageindex, control_packet_index, makeunique)
+  {
+    //shim_dma_patching = symbol::patch_schema::shim_dma_57;
+    //control_packet_patching = symbol::patch_schema::control_packet_57;
+  }
+
+  symbol::patch_schema get_shim_dma_patching() const override { return symbol::patch_schema::shim_dma_57; }
+  symbol::patch_schema get_control_packet_patching() const override { return symbol::patch_schema::control_packet_57; }
+};
+
+class assembler_state_aie4 : public assembler_state
+{
+  std::unordered_map<std::string, ActionId>&
+  get_actor_id_map() const override
+  {
+    static std::unordered_map<std::string, ActionId> actor_id = {
+      {"mm2s", {5, 6}},               //NOLINT
+      {"s2mm", {5, 0}},               //NOLINT
+      {"tile_mm2s", {10, 6}},         //NOLINT
+      {"tile_s2mm", {10, 0}},         //NOLINT
+      {"shim_mm2s", {10, 6}},         //NOLINT
+      {"shim_s2mm", {10, 0}},         //NOLINT
+      {"mem_mm2s", {9, 16}},          //NOLINT
+      {"mem_s2mm", {9, 0}},           //NOLINT
+      {"shim_ctrl_mm2s", {15, 16}}    //NOLINT
+    };
+    return actor_id;
+  }
+
+  public:
+  assembler_state_aie4(std::shared_ptr<std::map<std::string, std::shared_ptr<isa_op>>> isa,
+                       std::vector<std::shared_ptr<asm_data>>& data,
+                       std::map<std::string, std::shared_ptr<scratchpad_info>>& scratchpad,
+                       std::map<std::string, uint32_t>& labelpageindex, uint32_t control_packet_index, bool makeunique)
+                  : assembler_state(isa, data, scratchpad, labelpageindex, control_packet_index, makeunique)
+  {
+    //shim_dma_patching = symbol::patch_schema::shim_dma_57_aie4;
+    //control_packet_patching = symbol::patch_schema::control_packet_57_aie4;
+  }
+
+  symbol::patch_schema get_shim_dma_patching() const override { return symbol::patch_schema::shim_dma_57_aie4; }
+  symbol::patch_schema get_control_packet_patching() const override { return symbol::patch_schema::control_packet_57_aie4; }
+};
 }
 #endif //_AIEBU_COMMON_ASSEMBLER_STATE_H_

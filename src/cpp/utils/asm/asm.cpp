@@ -28,7 +28,7 @@ void main_helper(int argc, char** argv,
       .allow_unrecognised_options()
       .add_options()
       ("h,help", "show help message and exit", cxxopts::value<bool>()->default_value("false"))
-      ("t,target", "supported targets aie2ps/aie2asm/aie2txn/aie2dpu/config", cxxopts::value<decltype(target_name)>())
+      ("t,target", "supported targets aie2ps/aie2asm/aie2txn/aie2dpu/config/aie4", cxxopts::value<decltype(target_name)>())
     ;
 
     auto result = global_options.parse(argc, argv);
@@ -83,6 +83,7 @@ int main( int argc, char** argv )
     targets.emplace_back(std::make_shared<aiebu::utilities::target_aie2blob_transaction>(executable));
     targets.emplace_back(std::make_shared<aiebu::utilities::target_aie2blob_dpu>(executable));
     targets.emplace_back(std::make_shared<aiebu::utilities::target_config>(executable));
+    targets.emplace_back(std::make_shared<aiebu::utilities::target_aie4>(executable));
   }
 
   // -- Program Description

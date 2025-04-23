@@ -24,6 +24,7 @@ class aiebu_assembler
       blob_control_packet,
       asm_aie2ps,
       asm_aie2,
+      asm_aie4,
       config,
       elf_aie2,
       elf_aie2ps,

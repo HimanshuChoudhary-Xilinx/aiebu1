@@ -128,7 +128,7 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
   std::vector<std::shared_ptr<asm_data>> all;
   all.insert(all.end(), lpage.m_text.begin(), lpage.m_text.end());
   all.insert(all.end(), lpage.m_data.begin(), lpage.m_data.end());
-  assembler_state page_state = assembler_state(m_isa, all, scratchpad, labelpageindex, control_packet_index, false);
+  std::shared_ptr<assembler_state> page_state = create_assembler_state(m_isa, all, scratchpad, labelpageindex, control_packet_index, false);
 
   writer textwriter(get_TextSectionName(colnum, pagenum), code_section::text);
   writer datawriter(get_DataSectionName(colnum, pagenum), code_section::data);
@@ -145,7 +145,7 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
     std::string name = text->get_operation()->get_name();
     if (text->isOpcode())
     {
-      page_state.set_pos(textwriter.tell() - offset);
+      page_state->set_pos(textwriter.tell() - offset);
       std::vector<uint8_t> ret = (*m_isa)[name]->serializer(text->get_operation()->get_args())
                                                ->serialize(page_state, tsym, colnum, pagenum);
       for (uint8_t byte : ret) {
@@ -159,7 +159,7 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
   // encode data section
   for (auto data : lpage.m_data)
   {
-    page_state.set_pos(datawriter.tell() + textwriter.tell() - offset);
+    page_state->set_pos(datawriter.tell() + textwriter.tell() - offset);
     std::string name = data->get_operation()->get_name();
     if (!name.compare("eof"))
       continue;
@@ -178,13 +178,13 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
       throw error(error::error_code::internal_error, "Invalid operation: " + name + " in DATA section !!!");
   }
 
-  for (auto &spad : page_state.m_patch)
+  for (auto &spad : page_state->m_patch)
   {
     for (auto& arg : spad.second)
     {
-      offset = page_state.parse_num_arg(arg);
+      offset = page_state->parse_num_arg(arg);
       patch57(textwriter, datawriter, offset + page_header.size(),
-              page_state.m_scratchpad[spad.first.substr(1)]->get_base() + page_state.m_scratchpad[spad.first.substr(1)]->get_offset());
+              page_state->m_scratchpad[spad.first.substr(1)]->get_base() + page_state->m_scratchpad[spad.first.substr(1)]->get_offset());
     }
   }
 
@@ -195,7 +195,7 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
   twriter.push_back(textwriter);
   twriter.push_back(datawriter);
 
-  return page_state.m_controlpacket_padname;
+  return page_state->m_controlpacket_padname;
   // TODO add size and generate report
 }
 
