@@ -140,7 +140,7 @@ process(bool makeunique)
  * 4. If string is numeric string: it will convert to decimal
  */
 uint32_t assembler_state::parse_num_arg(const std::string& str) {
-  static const std::unordered_map<std::string, std::function<uint32_t(const std::string&)>> handlers = {
+  const std::unordered_map<std::string, std::function<uint32_t(const std::string&)>> handlers = {
     {"@", [this](const std::string& s) -> uint32_t {
           //If string start with '@': it can be either pad name or label name
           auto key = s.substr(1);
@@ -157,7 +157,8 @@ uint32_t assembler_state::parse_num_arg(const std::string& str) {
     {"shim_s2mm_", [this](const std::string& s) -> uint32_t { return get_actor("shim_s2mm", s); }},
     {"shim_mm2s_", [this](const std::string& s) -> uint32_t { return get_actor("shim_mm2s", s); }},
     {"tile_s2mm_", [this](const std::string& s) -> uint32_t { return get_actor("tile_s2mm", s); }},
-    {"tile_mm2s_", [this](const std::string& s) -> uint32_t { return get_actor("tile_mm2s", s); }}
+    {"tile_mm2s_", [this](const std::string& s) -> uint32_t { return get_actor("tile_mm2s", s); }},
+    {"shim_ctrl_mm2s_", [this](const std::string& s) -> uint32_t { return get_actor("shim_ctrl_mm2s", s); }}
   };
 
   // check if its pad/label/actor

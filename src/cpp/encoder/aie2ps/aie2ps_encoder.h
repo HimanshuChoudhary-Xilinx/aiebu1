@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Copyright (C) 2024, Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (C) 2024-2025, Advanced Micro Devices, Inc. All rights reserved.
 
 #ifndef _AIEBU_ENCODER_AIE2PS_ENCODER_H_
 #define _AIEBU_ENCODER_AIE2PS_ENCODER_H_
@@ -30,10 +30,20 @@ public:
   std::string get_DataSectionName(uint32_t colnum, pageid_type pagenum) {return ".ctrldata." + std::to_string(colnum) + "." + std::to_string(pagenum); }
   std::string get_PadSectionName(uint32_t colnum) {return ".pad." + std::to_string(colnum); }
   std::string page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>& scratchpad, std::map<std::string, uint32_t>& labelpageindex, uint32_t control_packet_index);
-  void patch57(const writer& textwriter, writer& datawriter, offset_type offset, uint64_t patch);
+  virtual void patch57(const writer& textwriter, writer& datawriter, offset_type offset, uint64_t patch);
   void fill_scratchpad(writer& padwriter,const std::map<std::string, std::shared_ptr<scratchpad_info>>& scratchpads);
   void fill_control_packet_symbols(writer& padwriter,const uint32_t col, const std::string& controlpacket_padname, std::vector<symbol>& syms, const std::map<std::string, std::shared_ptr<scratchpad_info>>& scratchpads);
   std::string findKey(const std::map<std::string, std::vector<std::string>>& myMap, const std::string& value);
+
+  virtual std::shared_ptr<assembler_state>
+  create_assembler_state(std::shared_ptr<std::map<std::string, std::shared_ptr<isa_op>>> isa,
+                         std::vector<std::shared_ptr<asm_data>>& data,
+                         std::map<std::string, std::shared_ptr<scratchpad_info>>& scratchpad,
+                         std::map<std::string, uint32_t>& labelpageindex,
+                         uint32_t control_packet_index, bool makeunique)
+  {
+    return std::make_shared<assembler_state_aie2ps>(isa, data, scratchpad, labelpageindex, control_packet_index, makeunique);
+  }
 };
 
 }

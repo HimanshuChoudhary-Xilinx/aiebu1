@@ -30,7 +30,8 @@ public:
     aie2_dpu_blob,
     aie2ps_asm,
     aie2_asm,
-    config
+    config,
+    aie4_asm
   };
 
   explicit assembler(const elf_type type);

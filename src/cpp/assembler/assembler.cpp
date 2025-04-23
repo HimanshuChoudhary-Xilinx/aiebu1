@@ -9,6 +9,10 @@
 #include "aie2ps_elfwriter.h"
 #include "aie2ps_encoder.h"
 #include "aie2ps_preprocessor.h"
+#include "encoder/aie4/aie4_encoder.h"
+#include "preprocessor/aie4/aie4_preprocessor.h"
+#include "preprocessor/aie4/aie4_preprocessor_input.h"
+#include "elf/aie4/aie4_elfwriter.h"
 #include "elfwriter.h"
 #include "encoder.h"
 #include "preprocessor.h"
@@ -55,6 +59,13 @@ assembler(const elf_type type)
     m_enoder = std::make_unique<aie2_blob_encoder>();
     m_elfwriter = std::make_unique<config_elf_writer>();
     m_ppi = std::make_shared<config_preprocessor_input>();
+  }
+  else if (type == elf_type::aie4_asm)
+  {
+    m_preprocessor = std::make_unique<aie4_preprocessor>();
+    m_enoder = std::make_unique<aie4_encoder>();
+    m_elfwriter = std::make_unique<aie4_elf_writer>();
+    m_ppi = std::make_shared<aie4_preprocessor_input>();
   }
   else {
     throw error(error::error_code::invalid_buffer_type ,"Invalid elf type!!!");
