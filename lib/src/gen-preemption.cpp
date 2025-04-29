@@ -556,7 +556,8 @@ void generateHeaderFile(const std::map<uint8_t, std::pair<std::vector<uint8_t>, 
     headerFile << "// Copyright (C) 2024, Advanced Micro Devices, Inc. All rights reserved.\n\n";
     headerFile << "#ifndef AIEBU_STX_PREEMPTION_FILES_H\n#define AIEBU_STX_PREEMPTION_FILES_H\n\n";
     headerFile << "#include <map>\n#include <vector>\n#include <cstdint>\n\n";
-    headerFile << "const std::map<uint32_t, std::pair<std::vector<uint8_t>, std::vector<uint8_t>>> stx_save_restore_map = {\n";
+    headerFile << "std::map<uint32_t, std::pair<std::vector<uint8_t>, std::vector<uint8_t>>>&\nget_stx_save_restore()\n{\n";
+    headerFile << "  static std::map<uint32_t, std::pair<std::vector<uint8_t>, std::vector<uint8_t>>> stx_save_restore_map = {\n";
 
     for (const auto& entry : stx_save_restore_map) {
         headerFile << "    {" << static_cast<unsigned int>(entry.first) << ", {";
@@ -581,8 +582,8 @@ void generateHeaderFile(const std::map<uint8_t, std::pair<std::vector<uint8_t>, 
         }
         headerFile << "}}},\n";
     }
-
-    headerFile << "};\n\n#endif // AIEBU_STX_PREEMPTION_FILES_H\n";
+    headerFile << "  };\n";
+    headerFile << "  return stx_save_restore_map;\n}\n\n#endif // AIEBU_STX_PREEMPTION_FILES_H\n";
 }
 
 int main(int /* argc */, char** /* argv */)

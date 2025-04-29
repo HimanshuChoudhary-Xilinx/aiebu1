@@ -9,6 +9,6 @@ if (${AIEBU_AIE_RT_BIN_DIR} STREQUAL ${AIEBU_BINARY_DIR})
   aiebu_add_subdirectory_disable_install_target(aie-rt/driver)
 endif()
 
-if (${AIEBU_NATIVE_BUILD} STREQUAL "yes")
+if (${AIEBU_NATIVE_BUILD})
   add_subdirectory(src)
 endif()
