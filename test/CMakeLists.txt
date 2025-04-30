@@ -7,7 +7,7 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
   add_subdirectory(aie2ps-ctrlcode)
 endif()
 
-if (${AIEBU_NATIVE_BUILD})
+if (AIEBU_NATIVE_BUILD)
  add_subdirectory(aie2-ctrlcode)
 endif()
 add_subdirectory(cpp_test)

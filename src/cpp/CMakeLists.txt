@@ -2,7 +2,7 @@
 # Copyright (C) 2024-2025, Advanced Micro Devices, Inc. All rights reserved.
 
 # In arm compiler we dont have static libs so not building utility
-if (${AIEBU_NATIVE_BUILD})
+if (AIEBU_NATIVE_BUILD)
   add_subdirectory(utils)
 endif()
 
@@ -52,7 +52,7 @@ target_compile_definitions(aiebu_library_objects
   -DAIEBU_EXPORTS
   )
 
-if (${AIEBU_NATIVE_BUILD})
+if (AIEBU_NATIVE_BUILD)
   target_compile_definitions(aiebu_library_objects
     PRIVATE
     AIEBU_NATIVE_BUILD=1
