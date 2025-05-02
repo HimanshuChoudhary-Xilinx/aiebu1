@@ -5,6 +5,7 @@ project(AIEBU HOMEPAGE_URL https://github.com/Xilinx/aiebu VERSION 1.0)
 
 include(cmake/settings.cmake)
 
+message("-- AIEBU_NATIVE_BUILD: ${AIEBU_NATIVE_BUILD}")
 add_subdirectory(src/cpp)
 
 add_subdirectory(specification)

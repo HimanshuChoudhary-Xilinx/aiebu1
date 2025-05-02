@@ -1,6 +1,10 @@
 # SPDX-License-Identifier: MIT
 # Copyright (C) 2024-2025, Advanced Micro Devices, Inc. All rights reserved.
-add_subdirectory(utils)
+
+# In arm compiler we dont have static libs so not building utility
+if (AIEBU_NATIVE_BUILD)
+  add_subdirectory(utils)
+endif()
 
 add_library(aiebu_library_objects OBJECT
   analyzer/reporter.cpp
@@ -48,12 +52,19 @@ target_compile_definitions(aiebu_library_objects
   -DAIEBU_EXPORTS
   )
 
+if (AIEBU_NATIVE_BUILD)
+  target_compile_definitions(aiebu_library_objects
+    PRIVATE
+    AIEBU_NATIVE_BUILD=1
+    )
+
+  add_dependencies(aiebu_library_objects ctrlcodelib)
+endif()
+
 set_target_properties(aiebu_library_objects PROPERTIES
   CXX_VISIBILITY_PRESET hidden
   POSITION_INDEPENDENT_CODE ON
   )
-
-add_dependencies(aiebu_library_objects ctrlcodelib)
 
 target_sources(aiebu_library_objects
   PRIVATE
