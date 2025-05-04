@@ -148,6 +148,11 @@ calculated and filled by the assembler.
 In human-readable representations (asm file), this operand is omitted from the operand list.
 
 
+## patch_buf
+Used for host address patching. Arg with this type has name starting with @, and this type of arg
+is consumed only by assembler.
+
+
 
 # Operations
 
@@ -359,9 +364,9 @@ completely when this operation finishes.
 
 Applies an offset to one or more shim DMA BD base address fields. (Version for 57-bit base addresses.)
 
-| 0x0e | - | table_ptr | num_entries | offset | instruction size |
-| :-: | - | - | - | - | -: |
-| opcode (8b) | pad (8b) | const (16b) | const (16b) | const (16b) | 8B |
+| 0x0e | - | table_ptr | num_entries | offset | pad_buf | instruction size |
+| :-: | - | - | - | - | - | -: |
+| opcode (8b) | pad (8b) | const (16b) | const (16b) | const (16b) | patch_buf (0b) | 8B |
 
 Patches the base address of `num_entries` Shim DMA buffer descriptors by adding the offset
 loaded from 'offset' and 'offset+1' in argument list.
@@ -369,8 +374,9 @@ if the offset is 0xFFFF, the offset added is the host address of 1st page of con
 The location of the `num_entries` buffer descriptors should be given in a table stored
 at `table_ptr`. One entry in the table is a set of Shim DMA BDs. If there are multiple entries in the table,
 those set of BDS have to be contiguous.
-4th optional arg in APPLY_OFFSET_57, specifies the pad buffer to hold blob for control packet, or save/restore
-L2 as scratchpad. It is a string starting with @
+4th optional arg `pad_buf` with special type `patch_buf`, specifies the pad buffer to hold blob for control packet,
+or save/restore L2 as scratchpad. It is a string starting with @, and only consumed by assembler to do host address
+patch at compile time.
 Example:
 ```
   # non-contiguous BDs
@@ -424,10 +430,9 @@ mem41_bd0:
   WORD              0x00000000
   WORD              0x80000000
   WORD              0x00000000
-
   # patch scratchpad to BDs
-  .setpad ctrl_pkt ctrlpkt.bin
-  .setpad tile_pad 0x100
+  .setpad ctrl_pkt, ctrlpkt.bin
+  .setpad tile_pad, 0x100
   APPLY_OFFSET_57     @mem21_bd0, 1, 3, @ctrl_pkt
   APPLY_OFFSET_57     @mem21_bd1, 1, 0xFFFF, @tile_pad
   # ...
@@ -622,9 +627,9 @@ In multi-uc case, for each preemption point id, the control code of each uc shou
 
 load pdi
 
-| 0x1a | - | pdi_id | pdi_host_addr_offset | instruction size |
-| :-: | - | - | - | -: |
-| opcode (8b) | pad (8b) | const (16b) | page_id (16b) | 6B |
+| 0x1a | - | - | pdi_id | pdi_host_addr_offset | instruction size |
+| :-: | - | - | - | - | -: |
+| opcode (8b) | pad (8b) | pad (16b) | const (16b) | page_id (16b) | 8B |
 
 pdi itself is also a piece of control code. It can be loaded by other control code at anywhere anytime.
 `pdi_id` is an elf wide unique id and specifies an unique pdi. consecutive loading of same pdi results in following
@@ -814,21 +819,22 @@ EOF
 
 This directive is used to declare a buffer.
 
-|`.setpad` | buffer size/path to buffer blob |
-|-| - |
-|-| integer/string |
+|`.setpad` | buffer name | buffer size/path to buffer blob |
+|-| - | - |
+|-| string | integer/string |
 
 Provides a method to specify buffer/buffer blob. If an immediate number is passed
-as arg, the number is size in word. There will be a buffer declared with that size
-and initialized as all 0s. If a file is passed as arg, there will be a buffer with
-the size of the file declared and initialized with contents in the file.
-`.setpad <buffer size>  or .setpad <buffer file path> `
+as 2nd arg, the number is size in words, there will be a buffer with name specified as 1st arg
+declared with that size and initialized as all 0s. If a file is passed as 2nd arg, there will
+be a buffer with name specified as 1st arg with the size of the file declared and initialized
+with contents in the file.
+`.setpad buffer_name, <buffer size>  or .setpad buffer_name, <buffer file path> `
 All the buffers declared with this directive will be in .pad.<colnum> section in the elf.
 Example:
 ```
 ...
-.setpad 0x100
-.setpad ctrlpkt.bin
+.setpad save, 0x100
+.setpad ctrl_pkt, ctrlpkt.bin
 ...
 ```
 

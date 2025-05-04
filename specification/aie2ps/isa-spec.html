@@ -97,6 +97,7 @@
 <li><a href="#page_id">page_id</a></li>
 <li><a href="#pad">pad</a></li>
 <li><a href="#jobsize">jobsize</a></li>
+<li><a href="#patch_buf">patch_buf</a></li>
 </ul>
 </li>
 <li><a href="#operations">Operations</a><ul>
@@ -426,6 +427,9 @@ In human-readable representations (asm file), padding operands are omitted from 
 <p>16-bit unsigned integer containing the size of the job (<code>START_JOB</code> until <code>END_JOB</code>), automatically
 calculated and filled by the assembler.
 In human-readable representations (asm file), this operand is omitted from the operand list.</p>
+<h2 id="patch_buf">patch_buf</h2>
+<p>Used for host address patching. Arg with this type has name starting with @, and this type of arg
+is consumed only by assembler.</p>
 <h1 id="operations">Operations</h1>
 <h2 id="start_job-0x00">START_JOB (0x00)</h2>
 <p>Indicates the start of a new job.</p>
@@ -827,6 +831,7 @@ completely when this operation finishes.</p>
 <th>table_ptr</th>
 <th>num_entries</th>
 <th>offset</th>
+<th>pad_buf</th>
 <th style="text-align: right;">instruction size</th>
 </tr>
 </thead>
@@ -837,6 +842,7 @@ completely when this operation finishes.</p>
 <td>const (16b)</td>
 <td>const (16b)</td>
 <td>const (16b)</td>
+<td>patch_buf (0b)</td>
 <td style="text-align: right;">8B</td>
 </tr>
 </tbody>
@@ -847,8 +853,9 @@ if the offset is 0xFFFF, the offset added is the host address of 1st page of con
 The location of the <code>num_entries</code> buffer descriptors should be given in a table stored
 at <code>table_ptr</code>. One entry in the table is a set of Shim DMA BDs. If there are multiple entries in the table,
 those set of BDS have to be contiguous.
-4th optional arg in APPLY_OFFSET_57, specifies the pad buffer to hold blob for control packet, or save/restore
-L2 as scratchpad. It is a string starting with @
+4th optional arg <code>pad_buf</code> with special type <code>patch_buf</code>, specifies the pad buffer to hold blob for control packet,
+or save/restore L2 as scratchpad. It is a string starting with @, and only consumed by assembler to do host address
+patch at compile time.
 Example:</p>
 <pre><code>  # non-contiguous BDs
   APPLY_OFFSET_57     @mem21_bd0, 1, 0xffff
@@ -901,10 +908,9 @@ mem41_bd0:
   WORD              0x00000000
   WORD              0x80000000
   WORD              0x00000000
-
   # patch scratchpad to BDs
-  .setpad ctrl_pkt ctrlpkt.bin
-  .setpad tile_pad 0x100
+  .setpad ctrl_pkt, ctrlpkt.bin
+  .setpad tile_pad, 0x100
   APPLY_OFFSET_57     @mem21_bd0, 1, 3, @ctrl_pkt
   APPLY_OFFSET_57     @mem21_bd1, 1, 0xFFFF, @tile_pad
   # ...
@@ -1228,6 +1234,7 @@ In multi-uc case, for each preemption point id, the control code of each uc shou
 <tr>
 <th style="text-align: center;">0x1a</th>
 <th>-</th>
+<th>-</th>
 <th>pdi_id</th>
 <th>pdi_host_addr_offset</th>
 <th style="text-align: right;">instruction size</th>
@@ -1237,9 +1244,10 @@ In multi-uc case, for each preemption point id, the control code of each uc shou
 <tr>
 <td style="text-align: center;">opcode (8b)</td>
 <td>pad (8b)</td>
+<td>pad (16b)</td>
 <td>const (16b)</td>
 <td>page_id (16b)</td>
-<td style="text-align: right;">6B</td>
+<td style="text-align: right;">8B</td>
 </tr>
 </tbody>
 </table>
@@ -1479,26 +1487,29 @@ EOF
 <thead>
 <tr>
 <th><code>.setpad</code></th>
+<th>buffer name</th>
 <th>buffer size/path to buffer blob</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>-</td>
+<td>string</td>
 <td>integer/string</td>
 </tr>
 </tbody>
 </table>
 <p>Provides a method to specify buffer/buffer blob. If an immediate number is passed
-as arg, the number is size in word. There will be a buffer declared with that size
-and initialized as all 0s. If a file is passed as arg, there will be a buffer with
-the size of the file declared and initialized with contents in the file.
-<code>.setpad &lt;buffer size&gt;  or .setpad &lt;buffer file path&gt;</code>
+as 2nd arg, the number is size in words, there will be a buffer with name specified as 1st arg
+declared with that size and initialized as all 0s. If a file is passed as 2nd arg, there will
+be a buffer with name specified as 1st arg with the size of the file declared and initialized
+with contents in the file.
+<code>.setpad buffer_name, &lt;buffer size&gt;  or .setpad buffer_name, &lt;buffer file path&gt;</code>
 All the buffers declared with this directive will be in .pad.<colnum> section in the elf.
 Example:</p>
 <pre><code>...
-.setpad 0x100
-.setpad ctrlpkt.bin
+.setpad save, 0x100
+.setpad ctrl_pkt, ctrlpkt.bin
 ...
 </code></pre>
         </div>

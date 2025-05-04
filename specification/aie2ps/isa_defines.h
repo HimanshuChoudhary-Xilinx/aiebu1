@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT */
 /*
- * Copyright (c) 2023 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2023-2025 Advanced Micro Devices, Inc. All rights reserved.
  */
 
 #ifndef _ISA_DEFINES_H_
@@ -266,8 +266,8 @@ static inline unsigned int control_dispatch_load_pdi(const uint8_t *pc)
 {
   return control_op_load_pdi(
     pc,
-    /* pdi_id (const) */ *(uint16_t *)(&pc[2]),
-    /* pdi_host_addr_offset (page_id) */ *(uint16_t *)(&pc[4])
+    /* pdi_id (const) */ *(uint16_t *)(&pc[4]),
+    /* pdi_host_addr_offset (page_id) */ *(uint16_t *)(&pc[6])
   );
 }
 

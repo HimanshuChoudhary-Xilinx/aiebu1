@@ -585,6 +585,8 @@ operations:
     opcode: 0x1a
     regular: True
     arguments:
+      - type: pad
+        width: 16
       - name: pdi_id
         type: const
         width: 16
