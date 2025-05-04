@@ -45,6 +45,7 @@ public:
       else
         std::cout << "Invalid flag: " << flag << ", ignored !!!" << std::endl;
     }
+    toutput->set_annotations(parser->get_annotations());
 
     for (auto col: collist)
     {

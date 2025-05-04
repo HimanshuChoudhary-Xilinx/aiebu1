@@ -60,6 +60,7 @@ process(std::shared_ptr<preprocessed_output> input)
 
   auto& totalcoldata = tinput->get_coldata();
   auto& totalsyms = tinput->get_symbols();
+  m_debug.set_annotations(tinput->get_annotations());
 
   // for each colnum encode each page
   for (auto coldata: totalcoldata) {
@@ -171,7 +172,7 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
 
     pc_low = pagenum * PAGE_SIZE + textwriter.tell();
     pc_high = pc_low + (*m_isa)[name]->serializer(text->get_operation()->get_args())->size(page_state) - 1;
-    m_debug.add_textline(fid, text->get_linenumber(), pc_high, pc_low, text->get_line());
+    m_debug.add_textline(fid, text->get_linenumber(), pc_high, pc_low, text->get_line(), text->get_annotation_index());
 
     if (text->isOpcode())
     {
@@ -200,7 +201,8 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
     {
       offset_type pc_low = pagenum * PAGE_SIZE + textwriter.tell() + datawriter.tell();
       offset_type pc_high = pc_low + (*m_isa)[name]->serializer(data->get_operation()->get_args())->size(page_state) - 1;
-      m_debug.add_dataline(fid, data->get_linenumber(), pc_high, pc_low, data->get_line());
+      m_debug.add_dataline(fid, data->get_linenumber(), pc_high, pc_low, data->get_line(), data->get_annotation_index());
+
       //TODO add debug info
       std::vector<uint8_t> ret = (*m_isa)[name]->serializer(data->get_operation()->get_args())
                                                ->serialize(page_state, dsym, colnum, pagenum);

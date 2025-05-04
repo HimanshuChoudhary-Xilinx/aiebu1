@@ -24,6 +24,7 @@ class aie2ps_preprocessed_output : public preprocessed_output
   std::map<uint32_t, std::shared_ptr<coldata>> m_coldata;
   std::vector<symbol> m_sym;
   bool isdebug = true;
+  std::vector<annotation_type> m_annotation_list;
 public:
   aie2ps_preprocessed_output() {}
 
@@ -56,6 +57,14 @@ public:
   {
     return isdebug;
   }
+
+
+  void set_annotations(std::vector<annotation_type> annotation_list)
+  {
+    m_annotation_list = std::move(annotation_list);
+  }
+
+  std::vector<annotation_type> get_annotations() { return std::move(m_annotation_list); }
 };
 
 }

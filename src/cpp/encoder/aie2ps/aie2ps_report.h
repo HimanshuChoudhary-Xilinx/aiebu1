@@ -15,9 +15,9 @@
 namespace aiebu {
 
 class Line {
-public:
-    Line(uint32_t linenumber, offset_type high_pc, offset_type low_pc, const std::string& opcode)
-        : m_linenumber(linenumber), m_highpc(high_pc), m_lowpc(low_pc), m_opcode(opcode) {}
+  public:
+    Line(uint32_t linenumber, offset_type high_pc, offset_type low_pc, const std::string& opcode, int annotation_index)
+        : m_linenumber(linenumber), m_highpc(high_pc), m_lowpc(low_pc), m_opcode(opcode), m_annotation_index(annotation_index) {}
 
     uint32_t get_linenumber() const { return m_linenumber; }
     offset_type get_highpc() const { return m_highpc; }
@@ -25,32 +25,42 @@ public:
     std::string get_opcode() const { return m_opcode; }
 
     friend std::ostream& operator<<(std::ostream& os, const Line& line) {
-        os << "linenumber:" << line.m_linenumber << " high_pc:" << line.m_highpc
-           << " low_pc:" << line.m_lowpc << " opcode:" << line.m_opcode;
-        return os;
+      os << "linenumber:" << line.m_linenumber << " high_pc:" << line.m_highpc
+         << " low_pc:" << line.m_lowpc << " opcode:" << line.m_opcode;
+      return os;
     }
 
-    boost::property_tree::ptree to_ptree(int sno, uint32_t column, pageid_type page_num, const std::string& filename) const {
-        boost::property_tree::ptree pt;
-        pt.put("sno", sno);
-        pt.put("operation", m_opcode);
-        pt.put("opcode_size", m_highpc-m_lowpc+1);
-        pt.put("column", column);
-        pt.put("page_index", page_num);
-        pt.put("page_offset", m_lowpc);
-        pt.put("line", m_linenumber);
-        pt.put("file", filename);
-        return pt;
+    boost::property_tree::ptree to_ptree(int sno, uint32_t column, pageid_type page_num, const std::string& filename,
+                                         const std::vector<annotation_type>& m_annotation_list) const {
+      boost::property_tree::ptree pt;
+      pt.put("sno", sno);
+      pt.put("operation", m_opcode);
+      pt.put("opcode_size", m_highpc-m_lowpc+1);
+      pt.put("column", column);
+      pt.put("page_index", page_num);
+      pt.put("page_offset", m_lowpc);
+      pt.put("line", m_linenumber);
+      pt.put("file", filename);
+      if (m_annotation_index != -1)
+      {
+        boost::property_tree::ptree annotation_pt;
+        annotation_pt.put("id", m_annotation_list.at(m_annotation_index).get_id());
+        annotation_pt.put("name", m_annotation_list.at(m_annotation_index).get_name());
+        annotation_pt.put("description", m_annotation_list.at(m_annotation_index).get_description());
+        pt.push_back(std::make_pair("annotation", annotation_pt));
+      }
+      return pt;
     }
-private:
+  private:
     uint32_t m_linenumber;
     offset_type m_highpc;
     offset_type m_lowpc;
     std::string m_opcode;
+    int m_annotation_index;
 };
 
 class Function {
-private:
+  private:
     std::string m_filename;
     std::string m_name;
     uint32_t m_colnum;
@@ -59,9 +69,11 @@ private:
     offset_type m_lowpc;
     std::vector<std::shared_ptr<Line>> m_textlines;
     std::vector<std::shared_ptr<Line>> m_datalines;
-public:
-    Function(const std::string& filename, const std::string& name, offset_type high_pc, offset_type low_pc, uint32_t col, pageid_type pagenum)
-        : m_filename(filename), m_name(name), m_colnum(col), m_pagenum(pagenum), m_highpc(high_pc), m_lowpc(low_pc) {}
+  public:
+    Function(const std::string& filename, const std::string& name, offset_type high_pc,
+             offset_type low_pc, uint32_t col, pageid_type pagenum)
+        : m_filename(filename), m_name(name), m_colnum(col), m_pagenum(pagenum),
+          m_highpc(high_pc), m_lowpc(low_pc) {}
 
     void add_textline(std::shared_ptr<Line> line) { m_textlines.emplace_back(line); }
     void add_dataline(std::shared_ptr<Line> line) { m_datalines.emplace_back(line); }
@@ -77,34 +89,38 @@ public:
     pageid_type get_lowPc() const { return m_lowpc; }
 
     friend std::ostream& operator<<(std::ostream& os, const Function& func) {
-        os << "\tfilename:" << func.m_filename << " name:" << func.m_name << " col_num:" << func.m_colnum
-           << " page:" << func.m_pagenum << " high_pc:" << func.m_highpc << " low_pc:" << func.m_lowpc << " line:\n";
-        for (const auto& line : func.m_textlines) {
-            os << "\t\t" << *line << "\n";
-        }
-        for (const auto& line : func.m_datalines) {
-            os << "\t\t" << *line << "\n";
-        }
-        return os;
+      os << "\tfilename:" << func.m_filename << " name:" << func.m_name << " col_num:" << func.m_colnum
+         << " page:" << func.m_pagenum << " high_pc:" << func.m_highpc << " low_pc:" << func.m_lowpc << " line:\n";
+      for (const auto& line : func.m_textlines) {
+        os << "\t\t" << *line << "\n";
+      }
+      for (const auto& line : func.m_datalines) {
+        os << "\t\t" << *line << "\n";
+      }
+      return os;
     }
 
 };
 
 class Debug {
+  std::vector<annotation_type> m_annotation_list;
 public:
-    std::string add_function(const std::string& filename, const std::string& name, offset_type high_pc, offset_type low_pc, uint32_t col, pageid_type pagenum) {
-        std::string key = filename + std::to_string(col) + name;
-        functions[key] = std::make_shared<Function>(filename, name, high_pc, low_pc, col, pagenum);
-        insertion_order.push_back(key);
-        return key;
+    std::string add_function(const std::string& filename, const std::string& name, offset_type high_pc,
+                             offset_type low_pc, uint32_t col, pageid_type pagenum) {
+      std::string key = filename + std::to_string(col) + name;
+      functions[key] = std::make_shared<Function>(filename, name, high_pc, low_pc, col, pagenum);
+      insertion_order.push_back(key);
+      return key;
     }
 
-    void add_textline(const std::string& func, uint32_t linenumber, offset_type high_pc, offset_type low_pc, const std::string& token) {
-        functions.at(func)->add_textline(std::make_shared<Line>(linenumber, high_pc, low_pc, token));
+    void add_textline(const std::string& func, uint32_t linenumber, offset_type high_pc, offset_type low_pc,
+                      const std::string& token, int annotation_index) {
+      functions.at(func)->add_textline(std::make_shared<Line>(linenumber, high_pc, low_pc, token, annotation_index));
     }
 
-    void add_dataline(const std::string& func, uint32_t linenumber, offset_type high_pc, offset_type low_pc, const std::string& token) {
-        functions.at(func)->add_dataline(std::make_shared<Line>(linenumber, high_pc, low_pc, token));
+    void add_dataline(const std::string& func, uint32_t linenumber, offset_type high_pc, offset_type low_pc,
+                      const std::string& token, int annotation_index) {
+      functions.at(func)->add_dataline(std::make_shared<Line>(linenumber, high_pc, low_pc, token, annotation_index));
     }
 
     friend std::ostream& operator<<(std::ostream& os, const Debug& debug) {
@@ -114,6 +130,11 @@ public:
         return os;
     }
 
+    void set_annotations(std::vector<annotation_type> annotation_list)
+    {
+        m_annotation_list = std::move(annotation_list);
+    }
+
     boost::property_tree::ptree to_ptree() const {
         boost::property_tree::ptree pt;
         boost::property_tree::ptree lines;
@@ -121,10 +142,12 @@ public:
         for (const auto& key : insertion_order) {
             const auto& func = functions.at(key);
             for (const auto& line : func->get_textlines()) {
-                lines.push_back(std::make_pair("", line->to_ptree(sno++, func->get_column(), func->get_pagenum(), func->get_filename())));
+                lines.push_back(std::make_pair("", line->to_ptree(sno++, func->get_column(), 
+                                               func->get_pagenum(), func->get_filename(), m_annotation_list)));
             }
             for (const auto& line : func->get_datalines()) {
-                lines.push_back(std::make_pair("", line->to_ptree(sno++, func->get_column(), func->get_pagenum(), func->get_filename())));
+                lines.push_back(std::make_pair("", line->to_ptree(sno++, func->get_column(),
+                                               func->get_pagenum(), func->get_filename(), m_annotation_list)));
             }
         }
         pt.push_back(std::make_pair("debug", lines));
@@ -150,7 +173,9 @@ class aie2ps_report
     std::map<jobid_type, std::vector<jobid_type>> m_joblaunchmap;
 
 
-    report_page(uint32_t colnum, pageid_type pagenum, offset_type textsize, offset_type datasize, std::vector<jobid_type> jobids, std::map<barrierid_type, std::vector<jobid_type>> localbarriermap, std::map<jobid_type, std::vector<jobid_type>> joblaunchmap):
+    report_page(uint32_t colnum, pageid_type pagenum, offset_type textsize, offset_type datasize,
+                std::vector<jobid_type> jobids, std::map<barrierid_type, std::vector<jobid_type>> localbarriermap,
+                std::map<jobid_type, std::vector<jobid_type>> joblaunchmap):
       m_colnum(colnum),
       m_pagenum(pagenum),
       m_textsize(textsize),
