@@ -42,6 +42,7 @@ public:
                             const std::vector<char>& buffer2 = {},
                             const std::map<uint32_t, std::vector<char> >& ctrlpkt = {});
 
+  virtual ~assembler() = default;
 };
 
 }
