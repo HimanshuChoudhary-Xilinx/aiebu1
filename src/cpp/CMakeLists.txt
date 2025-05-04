@@ -47,6 +47,10 @@ target_include_directories(aiebu_library_objects
   ${AIEBU_BINARY_DIR}/lib/gen
   )
 
+target_compile_definitions(aiebu_library_objects PRIVATE
+  LATEST_COMMIT_HASH="${LATEST_COMMIT_HASH}"
+  )
+
 target_compile_definitions(aiebu_library_objects
   PRIVATE
   -DAIEBU_EXPORTS
@@ -69,6 +73,7 @@ set_target_properties(aiebu_library_objects PROPERTIES
 target_sources(aiebu_library_objects
   PRIVATE
   encoder/aie2ps/aie2ps_encoder.cpp
+  encoder/aie2ps/aie2ps_report.cpp
   preprocessor/aie2ps/aie2ps_preprocessor_input.cpp
   preprocessor/asm/pager.cpp
   )

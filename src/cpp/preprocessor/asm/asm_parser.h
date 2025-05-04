@@ -196,6 +196,7 @@ public:
   HEADER_ACCESS_GET_SET(pageid_type, pagenum);
   HEADER_ACCESS_GET_SET(uint32_t, linenumber);
   HEADER_ACCESS_GET_SET(std::string, file);
+  HEADER_ACCESS_GET_SET(std::string, line);
   bool isLabel() { return m_optype == operation_type::label; }
   bool isOpcode() { return m_optype == operation_type::op; }
   std::shared_ptr<operation> get_operation() { return m_op; }

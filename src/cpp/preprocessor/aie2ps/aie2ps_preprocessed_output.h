@@ -6,6 +6,7 @@
 
 #include "asm/page.h"
 #include "preprocessed_output.h"
+#include "symbol.h"
 
 namespace aiebu {
 
@@ -22,6 +23,7 @@ class aie2ps_preprocessed_output : public preprocessed_output
   };
   std::map<uint32_t, std::shared_ptr<coldata>> m_coldata;
   std::vector<symbol> m_sym;
+  bool isdebug = true;
 public:
   aie2ps_preprocessed_output() {}
 
@@ -43,6 +45,16 @@ public:
   void add_symbols(std::vector<symbol>& syms)
   {
     m_sym = std::move(syms);
+  }
+
+  void set_debug(bool flag)
+  {
+    isdebug = flag;
+  }
+
+  bool get_debug() const
+  {
+    return isdebug;
   }
 };
 

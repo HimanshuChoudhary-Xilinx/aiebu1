@@ -61,7 +61,7 @@ int main(int argc, char ** argv)
 
   try
   {
-    auto as = aiebu::aiebu_assembler(aiebu::aiebu_assembler::buffer_type::asm_aie2ps, control_code_buf, {}, paths, external_buffer_id);
+    auto as = aiebu::aiebu_assembler(aiebu::aiebu_assembler::buffer_type::asm_aie2ps, control_code_buf, {"disabledump"}, paths, external_buffer_id);
     auto e = as.get_elf();
     std::ofstream output_file(testcase+".elf", std::ios_base::binary);
     output_file.write(e.data(), e.size());
