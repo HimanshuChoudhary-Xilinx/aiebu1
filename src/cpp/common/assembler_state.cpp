@@ -37,6 +37,7 @@ process(bool makeunique)
   uint32_t eopnum = 0;
   std::string clabelname;
   jobid_type cjob_id = "";
+  std::map<std::string, int> apply_label_map;
   for (auto data : m_data)
   {
     if (data->isLabel())
@@ -48,6 +49,7 @@ process(bool makeunique)
       if (m_labelmap.find(clabelname) != m_labelmap.end())
         throw error(error::error_code::invalid_asm, "Label " + clabelname + " present multiple time in asm\n");
       m_labelmap[clabelname] = std::make_shared<label>(clabelname, m_pos, index);
+      m_labellist.emplace_back(clabelname);
     } else if (data->isOpcode()){
       std::string name = data->get_operation()->get_name();
       if (!name.compare("start_job") || !name.compare("start_job_deferred"))
@@ -112,7 +114,12 @@ process(bool makeunique)
         m_jobmap[cjob_id]->set_end_index(index);
         cjob_id.clear();
       }
-
+      // mentain map of label and num_entries for apply_offset_57
+      // only used in pager
+      // since label are after control code ops we need to record intermediately and resolve it later
+      if (!name.compare("apply_offset_57") && makeunique)
+        apply_label_map[data->get_file() + ":" + data->get_operation()->get_args()[0].substr(1)]
+                 = std::stoul(data->get_operation()->get_args()[1]);
     } else {
       throw error(error::error_code::internal_error, "Unknown type found!!!");
     }
@@ -127,6 +134,19 @@ process(bool makeunique)
     }
     ++index;
     data->set_section(csection);
+  }
+
+  //convert label and num_entries to map of label and dependent labels
+  for (const auto& pair : apply_label_map)
+  {
+    if (pair.second == 1)
+      continue;
+    size_t index = find_label_entry(pair.first);
+    for (int i = 0; i < pair.second; ++i)
+    {
+      auto label = get_label_at(index+i);
+      m_dependent_labelmap[pair.first].push_back(label.substr(1));
+    }
   }
   //TODO launch job id sanity check
 }
@@ -144,10 +164,10 @@ uint32_t assembler_state::parse_num_arg(const std::string& str) {
     {"@", [this](const std::string& s) -> uint32_t {
           //If string start with '@': it can be either pad name or label name
           auto key = s.substr(1);
-          if (auto it = m_scratchpad.find(key); it != m_scratchpad.end())
-            return it->second->get_base() + it->second->get_offset();
-          if (auto it = m_labelmap.find(key); it != m_labelmap.end())
-            return it->second->get_pos();
+          if (m_scratchpad.find(key) != m_scratchpad.end())
+            return m_scratchpad[key]->get_base() + m_scratchpad[key]->get_offset();
+          if (m_labelmap.find(key) != m_labelmap.end())
+            return m_labelmap[key]->get_pos();
           throw error(error::error_code::invalid_asm, "Label " + key + " not present in label map\n");
     }},
     {"s2mm_", [this](const std::string& s) -> uint32_t { return get_actor("s2mm", s); }},
