@@ -127,7 +127,7 @@ public:
                 lines.push_back(std::make_pair("", line->to_ptree(sno++, func->get_column(), func->get_pagenum(), func->get_filename())));
             }
         }
-        pt.push_back(std::make_pair("", lines));
+        pt.push_back(std::make_pair("debug", lines));
         return pt;
     }
 

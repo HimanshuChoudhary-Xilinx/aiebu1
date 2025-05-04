@@ -77,6 +77,6 @@ class Report:
                     entry["file"] = os.path.realpath(func.filename)
                     dmap.append(entry)
                     k = k + 1
-            dfile.write(json.dumps(dmap, indent=4))
+            dfile.write(json.dumps({"debug" : dmap}, indent=4))
             dfile.close()
-        return json.dumps(dmap, indent=4).encode('utf-8')
+        return json.dumps({"debug" : dmap}, indent=4).encode('utf-8')
