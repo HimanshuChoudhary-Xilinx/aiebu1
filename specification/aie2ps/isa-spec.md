@@ -663,6 +663,31 @@ allocated shared memory gets fill, CERT should initiate the uc-DMA to transfer d
 data memory to host memory.
 
 
+## SLEEP (0x1d)
+
+sleep instruction.
+
+| 0x1d | - | - | target | instruction size |
+| :-: | - | - | - | -: |
+| opcode (8b) | pad (8b) | pad (16b) | const (32b) | 8B |
+
+Sleep instruction makes the current job busy waiting `target` microseconds. This opcode is for test purpose
+only. Calling this operation doesn't yield control to another job.
+
+
+## SAVE_REGISTER (0x1e)
+
+Reads value from specified register address and saves it in Shared Data Memory.
+
+| 0x1e | - | - | address | unq_id | instruction size |
+| :-: | - | - | - | - | -: |
+| opcode (8b) | pad (8b) | pad (16b) | const (32b) | const (32b) | 12B |
+
+Used to save the register address values. AIE compiler will also add unique identifier while generating control code.
+Values will be saved in the shared data memory. Whenever the allocated shared memory gets fille, CERT will start uC-DMA
+to transfer data from sDM to host memory.
+
+
 
 
 # Directives

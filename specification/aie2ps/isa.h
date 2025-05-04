@@ -131,6 +131,14 @@ public:
      opArg("_pad", opArg::optype::PAD, 16), opArg("unq_id", opArg::optype::CONST, 32),
     });
 
+    (*m_isa)["sleep"] = std::make_shared<isa_op>("sleep", 29, std::vector<opArg>{
+     opArg("_pad", opArg::optype::PAD, 16), opArg("target", opArg::optype::CONST, 32),
+    });
+
+    (*m_isa)["save_register"] = std::make_shared<isa_op>("save_register", 30, std::vector<opArg>{
+     opArg("_pad", opArg::optype::PAD, 16), opArg("address", opArg::optype::CONST, 32), opArg("unq_id", opArg::optype::CONST, 32),
+    });
+
     
 
     (*m_isa)[".align"] = std::make_shared<isa_op>(".align", 0XA5, std::vector<opArg>{});
