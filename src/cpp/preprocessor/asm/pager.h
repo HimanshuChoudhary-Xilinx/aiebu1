@@ -21,7 +21,7 @@ class pager
   constexpr static offset_type ALIGNMENT_4 = 4;
 
   std::map<std::string , offset_type> ALIGNMAP = {{"uc_dma_bd", ALIGNMENT_16}, {".long", ALIGNMENT_4}};
-  std::vector<std::string> OOO = {"load_pdi", "preemption_checkpoint"};
+  std::vector<std::string> OOO = {"load_pdi", "preempt"};
 
   template <typename T>
   std::vector<T> union_of_lists_inorder(std::vector<T> &vec1, std::vector<T>& vec2);

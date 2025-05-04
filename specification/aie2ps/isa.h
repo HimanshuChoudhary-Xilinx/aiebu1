@@ -115,7 +115,7 @@ public:
      opArg("_pad", opArg::optype::PAD, 16),
     });
 
-    (*m_isa)["preemption_checkpoint"] = std::make_shared<isa_op>("preemption_checkpoint", 25, std::vector<opArg>{
+    (*m_isa)["preempt"] = std::make_shared<isa_op>("preempt", 25, std::vector<opArg>{
      opArg("id", opArg::optype::CONST, 16), opArg("save_control_code_offset", opArg::optype::PAGE_ID, 16), opArg("restore_control_code_offset", opArg::optype::PAGE_ID, 16),
     });
 

@@ -9,8 +9,7 @@
       main {
         display: flex;
         flex-flow: column;
-        margin: 4em auto;
-        max-width: 1200px;
+        max-width: 100%;
         background-color: #fff;
         box-shadow: 0.5em 0.5em 0.5em rgba(0, 0, 0, 0.1);
       }
@@ -21,7 +20,7 @@
       }
       .title {
         border-bottom: 1px solid #ccc;
-        padding: 0.5em 2em;
+        padding: 0.5em 0.5em;
         display: flex;
         align-items: center;
       }
@@ -47,23 +46,19 @@
         padding: 0.5em 0.5em;
       }
       .contents table {
-        border: 1px solid #ddd;
+        border: 1px solid #000000;
+        border-spacing: 0px;
       }
       .contents th {
         background-color: #eee;
       }
       .contents th, .contents td {
+        border: 1px solid #000000;
         padding: 0.5em;
       }
       .contents pre {
         background-color: #f8f8f8;
         padding: 1em;
-      }
-      .contents h1:not(:first-child) {
-        margin-top: 1.5em;
-      }
-      .contents h2 {
-        margin-top: 1.5em;
       }
       .contents img {
         max-width: 90%;
