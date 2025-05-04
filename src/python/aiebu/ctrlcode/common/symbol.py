@@ -15,7 +15,8 @@ class Symbol:
         xrt_patch_schema_shim_dma_48 = 5
         xrt_patch_schema_shim_dma_57_aie4 = 6
         xrt_patch_schema_control_packet_57 = 7
-        xrt_patch_schema_unknown = 8
+        xrt_patch_schema_control_packet_57_aie4 = 9
+        xrt_patch_schema_unknown = 10
 
     class XrtPatchBufferType(IntEnum):
         xrt_patch_buffer_type_instruct = 0

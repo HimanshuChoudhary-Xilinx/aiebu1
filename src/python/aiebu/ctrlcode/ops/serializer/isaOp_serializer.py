@@ -85,7 +85,7 @@ class IsaOpSerializer(OpSerializer):
 
                         # arg 0 to 6 and be patched in CERT.
                         # Beyond that its elfloader/host responsibility to patch mandatorily
-                        if val > 6:
+                        if (val > 6 and val != 0xFFFF):
                             print(f"WARNING: Apply_offset_57 has arg index {val} > 6, Should be mandatorily patched in host!!!")
                         if val == self.state.control_packet_index:
                             val = 0xFFFF

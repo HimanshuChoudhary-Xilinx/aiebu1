@@ -141,6 +141,7 @@ class ELFWriter:
             Symbol.XrtPatchSchema.xrt_patch_schema_shim_dma_57: pylibelf.elf.R_M32R_NUM,
             Symbol.XrtPatchSchema.xrt_patch_schema_control_packet_48:pylibelf.elf.R_M32R_REL32,
             Symbol.XrtPatchSchema.xrt_patch_schema_control_packet_57:pylibelf.elf.R_M32R_GOT24,
+            Symbol.XrtPatchSchema.xrt_patch_schema_control_packet_57_aie4:pylibelf.elf.R_M32R_GOT24,
             Symbol.XrtPatchSchema.xrt_patch_schema_shim_dma_57_aie4: pylibelf.elf.R_M32R_NUM,
             Symbol.XrtPatchSchema.xrt_patch_schema_unknown: pylibelf.elf.R_M32R_NONE
         }

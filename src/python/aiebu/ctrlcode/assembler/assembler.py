@@ -29,6 +29,16 @@ class Assembler:
     REPO = git.Repo(os.path.dirname(os.path.abspath(__file__)), search_parent_directories=True)
     def __init__(self, target, ifilename, efilename, isa, includedirlist, mapfilename, patch_info, isdump=False):
         self.target = target
+        if self.target == "aie2ps":
+            self.patch_57 = self.aie2ps_patch_57
+            self.control_patch_schema = Symbol.XrtPatchSchema.xrt_patch_schema_control_packet_57
+            self.control_packet_header_offset = 8
+        elif self.target == "aie4":
+            self.patch_57 = self.aie4_patch_57
+            self.control_patch_schema = Symbol.XrtPatchSchema.xrt_patch_schema_control_packet_57_aie4
+            self.control_packet_header_offset = 4
+        else:
+            raise RuntimeError(f"Target ({self.target}) not supported!!!")
         self.ifilename = ifilename
         self.ifile = open(self.ifilename, 'r')
         self.elffile = efilename
@@ -51,12 +61,6 @@ class Assembler:
         self.elf_sections = {}
         self.control_packet_index = None
         self.aiecompiler_json_parser(patch_info)
-        if self.target == "aie2ps":
-            self.patch_57 = self.aie2ps_patch_57
-        elif self.target == "aie4":
-            self.patch_57 = self.aie4_patch_57
-        else:
-            raise RuntimeError(f"Target ({self.target}) not supported!!!")
 
     def __del__(self):
         self.ifile.close()
@@ -73,10 +77,10 @@ class Assembler:
 
     def extract_control_packet_patch(self, name, addend, control_packet_patch_locations):
         for patch in control_packet_patch_locations:
-            offset = patch["offset"] - 8   # go to start of header
+            offset = patch["offset"] - self.control_packet_header_offset   # go to start of header
             #TODO: Json doent have information of col for control packet, its not supported by compiler
             # so all patching info is default taken for col 0
-            self.controlpacket_symbols.append(Symbol(str(name), offset, 0, "pad", Symbol.XrtPatchSchema.xrt_patch_schema_control_packet_57))
+            self.controlpacket_symbols.append(Symbol(str(name), offset, 0, "pad", self.control_patch_schema))
 
     def aiecompiler_json_parser(self, patch_info):
         if not patch_info:
@@ -199,7 +203,7 @@ class Assembler:
             ctrlpkt_offset = scratchpad[ctrlpkt]["offset"]
             for entry in self.controlpacket_symbols:
                 if int(col) == entry.col_num:
-                   self.symbols.append(Symbol(entry.name, entry.offset+ctrlpkt_offset, 0, "pad", Symbol.XrtPatchSchema.xrt_patch_schema_control_packet_57))
+                   self.symbols.append(Symbol(entry.name, entry.offset+ctrlpkt_offset, 0, "pad", self.control_patch_schema))
                    cp_patch_count += 1
 
         if cp_patch_count != len(self.controlpacket_symbols):
