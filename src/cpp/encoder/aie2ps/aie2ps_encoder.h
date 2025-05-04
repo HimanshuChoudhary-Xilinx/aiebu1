@@ -11,6 +11,7 @@
 #include "aie2ps_preprocessed_output.h"
 #include "ops.h"
 #include "specification/aie2ps/isa.h"
+#include "aie2ps_report.h"
 
 namespace aiebu {
 
@@ -18,6 +19,8 @@ class aie2ps_encoder : public encoder
 {
   std::shared_ptr<std::map<std::string, std::shared_ptr<isa_op>>> m_isa;
   std::vector<writer> twriter;
+  aie2ps_report m_report;
+  Debug m_debug;
 public:
   aie2ps_encoder() {     
     isa i;

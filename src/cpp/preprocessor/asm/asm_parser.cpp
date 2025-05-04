@@ -99,6 +99,7 @@ parse_lines(const std::vector<char>& data, std::string& file)
   uint32_t linenumber = 0;
 
   while (std::getline(isstr, line)) {
+    ++linenumber;
     line = trim(line);
     if(line.empty())
       continue;
@@ -111,10 +112,7 @@ parse_lines(const std::vector<char>& data, std::string& file)
     // Check for Directive
     std::regex_match(line, sm, DIRCETIVE_REGEX);
     if (operate_directive(line))
-    {
-      ++linenumber;
       continue;
-    }
 
     // check for label
     std::regex_match(line, sm, LABEL_REGEX);
@@ -137,7 +135,6 @@ parse_lines(const std::vector<char>& data, std::string& file)
       if (!sm[1].str().compare("EOF"))
         set_data_state(true);
     }
-    ++linenumber;
   }
 
 }

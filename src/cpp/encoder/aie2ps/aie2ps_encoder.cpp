@@ -3,7 +3,8 @@
 #include "aie2ps_encoder.h"
 
 #include "aiebu/aiebu_error.h"
-
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
 #include <cassert>
 
 namespace aiebu {
@@ -82,6 +83,22 @@ process(std::shared_ptr<preprocessed_output> input)
     twriter.push_back(padwriter);
   }
 
+  //Debug
+  m_report.generate();
+  boost::property_tree::ptree pt = m_debug.to_ptree();
+  std::ofstream file("debug_map.json");
+  boost::property_tree::write_json(file, pt);
+  file.close();
+
+  if (tinput->get_debug())
+  {
+    writer dumpwriter(".dump", code_section::data);
+    std::ostringstream oss;
+    boost::property_tree::write_json(oss, pt);
+    for (auto& val : oss.str())
+      dumpwriter.write_byte(val);
+    twriter.push_back(dumpwriter);
+  }
   return twriter;
 }
 
@@ -133,6 +150,7 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
   writer textwriter(get_TextSectionName(colnum, pagenum), code_section::text);
   writer datawriter(get_DataSectionName(colnum, pagenum), code_section::data);
 
+  std::string fid;
   for (auto byte : page_header)
     textwriter.write_byte(byte);
 
@@ -143,6 +161,18 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
   {
     //TODO add debug info
     std::string name = text->get_operation()->get_name();
+    offset_type pc_low, pc_high;
+
+    if (name == "start_job" || name == "start_job_deferred") {
+      pc_low = pagenum * PAGE_SIZE + textwriter.tell();
+      pc_high = pc_low + page_state.m_jobmap[page_state.gen_job_name(false, text)]->get_size() - 1;
+      fid = m_debug.add_function(text->get_file(), name + "_" + page_state.gen_job_name(false, text), pc_high, pc_low, colnum, pagenum);
+    }
+
+    pc_low = pagenum * PAGE_SIZE + textwriter.tell();
+    pc_high = pc_low + (*m_isa)[name]->serializer(text->get_operation()->get_args())->size(page_state) - 1;
+    m_debug.add_textline(fid, text->get_linenumber(), pc_high, pc_low, text->get_line());
+
     if (text->isOpcode())
     {
       page_state->set_pos(textwriter.tell() - offset);
@@ -168,6 +198,9 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
       // TODO assert
     } else if (data->isOpcode())
     {
+      offset_type pc_low = pagenum * PAGE_SIZE + textwriter.tell() + datawriter.tell();
+      offset_type pc_high = pc_low + (*m_isa)[name]->serializer(data->get_operation()->get_args())->size(page_state) - 1;
+      m_debug.add_dataline(fid, data->get_linenumber(), pc_high, pc_low, data->get_line());
       //TODO add debug info
       std::vector<uint8_t> ret = (*m_isa)[name]->serializer(data->get_operation()->get_args())
                                                ->serialize(page_state, dsym, colnum, pagenum);
@@ -195,6 +228,7 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
   twriter.push_back(textwriter);
   twriter.push_back(datawriter);
 
+  m_report.addpage(lpage, page_state, textwriter.tell(), datawriter.tell());
   return page_state->m_controlpacket_padname;
   // TODO add size and generate report
 }

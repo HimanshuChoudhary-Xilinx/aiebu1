@@ -24,6 +24,7 @@ protected:
   constexpr static uint32_t ARG_OFFSET = 0;
 
   std::vector<std::string> m_libpaths;
+  std::vector<std::string> m_flags;
   uint32_t m_control_packet_index = 0xFFFFFFFF;
   enum class offset_type {
     CONTROL_PACKET,
@@ -45,15 +46,17 @@ public:
 
   const std::vector<std::string>& get_include_paths() const { return m_libpaths; }
   uint32_t get_control_packet_index() const { return m_control_packet_index; }
+  const std::vector<std::string>& get_flags() const { return m_flags; }
 
   virtual void set_args(const std::vector<char>& control_code,
                         const std::vector<char>& patch_json,
                         const std::vector<char>& /*buffer2*/,
-                        const std::vector<std::string>& /* libs */,
+                        const std::vector<std::string>& libs,
                         const std::vector<std::string>& libpaths,
                         const std::map<uint32_t, std::vector<char> >& /*ctrlpkt*/) override
   {
     m_libpaths = libpaths;
+    m_flags = libs;
     m_data["control_code"] = control_code;
     if (patch_json.size() !=0 )
     {

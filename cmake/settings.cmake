@@ -29,6 +29,14 @@ endif(DEFINED $ENV{AIEBU_VERSION_PATCH})
 set(AIEBU_SOVERSION ${AIEBU_VERSION_MAJOR} CACHE INTERNAL "")
 set(AIEBU_VERSION_STRING ${AIEBU_VERSION_MAJOR}.${AIEBU_VERSION_MINOR}.${AIEBU_VERSION_PATCH} CACHE INTERNAL "")
 
+# Get the latest Git commit hash
+execute_process(
+    COMMAND git rev-parse HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE LATEST_COMMIT_HASH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
 ################################################################
 # Standard code snippet to identify parent project if we are a submodule
 ################################################################
