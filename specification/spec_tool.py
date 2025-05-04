@@ -29,6 +29,8 @@ def get_arg_name(arg):
 def get_arg_width(arg):
   if arg['type'] == 'register' or arg['type'] == 'barrier':
     return 8
+  elif arg['type'] == 'patch_buf':
+    return 0
   else:
     return arg['width']
 
