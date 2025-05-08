@@ -130,12 +130,11 @@ protected:
 
   //std::unordered_map<std::string, ActionId> actor_id;
 
-  virtual std::unordered_map<std::string, ActionId>& get_actor_id_map() const = 0;
-  uint32_t get_actor(const std::string& prefix, const std::string& s) const
+  virtual std::unordered_map<std::string, uint32_t>& get_actor_id_map() const = 0;
+  uint32_t get_actor(const std::string& s) const
   {
-    std::unordered_map<std::string, ActionId>& actor_id = get_actor_id_map();
-    uint32_t actor = std::stoi(s.substr(actor_id.at(prefix).actor_start));
-    return actor_id.at(prefix).base_actor_offset + actor;
+    std::unordered_map<std::string, uint32_t>& actor_id = get_actor_id_map();
+    return actor_id.at(s);
   }
 
   assembler_state(std::shared_ptr<std::map<std::string, std::shared_ptr<isa_op>>> isa,
@@ -207,21 +206,45 @@ public:
 
 class assembler_state_aie2ps : public assembler_state
 {
-  std::unordered_map<std::string, ActionId>&
+  std::unordered_map<std::string, uint32_t>&
   get_actor_id_map() const override
   {
-    static std::unordered_map<std::string, ActionId> actor_id = {
-      {"mm2s", {5, 6}},          //NOLINT
-      {"s2mm", {5, 0}},          //NOLINT
-      {"tile_mm2s", {10, 6}},    //NOLINT
-      {"tile_s2mm", {10, 0}},    //NOLINT
-      {"shim_mm2s", {10, 6}},    //NOLINT
-      {"shim_s2mm", {10, 0}},    //NOLINT
-      {"mem_mm2s", {9, 6}},      //NOLINT
-      {"mem_s2mm", {9, 0}}       //NOLINT
+    static std::unordered_map<std::string, uint32_t> actor_id = {
+      //{"s2mm_0", 0},          //NOLINT
+      //{"s2mm_1", 1},          //NOLINT
+
+      //{"mm2s_0", 6},          //NOLINT
+      //{"mm2s_1", 7},          //NOLINT
+
+      {"shim_s2mm_0", 0},          //NOLINT
+      {"shim_s2mm_1", 1},          //NOLINT
+
+      {"shim_mm2s_0", 6},          //NOLINT
+      {"shim_mm2s_1", 7},          //NOLINT
+
+      {"mem_s2mm_0", 0},          //NOLINT
+      {"mem_s2mm_1", 1},          //NOLINT
+      {"mem_s2mm_2", 2},          //NOLINT
+      {"mem_s2mm_3", 3},          //NOLINT
+      {"mem_s2mm_4", 4},          //NOLINT
+      {"mem_s2mm_5", 5},          //NOLINT
+
+      {"mem_mm2s_0", 6},          //NOLINT
+      {"mem_mm2s_1", 7},          //NOLINT
+      {"mem_mm2s_2", 8},          //NOLINT
+      {"mem_mm2s_3", 9},          //NOLINT
+      {"mem_mm2s_4", 10},         //NOLINT
+      {"mem_mm2s_5", 11},         //NOLINT
+
+      {"tile_s2mm_0", 0},          //NOLINT
+      {"tile_s2mm_1", 1},          //NOLINT
+      {"tile_mm2s_0", 6},          //NOLINT
+      {"tile_mm2s_1", 7},          //NOLINT
+      {"tile_core", 15},           //NOLINT
     };
     return actor_id;
   }
+
   public:
   assembler_state_aie2ps(std::shared_ptr<std::map<std::string, std::shared_ptr<isa_op>>> isa,
                          std::vector<std::shared_ptr<asm_data>>& data,
@@ -239,19 +262,48 @@ class assembler_state_aie2ps : public assembler_state
 
 class assembler_state_aie4 : public assembler_state
 {
-  std::unordered_map<std::string, ActionId>&
+  std::unordered_map<std::string, uint32_t>&
   get_actor_id_map() const override
   {
-    static std::unordered_map<std::string, ActionId> actor_id = {
-      {"mm2s", {5, 6}},               //NOLINT
-      {"s2mm", {5, 0}},               //NOLINT
-      {"tile_mm2s", {10, 6}},         //NOLINT
-      {"tile_s2mm", {10, 0}},         //NOLINT
-      {"shim_mm2s", {10, 6}},         //NOLINT
-      {"shim_s2mm", {10, 0}},         //NOLINT
-      {"mem_mm2s", {9, 16}},          //NOLINT
-      {"mem_s2mm", {9, 0}},           //NOLINT
-      {"shim_ctrl_mm2s", {15, 16}}    //NOLINT
+    static std::unordered_map<std::string, uint32_t> actor_id = {
+      {"shim_s2mm_0", 0},          //NOLINT
+      {"shim_trace_s2mm", 1},     //NOLINT
+      {"shim_s2mm_1", 2},          //NOLINT
+
+      {"shim_mm2s_0", 6},          //NOLINT
+      {"shim_mm2s_1", 7},          //NOLINT
+      {"shim_mm2s_2", 8},          //NOLINT
+      {"shim_mm2s_3", 9},          //NOLINT
+
+      {"shim_ctrl_mm2s_0", 16},    //NOLINT
+      {"shim_ctrl_mm2s_1", 17},    //NOLINT
+
+      {"mem_s2mm_0", 0},          //NOLINT
+      {"mem_s2mm_1", 1},          //NOLINT
+      {"mem_s2mm_2", 2},          //NOLINT
+      {"mem_s2mm_3", 3},          //NOLINT
+      {"mem_s2mm_4", 4},          //NOLINT
+      {"mem_s2mm_5", 5},          //NOLINT
+      {"mem_s2mm_6", 6},          //NOLINT
+      {"mem_s2mm_7", 7},          //NOLINT
+
+      {"mem_mm2s_0", 16},          //NOLINT
+      {"mem_mm2s_1", 17},          //NOLINT
+      {"mem_mm2s_2", 18},          //NOLINT
+      {"mem_mm2s_3", 19},          //NOLINT
+      {"mem_mm2s_4", 20},          //NOLINT
+      {"mem_mm2s_5", 22},          //NOLINT
+      {"mem_mm2s_6", 23},          //NOLINT
+      {"mem_mm2s_7", 24},          //NOLINT
+      {"mem_mm2s_8", 25},          //NOLINT
+      {"mem_mm2s_9", 26},          //NOLINT
+
+      {"tile_s2mm_0", 0},          //NOLINT
+      {"tile_s2mm_1", 1},          //NOLINT
+
+      {"tile_mm2s_0", 6},          //NOLINT
+
+      {"tile_core", 15},          //NOLINT
     };
     return actor_id;
   }
