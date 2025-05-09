@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Copyright (C) 2024, Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (C) 2024-2025, Advanced Micro Devices, Inc. All rights reserved.
 
 #ifndef _AIEBU_PREPROCESSOR_AIE2PS_PREPROCESSOR_H_
 #define _AIEBU_PREPROCESSOR_AIE2PS_PREPROCESSOR_H_
@@ -20,6 +20,14 @@ class aie2ps_preprocessor: public preprocessor
   std::shared_ptr<std::map<std::string, std::shared_ptr<isa_op>>> m_isa;
 public:
   aie2ps_preprocessor() {}
+  virtual std::shared_ptr<assembler_state> create_assembler_state(std::shared_ptr<std::map<std::string, std::shared_ptr<isa_op>>> isa,
+                                                 std::vector<std::shared_ptr<asm_data>>& data,
+                                                 std::map<std::string, std::shared_ptr<scratchpad_info>>& scratchpad,
+                                                 std::map<std::string, uint32_t>& labelpageindex,
+                                                 uint32_t control_packet_index, bool makeunique)
+  {
+    return std::make_shared<assembler_state_aie2ps>(isa, data, scratchpad, labelpageindex, control_packet_index, makeunique);
+  }
 
   virtual std::shared_ptr<preprocessed_output>
   process(std::shared_ptr<preprocessor_input> input) override
@@ -27,7 +35,12 @@ public:
     // do preprocessing,
     // separate out asm data colnum wise
     // create pages
-    auto tinput = std::static_pointer_cast<aie2ps_preprocessor_input>(input);
+    return process_internal(std::dynamic_pointer_cast<aie2ps_preprocessor_input>(input));
+  }
+
+  std::shared_ptr<preprocessed_output>
+  process_internal(std::shared_ptr<asm_preprocessor_input> tinput)
+  {
     auto toutput = std::make_shared<aie2ps_preprocessed_output>();
     //auto keys = tinput->get_keys();
     std::shared_ptr<asm_parser> parser(new asm_parser(tinput->get_data(), tinput->get_include_paths()));
@@ -48,9 +61,9 @@ public:
       {
         // create state
         std::vector<std::shared_ptr<asm_data>> data = coldata.get_label_asmdata(label);
-        assembler_state state = assembler_state(m_isa, data, scratchpad, label_page_index, 0, true);
+        std::shared_ptr<assembler_state> state = create_assembler_state(m_isa, data, scratchpad, label_page_index, 0, true);
         // create pages
-        pager(PAGE_SIZE).pagify(state, col, pages, relative_page_index);
+        pager(PAGE_SIZE).pagify(*state, col, pages, relative_page_index);
         label_page_index[get_pagelabel(label)] = relative_page_index;
         relative_page_index = pages.size();
       }

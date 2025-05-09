@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Copyright (C) 2024, Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (C) 2024-2025, Advanced Micro Devices, Inc. All rights reserved.
 
 #ifndef _ADSM_OPS_ISA_OP_H_
 #define _ADSM_OPS_ISA_OP_H_
@@ -36,7 +36,7 @@ public:
 
   virtual offset_type size(assembler_state& ) { return 0;}
   virtual offset_type align() {return 0;}
-  virtual std::vector<uint8_t> serialize(assembler_state& /*state*/, std::vector<symbol>& /*symbols*/, uint32_t /*colnum*/, pageid_type /*pagenum*/)
+  virtual std::vector<uint8_t> serialize(std::shared_ptr<assembler_state> /*state*/, std::vector<symbol>& /*symbols*/, uint32_t /*colnum*/, pageid_type /*pagenum*/)
   { std::vector<uint8_t> v; return v;}
 };
 
@@ -49,7 +49,7 @@ public:
   offset_type size(assembler_state& state) override;
 
   offset_type align() override { return 0; }
-  std::vector<uint8_t> serialize(assembler_state& state, std::vector<symbol>& symbols, uint32_t colnum, pageid_type pagenum) override;
+  std::vector<uint8_t> serialize(std::shared_ptr<assembler_state> state, std::vector<symbol>& symbols, uint32_t colnum, pageid_type pagenum) override;
 };
 
 class long_op_serializer: public op_serializer
@@ -60,7 +60,7 @@ public:
   offset_type size(assembler_state& /*state*/) override { return 4; }
 
   offset_type align() override { return 4; }
-  std::vector<uint8_t> serialize(assembler_state& state, std::vector<symbol>& symbols, uint32_t colnum, pageid_type pagenum) override;
+  std::vector<uint8_t> serialize(std::shared_ptr<assembler_state> state, std::vector<symbol>& symbols, uint32_t colnum, pageid_type pagenum) override;
 };
 
 class align_op_serializer: public op_serializer
@@ -71,7 +71,7 @@ public:
   offset_type size(assembler_state& state) override;
 
   offset_type align() override { return 0; }
-  std::vector<uint8_t> serialize(assembler_state& state, std::vector<symbol>& symbols, uint32_t colnum, pageid_type pagenum) override;
+  std::vector<uint8_t> serialize(std::shared_ptr<assembler_state> state, std::vector<symbol>& symbols, uint32_t colnum, pageid_type pagenum) override;
 };
 
 class ucDmaBd_op_serializer: public op_serializer
@@ -82,7 +82,7 @@ public:
   offset_type size(assembler_state& /*state*/) override { return 16; }
 
   offset_type align() override { return 16; }
-  std::vector<uint8_t> serialize(assembler_state& state, std::vector<symbol>& symbols, uint32_t colnum, pageid_type pagenum) override;
+  std::vector<uint8_t> serialize(std::shared_ptr<assembler_state> state, std::vector<symbol>& symbols, uint32_t colnum, pageid_type pagenum) override;
 };
 
 class isa_op : public std::enable_shared_from_this<isa_op>

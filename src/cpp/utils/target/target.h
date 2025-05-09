@@ -121,6 +121,14 @@ class target_config: public target
   void assemble(const sub_cmd_options &_options) override;
   explicit target_config(const std::string& name): target(name, "config", "generate config elf") {}
 };
+
+class target_aie4: public target
+{
+  public:
+  void assemble(const sub_cmd_options &_options) override;
+  explicit target_aie4(const std::string& name): target(name, "aie4", "aie4 asm assembler") {}
+};
+
 } //namespace aiebu::utilities
 
 #endif // AIEBU_UTILITIES_TARGET_H_

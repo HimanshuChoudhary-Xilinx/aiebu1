@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Copyright (C) 2024, Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (C) 2024-2025, Advanced Micro Devices, Inc. All rights reserved.
 
 #include "aie2ps_preprocessor_input.h"
 
@@ -7,7 +7,7 @@ namespace aiebu {
 
   //TODO: this these functions are custom copy from aie2_preprocessor_input.cpp, todo we mode both in common place
   void
-  aie2ps_preprocessor_input::
+  asm_preprocessor_input::
   validate_json(uint32_t /*offset*/, uint32_t /*size*/, uint32_t /*arg_index*/, offset_type /*type*/) const {
     // Return if the offset and arg_index are within their respective sizes.
     // TODO enable checks
@@ -39,7 +39,7 @@ namespace aiebu {
   }
 
   void
-  aie2ps_preprocessor_input::
+  asm_preprocessor_input::
   extract_coalesed_buffers(const std::string& name,
                            const boost::property_tree::ptree& pt)
   {
@@ -60,7 +60,7 @@ namespace aiebu {
   }
 
   void
-  aie2ps_preprocessor_input::
+  asm_preprocessor_input::
   extract_control_packet_patch(const std::string& name,
                                const uint32_t arg_index,
                                const boost::property_tree::ptree& pt)
@@ -82,12 +82,12 @@ namespace aiebu {
 
       // TODO added symbols name hardcoded to ".pad.0" and col 0
       // this will change once compiler decide on how to generate multi col control packet design
-      add_symbol({name, offset, 0, 0, addend, 0, ".pad.0", symbol::patch_schema::control_packet_57});
+      add_symbol({name, offset, 0, 0, addend, 0, ".pad.0", control_packet_patching});
     }
   }
 
   void
-  aie2ps_preprocessor_input::
+  asm_preprocessor_input::
   aiecompiler_json_parser(const boost::property_tree::ptree& pt)
   {
     const auto pt_external_buffers = pt.get_child_optional("external_buffers");
@@ -112,7 +112,7 @@ namespace aiebu {
   }
 
   void
-  aie2ps_preprocessor_input::
+  asm_preprocessor_input::
   dmacompiler_json_parser(const boost::property_tree::ptree& pt)
   {
     const auto pt_ctrl_xrt_arg_idx = pt.get_optional<uint32_t>("ctrl_pkt_xrt_arg_idx");
@@ -144,13 +144,13 @@ namespace aiebu {
 
       // TODO added symbols name hardcoded to ".pad.0" and col 0
       // this will change once compiler decide on how to generate multi col control packet design
-      add_symbol({std::to_string(arg_index + ARG_OFFSET), offset, 0, 0, addend, 0, ".ctrltext.0.0", symbol::patch_schema::control_packet_57});
+      add_symbol({std::to_string(arg_index + ARG_OFFSET), offset, 0, 0, addend, 0, ".ctrltext.0.0", control_packet_patching});
     }
 
   }
 
   void
-  aie2ps_preprocessor_input::
+  asm_preprocessor_input::
   readmetajson(std::istream& patch_json)
   {
     boost::property_tree::ptree pt;
@@ -173,7 +173,7 @@ namespace aiebu {
 
 
   uint32_t
-  aie2ps_preprocessor_input::
+  asm_preprocessor_input::
   get_32_bit_property(const boost::property_tree::ptree& pt, const std::string& property, bool defaultvalue) const
   {
     uint64_t value = 0;

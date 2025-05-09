@@ -140,7 +140,7 @@ process(bool makeunique)
  * 4. If string is numeric string: it will convert to decimal
  */
 uint32_t assembler_state::parse_num_arg(const std::string& str) {
-  static const std::unordered_map<std::string, std::function<uint32_t(const std::string&)>> handlers = {
+  const std::unordered_map<std::string, std::function<uint32_t(const std::string&)>> handlers = {
     {"@", [this](const std::string& s) -> uint32_t {
           //If string start with '@': it can be either pad name or label name
           auto key = s.substr(1);
@@ -150,14 +150,15 @@ uint32_t assembler_state::parse_num_arg(const std::string& str) {
             return it->second->get_pos();
           throw error(error::error_code::invalid_asm, "Label " + key + " not present in label map\n");
     }},
-    {"s2mm_", [this](const std::string& s) -> uint32_t { return get_actor("s2mm", s); }},
-    {"mm2s_", [this](const std::string& s) -> uint32_t { return get_actor("mm2s", s); }},
-    {"mem_s2mm_", [this](const std::string& s) -> uint32_t { return get_actor("mem_s2mm", s); }},
-    {"mem_mm2s_", [this](const std::string& s) -> uint32_t { return get_actor("mem_mm2s", s); }},
-    {"shim_s2mm_", [this](const std::string& s) -> uint32_t { return get_actor("shim_s2mm", s); }},
-    {"shim_mm2s_", [this](const std::string& s) -> uint32_t { return get_actor("shim_mm2s", s); }},
-    {"tile_s2mm_", [this](const std::string& s) -> uint32_t { return get_actor("tile_s2mm", s); }},
-    {"tile_mm2s_", [this](const std::string& s) -> uint32_t { return get_actor("tile_mm2s", s); }}
+    {"s2mm_", [this](const std::string& s) -> uint32_t { return get_actor(s); }},
+    {"mm2s_", [this](const std::string& s) -> uint32_t { return get_actor(s); }},
+    {"mem_s2mm_", [this](const std::string& s) -> uint32_t { return get_actor(s); }},
+    {"mem_mm2s_", [this](const std::string& s) -> uint32_t { return get_actor(s); }},
+    {"shim_s2mm_", [this](const std::string& s) -> uint32_t { return get_actor(s); }},
+    {"shim_mm2s_", [this](const std::string& s) -> uint32_t { return get_actor(s); }},
+    {"tile_s2mm_", [this](const std::string& s) -> uint32_t { return get_actor(s); }},
+    {"tile_mm2s_", [this](const std::string& s) -> uint32_t { return get_actor(s); }},
+    {"shim_ctrl_mm2s_", [this](const std::string& s) -> uint32_t { return get_actor(s); }}
   };
 
   // check if its pad/label/actor

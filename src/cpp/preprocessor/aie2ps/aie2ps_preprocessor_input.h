@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Copyright (C) 2024, Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (C) 2024-2025, Advanced Micro Devices, Inc. All rights reserved.
 
 #ifndef _AIEBU_PREPROCESSOR_AIE2PS_PREPROCESSOR_INPUT_H_
 #define _AIEBU_PREPROCESSOR_AIE2PS_PREPROCESSOR_INPUT_H_
@@ -13,8 +13,9 @@
 
 namespace aiebu {
 
-class aie2ps_preprocessor_input : public preprocessor_input
+class asm_preprocessor_input : public preprocessor_input
 {
+protected:
   constexpr static uint32_t MAX_ARG_INDEX = 512; // approximated value 512 to limit the number of arguments in XRT kernel call
 
   constexpr static uint64_t RANGE_32BIT = 0xFFFFFFFF; // Max value supported in 32bit elf supported
@@ -29,6 +30,8 @@ class aie2ps_preprocessor_input : public preprocessor_input
     COALESED_BUFFER
   };
 
+  symbol::patch_schema control_packet_patching = symbol::patch_schema::control_packet_57;
+
   void aiecompiler_json_parser(const boost::property_tree::ptree& pt);
   void dmacompiler_json_parser(const boost::property_tree::ptree& pt);
   void readmetajson(std::istream& patch_json);
@@ -38,7 +41,7 @@ class aie2ps_preprocessor_input : public preprocessor_input
   uint32_t get_32_bit_property(const boost::property_tree::ptree& pt, const std::string& property, bool defaultvalue = false) const;
 
 public:
-  aie2ps_preprocessor_input() {}
+  asm_preprocessor_input() = default;
 
   const std::vector<std::string>& get_include_paths() const { return m_libpaths; }
   uint32_t get_control_packet_index() const { return m_control_packet_index; }
@@ -72,6 +75,14 @@ public:
   {
     return m_data["control_code"];
   }
+};
+
+
+class aie2ps_preprocessor_input : public asm_preprocessor_input
+{
+public:
+  aie2ps_preprocessor_input() { control_packet_patching = symbol::patch_schema::control_packet_57;}
+
 };
 
 }
