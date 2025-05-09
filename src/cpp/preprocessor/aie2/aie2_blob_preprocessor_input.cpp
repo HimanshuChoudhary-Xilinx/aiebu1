@@ -909,7 +909,17 @@ add_preemption_code(uint32_t col)
   add_pdi(const boost::property_tree::ptree& pdis)
   {
     for (const auto& [unused, pdi] : pdis)
-      m_data[std::string(".pdi.") + pdi.get<std::string>("id")] = std::move(readfile(pdi.get<std::string>("PDI_file")));
+    {
+      uint32_t id = pdi.get<uint32_t>("id");
+      auto type = pdi.get_optional<std::string>("type");
+      if (type && !type.get().compare("pm"))
+      {
+        m_data[".ctrlpkt.pm." + std::to_string(id)] = std::move(readfile(pdi.get<std::string>("PDI_file")));
+        pm_id_list.push_back(id);
+      } else {
+        m_data[".pdi." + std::to_string(id)] = std::move(readfile(pdi.get<std::string>("PDI_file")));
+      }
+    }
   }
 
   void
