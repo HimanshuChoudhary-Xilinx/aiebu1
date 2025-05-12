@@ -165,12 +165,12 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
 
     if (name == "start_job" || name == "start_job_deferred") {
       pc_low = pagenum * PAGE_SIZE + textwriter.tell();
-      pc_high = pc_low + page_state.m_jobmap[page_state.gen_job_name(false, text)]->get_size() - 1;
-      fid = m_debug.add_function(text->get_file(), name + "_" + page_state.gen_job_name(false, text), pc_high, pc_low, colnum, pagenum);
+      pc_high = pc_low + page_state->m_jobmap[page_state->gen_job_name(false, text)]->get_size() - 1;
+      fid = m_debug.add_function(text->get_file(), name + "_" + page_state->gen_job_name(false, text), pc_high, pc_low, colnum, pagenum);
     }
 
     pc_low = pagenum * PAGE_SIZE + textwriter.tell();
-    pc_high = pc_low + (*m_isa)[name]->serializer(text->get_operation()->get_args())->size(page_state) - 1;
+    pc_high = pc_low + (*m_isa)[name]->serializer(text->get_operation()->get_args())->size(*page_state) - 1;
     m_debug.add_textline(fid, text->get_linenumber(), pc_high, pc_low, text->get_line());
 
     if (text->isOpcode())
@@ -199,7 +199,7 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
     } else if (data->isOpcode())
     {
       offset_type pc_low = pagenum * PAGE_SIZE + textwriter.tell() + datawriter.tell();
-      offset_type pc_high = pc_low + (*m_isa)[name]->serializer(data->get_operation()->get_args())->size(page_state) - 1;
+      offset_type pc_high = pc_low + (*m_isa)[name]->serializer(data->get_operation()->get_args())->size(*page_state) - 1;
       m_debug.add_dataline(fid, data->get_linenumber(), pc_high, pc_low, data->get_line());
       //TODO add debug info
       std::vector<uint8_t> ret = (*m_isa)[name]->serializer(data->get_operation()->get_args())
@@ -228,7 +228,7 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
   twriter.push_back(textwriter);
   twriter.push_back(datawriter);
 
-  m_report.addpage(lpage, page_state, textwriter.tell(), datawriter.tell());
+  m_report.addpage(lpage, *page_state, textwriter.tell(), datawriter.tell());
   return page_state->m_controlpacket_padname;
   // TODO add size and generate report
 }
