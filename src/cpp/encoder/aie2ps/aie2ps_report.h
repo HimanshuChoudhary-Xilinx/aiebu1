@@ -5,6 +5,7 @@
 #define AIEBU_ENCODER_AIE2PS_REPORT_H_
 #include <map>
 #include <memory>
+ #include <utility>
 #include <vector>
 #include "utils.h"
 #include "assembler_state.h"
@@ -16,8 +17,8 @@ namespace aiebu {
 
 class Line {
 public:
-    Line(uint32_t linenumber, offset_type high_pc, offset_type low_pc, const std::string& opcode)
-        : m_linenumber(linenumber), m_highpc(high_pc), m_lowpc(low_pc), m_opcode(opcode) {}
+    Line(uint32_t linenumber, offset_type high_pc, offset_type low_pc, std::string opcode)
+        : m_linenumber(linenumber), m_highpc(high_pc), m_lowpc(low_pc), m_opcode(std::move(opcode)) {}
 
     uint32_t get_linenumber() const { return m_linenumber; }
     offset_type get_highpc() const { return m_highpc; }
@@ -60,8 +61,8 @@ private:
     std::vector<std::shared_ptr<Line>> m_textlines;
     std::vector<std::shared_ptr<Line>> m_datalines;
 public:
-    Function(const std::string& filename, const std::string& name, offset_type high_pc, offset_type low_pc, uint32_t col, pageid_type pagenum)
-        : m_filename(filename), m_name(name), m_colnum(col), m_pagenum(pagenum), m_highpc(high_pc), m_lowpc(low_pc) {}
+    Function(std::string filename, std::string name, offset_type high_pc, offset_type low_pc, uint32_t col, pageid_type pagenum)
+        : m_filename(std::move(filename)), m_name(std::move(name)), m_colnum(col), m_pagenum(pagenum), m_highpc(high_pc), m_lowpc(low_pc) {}
 
     void add_textline(std::shared_ptr<Line> line) { m_textlines.emplace_back(line); }
     void add_dataline(std::shared_ptr<Line> line) { m_datalines.emplace_back(line); }
@@ -155,9 +156,9 @@ class aie2ps_report
       m_pagenum(pagenum),
       m_textsize(textsize),
       m_datasize(datasize),
-      m_jobids(jobids),
-      m_localbarriermap(localbarriermap),
-      m_joblaunchmap(joblaunchmap) { }
+      m_jobids(std::move(jobids)),
+      m_localbarriermap(std::move(localbarriermap)),
+      m_joblaunchmap(std::move(joblaunchmap)) { }
 
 
     report_page(const report_page& rhs) = default;

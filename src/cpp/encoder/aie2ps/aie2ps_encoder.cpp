@@ -161,7 +161,7 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
   {
     //TODO add debug info
     std::string name = text->get_operation()->get_name();
-    offset_type pc_low, pc_high;
+    offset_type pc_low = 0, pc_high = 0;
 
     if (name == "start_job" || name == "start_job_deferred") {
       pc_low = pagenum * PAGE_SIZE + textwriter.tell();
