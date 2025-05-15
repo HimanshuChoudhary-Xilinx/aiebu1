@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (C) 2024-2025, Advanced Micro Devices, Inc. All rights reserved.
 #include "reporter.h"
+#include "packets.h"
+#include "transaction.hpp"
 #include "transaction.hpp"
 
 #include "aiebu/aiebu_error.h"
@@ -45,7 +47,7 @@ namespace aiebu {
         }
     }
 
-    void reporter::ctrlcode_detail_summary(const std::filesystem::path &root) const
+    void reporter::disassemble(const std::filesystem::path &root) const
     {
         ELFIO::Elf_Half sec_num = my_elf_reader.sections.size();
         for ( int i = 0; i < sec_num; ++i ) {
@@ -71,18 +73,33 @@ namespace aiebu {
         }
     }
 
-    void reporter::ctrlcode_detail_summary(std::ostream &stream) const
+    void reporter::disassemble(std::ostream &stream, bool all) const
     {
         ELFIO::Elf_Half sec_num = my_elf_reader.sections.size();
         for ( int i = 0; i < sec_num; ++i ) {
             const ELFIO::section* psec = my_elf_reader.sections[i];
 
+            if (psec->get_type() != ELFIO::SHT_PROGBITS)
+                continue;
             // Decoding not supported for ".ctrldata" section
-            // for aie2 ".ctrldata" contain control packet and ".ctrlpkt-pm-N" contain
-            // pm control packet which cannot be decoded
-            if (psec->get_type() != ELFIO::SHT_PROGBITS || is_ctrldata(psec->get_name())
-               || is_pm_ctrlpkt(psec->get_name()))
-              continue;
+            // for aie2 ".ctrldata" contain control packet and ".ctrlpkt-pm-N"
+            // contain pm control packet which cannot be decoded
+
+            if (is_pm_ctrlpkt(psec->get_name()))
+                continue;
+
+            if (is_ctrldata(psec->get_name())) {
+                if (all) {
+                    stream << "\n";
+                    stream << "Section[" << i << "]: " << psec->get_name()
+                           << "\tSize: " << psec->get_size() << 'B' << std::endl;
+                    packets pprint(psec->get_data(), psec->get_size());
+                    stream << "\n" << pprint.get_dump();
+                }
+                continue;
+            }
+
+            stream << "\n";
             stream << "Section[" << i << "]: " << psec->get_name() << "\tSize: "
                    << psec->get_size() << 'B' << std::endl;
             transaction tprint(psec->get_data(), psec->get_size());
