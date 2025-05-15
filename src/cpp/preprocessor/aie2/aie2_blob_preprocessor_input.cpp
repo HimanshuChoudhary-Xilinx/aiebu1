@@ -912,12 +912,12 @@ add_preemption_code(uint32_t col)
     {
       uint32_t id = pdi.get<uint32_t>("id");
       auto type = pdi.get_optional<std::string>("type");
-      if (type && !type.get().compare("pm"))
+      if (type && !type.get().compare(pm_ctrlpkt_type))
       {
-        m_data[".ctrlpkt.pm." + std::to_string(id)] = std::move(readfile(pdi.get<std::string>("PDI_file")));
+        m_data[".ctrlpkt.pm." + std::to_string(id)] = readfile(pdi.get<std::string>("PDI_file"));
         pm_id_list.push_back(id);
       } else {
-        m_data[".pdi." + std::to_string(id)] = std::move(readfile(pdi.get<std::string>("PDI_file")));
+        m_data[".pdi." + std::to_string(id)] = readfile(pdi.get<std::string>("PDI_file"));
       }
     }
   }
@@ -929,11 +929,11 @@ add_preemption_code(uint32_t col)
     for (const auto& [unused, pic] : pinstance)
     {
       std::string tname = get_ctrltext_name(pic.get<std::string>("id"));
-      m_data[tname] = std::move(readfile(pic.get<std::string>("TXN_ctrl_code_file")));
+      m_data[tname] = readfile(pic.get<std::string>("TXN_ctrl_code_file"));
       //std::cout << "TXN_ctrl_code_file id:" << pic.get<std::string>("id") << std::endl;
       //std::cout << "TXN_ctrl_code_file:" << pic.get<std::string>("TXN_ctrl_code_file") << std::endl;
       if (!pic.get<std::string>("ctrl_packet_file", "").empty())
-        m_data[get_ctrldata_name(pic.get<std::string>("id"))] = std::move(readfile(pic.get<std::string>("ctrl_packet_file")));
+        m_data[get_ctrldata_name(pic.get<std::string>("id"))] = readfile(pic.get<std::string>("ctrl_packet_file"));
 
       if (!pic.get<std::string>("patch_info_file", "").empty())
       {

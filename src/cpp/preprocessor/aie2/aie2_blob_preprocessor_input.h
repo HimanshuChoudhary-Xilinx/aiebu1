@@ -28,6 +28,7 @@ protected:
   const std::string preempt_lib = "preempt";
   const std::string scratch_pad = "scratch-pad-mem";
   const std::string ctrlpkt_pm = "ctrlpkt-pm-";
+  const std::string pm_ctrlpkt_type = "pmctrlpkt";
 
   constexpr static uint32_t SHIM_DMA_BD0_0 = 0x0001D000;
   constexpr static uint32_t SHIM_DMA_BD_NUM = 16;
