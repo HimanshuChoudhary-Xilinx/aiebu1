@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Copyright (C) 2024, Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (C) 2024-2025 Advanced Micro Devices, Inc. All rights reserved.
 
 #ifndef _ISA_ASSEMBLER_STUBS_H_
 #define _ISA_ASSEMBLER_STUBS_H_
@@ -115,12 +115,12 @@ public:
      opArg("_pad", opArg::optype::PAD, 16),
     });
 
-    (*m_isa)["preemption_checkpoint"] = std::make_shared<isa_op>("preemption_checkpoint", 25, std::vector<opArg>{
+    (*m_isa)["preempt"] = std::make_shared<isa_op>("preempt", 25, std::vector<opArg>{
      opArg("id", opArg::optype::CONST, 16), opArg("save_control_code_offset", opArg::optype::PAGE_ID, 16), opArg("restore_control_code_offset", opArg::optype::PAGE_ID, 16),
     });
 
     (*m_isa)["load_pdi"] = std::make_shared<isa_op>("load_pdi", 26, std::vector<opArg>{
-     opArg("pdi_id", opArg::optype::CONST, 16), opArg("pdi_host_addr_offset", opArg::optype::PAGE_ID, 16),
+     opArg("_pad", opArg::optype::PAD, 16), opArg("pdi_id", opArg::optype::CONST, 16), opArg("pdi_host_addr_offset", opArg::optype::PAGE_ID, 16),
     });
 
     (*m_isa)["load_last_pdi"] = std::make_shared<isa_op>("load_last_pdi", 27, std::vector<opArg>{
@@ -129,6 +129,14 @@ public:
 
     (*m_isa)["save_timestamps"] = std::make_shared<isa_op>("save_timestamps", 28, std::vector<opArg>{
      opArg("_pad", opArg::optype::PAD, 16), opArg("unq_id", opArg::optype::CONST, 32),
+    });
+
+    (*m_isa)["sleep"] = std::make_shared<isa_op>("sleep", 29, std::vector<opArg>{
+     opArg("_pad", opArg::optype::PAD, 16), opArg("target", opArg::optype::CONST, 32),
+    });
+
+    (*m_isa)["save_register"] = std::make_shared<isa_op>("save_register", 30, std::vector<opArg>{
+     opArg("_pad", opArg::optype::PAD, 16), opArg("address", opArg::optype::CONST, 32), opArg("unq_id", opArg::optype::CONST, 32),
     });
 
     

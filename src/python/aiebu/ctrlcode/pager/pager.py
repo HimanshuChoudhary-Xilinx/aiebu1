@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-# Copyright (C) 2023-2024 Advanced Micro Devices, Inc.
+# Copyright (C) 2023-2025 Advanced Micro Devices, Inc.
 
 import math
 
@@ -15,7 +15,7 @@ class Pager:
     EOF_SIZE = 4
     DATA_SECTION_ALIGNMENT = 16
     ALIGNMAP = {"uc_dma_bd" : 16, ".long": 4}
-    OOO = ["load_pdi", "preemption_checkpoint"]
+    OOO = ["load_pdi", "preempt"]
 
     def __init__(self, pagesize):
         self.pagesize = pagesize

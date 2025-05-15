@@ -52,7 +52,9 @@ public:
     std::string s;
     std::stringstream ss(sargs);
     while (std::getline(ss, s, ' ')) {
-        m_args.emplace_back(s.substr(0, s.find_last_not_of(",")+1));
+      if (s.size() == 0)
+        continue;
+      m_args.emplace_back(s.substr(0, s.find_last_not_of(",")+1));
     }
   }
 

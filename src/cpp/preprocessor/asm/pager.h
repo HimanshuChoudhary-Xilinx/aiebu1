@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Copyright (C) 2024, Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (C) 2024-2025, Advanced Micro Devices, Inc. All rights reserved.
 
 #ifndef _AIEBU_PREPROCESSOR_ASM_PAGER_H_
 #define _AIEBU_PREPROCESSOR_ASM_PAGER_H_
@@ -21,7 +21,7 @@ class pager
   constexpr static offset_type ALIGNMENT_4 = 4;
 
   std::map<std::string , offset_type> ALIGNMAP = {{"uc_dma_bd", ALIGNMENT_16}, {".long", ALIGNMENT_4}};
-  std::vector<std::string> OOO = {"load_pdi", "preemption_checkpoint"};
+  std::vector<std::string> OOO = {"load_pdi", "preempt"};
 
   template <typename T>
   std::vector<T> union_of_lists_inorder(std::vector<T> &vec1, std::vector<T>& vec2);
