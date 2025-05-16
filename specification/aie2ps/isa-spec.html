@@ -9,8 +9,7 @@
       main {
         display: flex;
         flex-flow: column;
-        margin: 4em auto;
-        max-width: 1200px;
+        max-width: 100%;
         background-color: #fff;
         box-shadow: 0.5em 0.5em 0.5em rgba(0, 0, 0, 0.1);
       }
@@ -21,7 +20,7 @@
       }
       .title {
         border-bottom: 1px solid #ccc;
-        padding: 0.5em 2em;
+        padding: 0.5em 0.5em;
         display: flex;
         align-items: center;
       }
@@ -47,23 +46,19 @@
         padding: 0.5em 0.5em;
       }
       .contents table {
-        border: 1px solid #ddd;
+        border: 1px solid #000000;
+        border-spacing: 0px;
       }
       .contents th {
         background-color: #eee;
       }
       .contents th, .contents td {
+        border: 1px solid #000000;
         padding: 0.5em;
       }
       .contents pre {
         background-color: #f8f8f8;
         padding: 1em;
-      }
-      .contents h1:not(:first-child) {
-        margin-top: 1.5em;
-      }
-      .contents h2 {
-        margin-top: 1.5em;
       }
       .contents img {
         max-width: 90%;
@@ -87,7 +82,12 @@
 <li><a href="#endianness">Endianness</a></li>
 <li><a href="#control-code-pages">Control-Code Pages</a></li>
 <li><a href="#control-code-structure">Control-Code Structure</a></li>
-<li><a href="#tile-and-actor-ids">Tile and actor IDs</a></li>
+<li><a href="#tile-and-actor-ids">Tile and actor IDs</a><ul>
+<li><a href="#tile">Tile</a></li>
+<li><a href="#mem">MEM</a></li>
+<li><a href="#shim">Shim</a></li>
+</ul>
+</li>
 <li><a href="#binary-format">Binary Format</a></li>
 <li><a href="#data-types">Data Types</a><ul>
 <li><a href="#opcode">opcode</a></li>
@@ -97,6 +97,7 @@
 <li><a href="#page_id">page_id</a></li>
 <li><a href="#pad">pad</a></li>
 <li><a href="#jobsize">jobsize</a></li>
+<li><a href="#patch_buf">patch_buf</a></li>
 </ul>
 </li>
 <li><a href="#operations">Operations</a><ul>
@@ -124,10 +125,12 @@
 <li><a href="#mask_poll_32-0x14">MASK_POLL_32 (0x14)</a></li>
 <li><a href="#trace-0x15">TRACE (0x15)</a></li>
 <li><a href="#nop-0x16">NOP (0x16)</a></li>
-<li><a href="#preemption_checkpoint-0x19">PREEMPTION_CHECKPOINT (0x19)</a></li>
+<li><a href="#preempt-0x19">PREEMPT (0x19)</a></li>
 <li><a href="#load_pdi-0x1a">LOAD_PDI (0x1a)</a></li>
 <li><a href="#load_last_pdi-0x1b">LOAD_LAST_PDI (0x1b)</a></li>
 <li><a href="#save_timestamps-0x1c">SAVE_TIMESTAMPS (0x1c)</a></li>
+<li><a href="#sleep-0x1d">SLEEP (0x1d)</a></li>
+<li><a href="#save_register-0x1e">SAVE_REGISTER (0x1e)</a></li>
 </ul>
 </li>
 <li><a href="#directives">Directives</a><ul>
@@ -138,6 +141,7 @@
 <li><a href="#eop">.eop</a></li>
 <li><a href="#attach_to_group">.attach_to_group</a></li>
 <li><a href="#setpad">.setpad</a></li>
+<li><a href="#uc_dma_bd">UC_DMA_BD</a></li>
 </ul>
 </li>
 </ul>
@@ -149,7 +153,8 @@
           <h1 id="introduction">Introduction</h1>
 <p>This document outlines the specification of the <em>ctrlcode</em> ISA which serves as the instruction set
 interpreted by the <em>CERT</em> <em>VM</em> also referred to as <em>job-runner</em> in this document. The <em>job-runner</em>
-is hosted on top of a Baremetal OS which runs on top of Microblaze uController. The whole stack is called CERT.</p>
+is hosted on top of a Baremetal OS which runs on top of Microblaze uController.
+The whole stack is called CERT.</p>
 <div><svg width="496pt" height="228pt"
  viewBox="0.00 0.00 496.00 228.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
 <g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 224)">
@@ -164,9 +169,8 @@ is hosted on top of a Baremetal OS which runs on top of Microblaze uController. 
 <!-- CtrlCode -->
 <g id="node1" class="node">
 <title>CtrlCode</title>
-<polygon fill="none" stroke="black" points="300.5,-75 229.5,-75 229.5,-79 217.5,-79 217.5,-39 300.5,-39 300.5,-75"/>
-<polyline fill="none" stroke="black" points="217.5,-75 229.5,-75 "/>
-<text text-anchor="middle" x="259" y="-53.3" font-family="Courier New" font-size="14.00">CtrlCode</text>
+<polygon fill="none" stroke="black" points="269.5,-75 186.5,-75 186.5,-39 269.5,-39 269.5,-75"/>
+<text text-anchor="middle" x="228" y="-53.3" font-family="Courier New" font-size="14.00">CtrlCode</text>
 </g>
 <!-- structcert0 -->
 <g id="node2" class="node">
@@ -181,40 +185,40 @@ is hosted on top of a Baremetal OS which runs on top of Microblaze uController. 
 <!-- structcert0&#45;&gt;CtrlCode -->
 <g id="edge1" class="edge">
 <title>structcert0&#45;&gt;CtrlCode</title>
-<path fill="none" stroke="black" d="M355.84,-112.36C336.68,-101.6 315.83,-89.9 298.4,-80.11"/>
-<polygon fill="black" stroke="black" points="300.05,-77.03 289.62,-75.19 296.63,-83.13 300.05,-77.03"/>
-</g>
-<!-- structcert2 -->
-<g id="node3" class="node">
-<title>structcert2</title>
-<polygon fill="none" stroke="black" points="284,-111.5 284,-180.5 338,-180.5 338,-111.5 284,-111.5"/>
-<text text-anchor="middle" x="311" y="-165.3" font-family="Courier New" font-size="14.00"> </text>
-<polyline fill="none" stroke="black" points="284,-157.5 338,-157.5 "/>
-<text text-anchor="middle" x="311" y="-142.3" font-family="Courier New" font-size="14.00">...</text>
-<polyline fill="none" stroke="black" points="284,-134.5 338,-134.5 "/>
-<text text-anchor="middle" x="311" y="-119.3" font-family="Courier New" font-size="14.00"> </text>
-</g>
-<!-- structcert2&#45;&gt;CtrlCode -->
-<g id="edge3" class="edge">
-<title>structcert2&#45;&gt;CtrlCode</title>
-<path fill="none" stroke="black" d="M290.75,-111.11C285.39,-102.14 279.68,-92.6 274.61,-84.11"/>
-<polygon fill="black" stroke="black" points="277.53,-82.18 269.4,-75.4 271.52,-85.78 277.53,-82.18"/>
+<path fill="none" stroke="black" d="M355.98,-115.33C352.95,-113.85 349.94,-112.4 347,-111 324.14,-100.12 298.52,-88.62 276.93,-79.12"/>
+<polygon fill="black" stroke="black" points="278.19,-75.86 267.62,-75.05 275.38,-82.27 278.19,-75.86"/>
 </g>
 <!-- structcert1 -->
-<g id="node4" class="node">
+<g id="node3" class="node">
 <title>structcert1</title>
-<polygon fill="none" stroke="black" points="150,-111.5 150,-180.5 266,-180.5 266,-111.5 150,-111.5"/>
-<text text-anchor="middle" x="208" y="-165.3" font-family="Courier New" font-size="14.00">Job&#45;Runner</text>
-<polyline fill="none" stroke="black" points="150,-157.5 266,-157.5 "/>
-<text text-anchor="middle" x="208" y="-142.3" font-family="Courier New" font-size="14.00">Baremetal OS</text>
-<polyline fill="none" stroke="black" points="150,-134.5 266,-134.5 "/>
-<text text-anchor="middle" x="208" y="-119.3" font-family="Courier New" font-size="14.00">uController</text>
+<polygon fill="none" stroke="black" points="222,-111.5 222,-180.5 338,-180.5 338,-111.5 222,-111.5"/>
+<text text-anchor="middle" x="280" y="-165.3" font-family="Courier New" font-size="14.00">Job&#45;Runner</text>
+<polyline fill="none" stroke="black" points="222,-157.5 338,-157.5 "/>
+<text text-anchor="middle" x="280" y="-142.3" font-family="Courier New" font-size="14.00">Baremetal OS</text>
+<polyline fill="none" stroke="black" points="222,-134.5 338,-134.5 "/>
+<text text-anchor="middle" x="280" y="-119.3" font-family="Courier New" font-size="14.00">uController</text>
 </g>
 <!-- structcert1&#45;&gt;CtrlCode -->
 <g id="edge2" class="edge">
 <title>structcert1&#45;&gt;CtrlCode</title>
-<path fill="none" stroke="black" d="M227.86,-111.11C233.12,-102.14 238.72,-92.6 243.69,-84.11"/>
-<polygon fill="black" stroke="black" points="246.76,-85.79 248.8,-75.4 240.73,-82.25 246.76,-85.79"/>
+<path fill="none" stroke="black" d="M259.75,-111.11C254.39,-102.14 248.68,-92.6 243.61,-84.11"/>
+<polygon fill="black" stroke="black" points="246.53,-82.18 238.4,-75.4 240.52,-85.78 246.53,-82.18"/>
+</g>
+<!-- structcert2 -->
+<g id="node4" class="node">
+<title>structcert2</title>
+<polygon fill="none" stroke="black" points="150,-111.5 150,-180.5 204,-180.5 204,-111.5 150,-111.5"/>
+<text text-anchor="middle" x="177" y="-165.3" font-family="Courier New" font-size="14.00"> </text>
+<polyline fill="none" stroke="black" points="150,-157.5 204,-157.5 "/>
+<text text-anchor="middle" x="177" y="-142.3" font-family="Courier New" font-size="14.00">...</text>
+<polyline fill="none" stroke="black" points="150,-134.5 204,-134.5 "/>
+<text text-anchor="middle" x="177" y="-119.3" font-family="Courier New" font-size="14.00"> </text>
+</g>
+<!-- structcert2&#45;&gt;CtrlCode -->
+<g id="edge3" class="edge">
+<title>structcert2&#45;&gt;CtrlCode</title>
+<path fill="none" stroke="black" d="M196.86,-111.11C202.12,-102.14 207.72,-92.6 212.69,-84.11"/>
+<polygon fill="black" stroke="black" points="215.76,-85.79 217.8,-75.4 209.73,-82.25 215.76,-85.79"/>
 </g>
 <!-- structcertn -->
 <g id="node5" class="node">
@@ -229,8 +233,8 @@ is hosted on top of a Baremetal OS which runs on top of Microblaze uController. 
 <!-- structcertn&#45;&gt;CtrlCode -->
 <g id="edge4" class="edge">
 <title>structcertn&#45;&gt;CtrlCode</title>
-<path fill="none" stroke="black" d="M132.02,-115.34C135.05,-113.86 138.06,-112.41 141,-111 163.68,-100.16 189.09,-88.67 210.5,-79.16"/>
-<polygon fill="black" stroke="black" points="211.99,-82.33 219.72,-75.08 209.16,-75.93 211.99,-82.33"/>
+<path fill="none" stroke="black" d="M132.22,-112.11C151.05,-101.47 171.47,-89.93 188.61,-80.25"/>
+<polygon fill="black" stroke="black" points="190.77,-83.05 197.76,-75.09 187.33,-76.96 190.77,-83.05"/>
 </g>
 </g>
 </svg>
@@ -239,126 +243,211 @@ is hosted on top of a Baremetal OS which runs on top of Microblaze uController. 
 <p>The control-code is a sequence of opcodes along with operands, organized as <em>jobs</em> which run in a
 pseudo-parallel fashion using cooperative multi-tasking.</p>
 <p>Each job is stack-less and has a private set of 8 working registers <code>r0</code>..<code>r7</code> which can be used as input
-and output operands.</p>
-<p>The sequence of jobs can be followed by user-defined custom data, e.g. configuration data which is to be
-transferred via the uC-DMA.</p>
-<div><svg width="708pt" height="85pt"
- viewBox="0.00 0.00 708.20 85.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 81)">
+and output operands. The sequence of jobs can be followed by user-defined custom data, e.g.
+configuration data which is to be transferred via the uC-DMA.</p>
+<div><svg width="627pt" height="86pt"
+ viewBox="0.00 0.00 627.20 86.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 82)">
 <title>control_code_structure</title>
-<polygon fill="white" stroke="transparent" points="-4,4 -4,-81 704.2,-81 704.2,4 -4,4"/>
+<polygon fill="white" stroke="transparent" points="-4,4 -4,-82 623.2,-82 623.2,4 -4,4"/>
 <!-- begin -->
 <g id="node1" class="node">
 <title>begin</title>
-<ellipse fill="black" stroke="black" cx="1.8" cy="-18" rx="1.8" ry="1.8"/>
+<ellipse fill="black" stroke="black" cx="1.8" cy="-19" rx="1.8" ry="1.8"/>
 </g>
 <!-- START_JOB -->
 <g id="node3" class="node">
 <title>START_JOB</title>
-<path fill="none" stroke="black" d="M227.6,-36C227.6,-36 51.6,-36 51.6,-36 45.6,-36 39.6,-30 39.6,-24 39.6,-24 39.6,-12 39.6,-12 39.6,-6 45.6,0 51.6,0 51.6,0 227.6,0 227.6,0 233.6,0 239.6,-6 239.6,-12 239.6,-12 239.6,-24 239.6,-24 239.6,-30 233.6,-36 227.6,-36"/>
-<text text-anchor="middle" x="139.6" y="-14.3" font-family="Times,serif" font-size="14.00">START_JOB(_DEFERRED)</text>
+<path fill="none" stroke="black" d="M146.6,-38C146.6,-38 51.6,-38 51.6,-38 45.6,-38 39.6,-32 39.6,-26 39.6,-26 39.6,-12 39.6,-12 39.6,-6 45.6,0 51.6,0 51.6,0 146.6,0 146.6,0 152.6,0 158.6,-6 158.6,-12 158.6,-12 158.6,-26 158.6,-26 158.6,-32 152.6,-38 146.6,-38"/>
+<text text-anchor="middle" x="99.1" y="-22.8" font-family="Times,serif" font-size="14.00">START_JOB</text>
+<text text-anchor="middle" x="99.1" y="-7.8" font-family="Times,serif" font-size="14.00">(_DEFERRED)</text>
 </g>
 <!-- begin&#45;&gt;START_JOB -->
 <g id="edge1" class="edge">
 <title>begin&#45;&gt;START_JOB</title>
-<path fill="none" stroke="black" d="M3.67,-18C6.54,-18 16.31,-18 29.36,-18"/>
-<polygon fill="black" stroke="black" points="29.4,-21.5 39.4,-18 29.4,-14.5 29.4,-21.5"/>
+<path fill="none" stroke="black" d="M3.87,-19C7.05,-19 16.98,-19 29.28,-19"/>
+<polygon fill="black" stroke="black" points="29.56,-22.5 39.56,-19 29.56,-15.5 29.56,-22.5"/>
 </g>
 <!-- end -->
 <g id="node2" class="node">
 <title>end</title>
-<ellipse fill="black" stroke="black" cx="698.4" cy="-18" rx="1.8" ry="1.8"/>
+<ellipse fill="black" stroke="black" cx="617.4" cy="-19" rx="1.8" ry="1.8"/>
 </g>
 <!-- operation -->
 <g id="node4" class="node">
 <title>operation</title>
-<path fill="none" stroke="black" d="M348.6,-59C348.6,-59 287.6,-59 287.6,-59 281.6,-59 275.6,-53 275.6,-47 275.6,-47 275.6,-35 275.6,-35 275.6,-29 281.6,-23 287.6,-23 287.6,-23 348.6,-23 348.6,-23 354.6,-23 360.6,-29 360.6,-35 360.6,-35 360.6,-47 360.6,-47 360.6,-53 354.6,-59 348.6,-59"/>
-<text text-anchor="middle" x="318.1" y="-37.3" font-family="Times,serif" font-size="14.00">operation</text>
+<path fill="none" stroke="black" d="M267.6,-60C267.6,-60 206.6,-60 206.6,-60 200.6,-60 194.6,-54 194.6,-48 194.6,-48 194.6,-36 194.6,-36 194.6,-30 200.6,-24 206.6,-24 206.6,-24 267.6,-24 267.6,-24 273.6,-24 279.6,-30 279.6,-36 279.6,-36 279.6,-48 279.6,-48 279.6,-54 273.6,-60 267.6,-60"/>
+<text text-anchor="middle" x="237.1" y="-38.3" font-family="Times,serif" font-size="14.00">operation</text>
 </g>
 <!-- START_JOB&#45;&gt;operation -->
 <g id="edge2" class="edge">
 <title>START_JOB&#45;&gt;operation</title>
-<path fill="none" stroke="black" d="M239.68,-30.91C248.52,-32.06 257.22,-33.2 265.4,-34.26"/>
-<polygon fill="black" stroke="black" points="265.1,-37.75 275.47,-35.57 266,-30.81 265.1,-37.75"/>
+<path fill="none" stroke="black" d="M158.96,-28.95C167.43,-30.39 176.1,-31.85 184.42,-33.26"/>
+<polygon fill="black" stroke="black" points="183.91,-36.72 194.36,-34.94 185.08,-29.82 183.91,-36.72"/>
 </g>
 <!-- operation&#45;&gt;operation -->
 <g id="edge3" class="edge">
 <title>operation&#45;&gt;operation</title>
-<path fill="none" stroke="black" d="M296.39,-59.15C293.05,-68.54 300.29,-77 318.1,-77 328.95,-77 335.88,-73.86 338.88,-69.28"/>
-<polygon fill="black" stroke="black" points="342.38,-69.43 339.81,-59.15 335.41,-68.79 342.38,-69.43"/>
+<path fill="none" stroke="black" d="M215.39,-60.15C212.05,-69.54 219.29,-78 237.1,-78 247.95,-78 254.88,-74.86 257.88,-70.28"/>
+<polygon fill="black" stroke="black" points="261.38,-70.43 258.81,-60.15 254.41,-69.79 261.38,-70.43"/>
 </g>
 <!-- END_JOB -->
 <g id="node5" class="node">
 <title>END_JOB</title>
-<path fill="none" stroke="black" d="M468.6,-36C468.6,-36 408.6,-36 408.6,-36 402.6,-36 396.6,-30 396.6,-24 396.6,-24 396.6,-12 396.6,-12 396.6,-6 402.6,0 408.6,0 408.6,0 468.6,0 468.6,0 474.6,0 480.6,-6 480.6,-12 480.6,-12 480.6,-24 480.6,-24 480.6,-30 474.6,-36 468.6,-36"/>
-<text text-anchor="middle" x="438.6" y="-14.3" font-family="Times,serif" font-size="14.00">END_JOB</text>
+<path fill="none" stroke="black" d="M387.6,-37C387.6,-37 327.6,-37 327.6,-37 321.6,-37 315.6,-31 315.6,-25 315.6,-25 315.6,-13 315.6,-13 315.6,-7 321.6,-1 327.6,-1 327.6,-1 387.6,-1 387.6,-1 393.6,-1 399.6,-7 399.6,-13 399.6,-13 399.6,-25 399.6,-25 399.6,-31 393.6,-37 387.6,-37"/>
+<text text-anchor="middle" x="357.6" y="-15.3" font-family="Times,serif" font-size="14.00">END_JOB</text>
 </g>
 <!-- operation&#45;&gt;END_JOB -->
 <g id="edge4" class="edge">
 <title>operation&#45;&gt;END_JOB</title>
-<path fill="none" stroke="black" d="M360.88,-32.89C369.21,-31.27 378.05,-29.56 386.65,-27.89"/>
-<polygon fill="black" stroke="black" points="387.45,-31.3 396.6,-25.96 386.11,-24.43 387.45,-31.3"/>
+<path fill="none" stroke="black" d="M279.88,-33.89C288.21,-32.27 297.05,-30.56 305.65,-28.89"/>
+<polygon fill="black" stroke="black" points="306.45,-32.3 315.6,-26.96 305.11,-25.43 306.45,-32.3"/>
 </g>
 <!-- END_JOB&#45;&gt;START_JOB -->
 <g id="edge5" class="edge">
 <title>END_JOB&#45;&gt;START_JOB</title>
-<path fill="none" stroke="black" d="M396.46,-15.47C384.86,-14.86 372.24,-14.3 360.6,-14 324.63,-13.07 285.34,-13.36 250.05,-14.11"/>
-<polygon fill="black" stroke="black" points="249.64,-10.62 239.72,-14.34 249.8,-17.61 249.64,-10.62"/>
+<path fill="none" stroke="black" d="M315.46,-16.47C303.86,-15.86 291.24,-15.3 279.6,-15 241.83,-14.02 232.37,-14.2 194.6,-15 186.28,-15.18 177.55,-15.44 168.9,-15.75"/>
+<polygon fill="black" stroke="black" points="168.68,-12.25 158.82,-16.13 168.94,-19.25 168.68,-12.25"/>
 </g>
 <!-- EOF -->
 <g id="node6" class="node">
 <title>EOF</title>
-<path fill="none" stroke="black" d="M558.6,-36C558.6,-36 528.6,-36 528.6,-36 522.6,-36 516.6,-30 516.6,-24 516.6,-24 516.6,-12 516.6,-12 516.6,-6 522.6,0 528.6,0 528.6,0 558.6,0 558.6,0 564.6,0 570.6,-6 570.6,-12 570.6,-12 570.6,-24 570.6,-24 570.6,-30 564.6,-36 558.6,-36"/>
-<text text-anchor="middle" x="543.6" y="-14.3" font-family="Times,serif" font-size="14.00">EOF</text>
+<path fill="none" stroke="black" d="M477.6,-37C477.6,-37 447.6,-37 447.6,-37 441.6,-37 435.6,-31 435.6,-25 435.6,-25 435.6,-13 435.6,-13 435.6,-7 441.6,-1 447.6,-1 447.6,-1 477.6,-1 477.6,-1 483.6,-1 489.6,-7 489.6,-13 489.6,-13 489.6,-25 489.6,-25 489.6,-31 483.6,-37 477.6,-37"/>
+<text text-anchor="middle" x="462.6" y="-15.3" font-family="Times,serif" font-size="14.00">EOF</text>
 </g>
 <!-- END_JOB&#45;&gt;EOF -->
 <g id="edge6" class="edge">
 <title>END_JOB&#45;&gt;EOF</title>
-<path fill="none" stroke="black" d="M480.6,-18C489.12,-18 498.05,-18 506.38,-18"/>
-<polygon fill="black" stroke="black" points="506.55,-21.5 516.55,-18 506.55,-14.5 506.55,-21.5"/>
+<path fill="none" stroke="black" d="M399.6,-19C408.12,-19 417.05,-19 425.38,-19"/>
+<polygon fill="black" stroke="black" points="425.55,-22.5 435.55,-19 425.55,-15.5 425.55,-22.5"/>
 </g>
 <!-- data -->
 <g id="node7" class="node">
 <title>data</title>
-<path fill="none" stroke="black" d="M648.6,-36C648.6,-36 618.6,-36 618.6,-36 612.6,-36 606.6,-30 606.6,-24 606.6,-24 606.6,-12 606.6,-12 606.6,-6 612.6,0 618.6,0 618.6,0 648.6,0 648.6,0 654.6,0 660.6,-6 660.6,-12 660.6,-12 660.6,-24 660.6,-24 660.6,-30 654.6,-36 648.6,-36"/>
-<text text-anchor="middle" x="633.6" y="-14.3" font-family="Times,serif" font-size="14.00">data</text>
+<path fill="none" stroke="black" d="M567.6,-37C567.6,-37 537.6,-37 537.6,-37 531.6,-37 525.6,-31 525.6,-25 525.6,-25 525.6,-13 525.6,-13 525.6,-7 531.6,-1 537.6,-1 537.6,-1 567.6,-1 567.6,-1 573.6,-1 579.6,-7 579.6,-13 579.6,-13 579.6,-25 579.6,-25 579.6,-31 573.6,-37 567.6,-37"/>
+<text text-anchor="middle" x="552.6" y="-15.3" font-family="Times,serif" font-size="14.00">data</text>
 </g>
 <!-- EOF&#45;&gt;data -->
 <g id="edge7" class="edge">
 <title>EOF&#45;&gt;data</title>
-<path fill="none" stroke="black" d="M571,-18C578.99,-18 587.91,-18 596.42,-18"/>
-<polygon fill="black" stroke="black" points="596.52,-21.5 606.52,-18 596.52,-14.5 596.52,-21.5"/>
+<path fill="none" stroke="black" d="M490,-19C497.99,-19 506.91,-19 515.42,-19"/>
+<polygon fill="black" stroke="black" points="515.52,-22.5 525.52,-19 515.52,-15.5 515.52,-22.5"/>
 </g>
 <!-- data&#45;&gt;end -->
 <g id="edge9" class="edge">
 <title>data&#45;&gt;end</title>
-<path fill="none" stroke="black" d="M660.87,-18C669.81,-18 679.32,-18 686.4,-18"/>
-<polygon fill="black" stroke="black" points="686.54,-21.5 696.54,-18 686.54,-14.5 686.54,-21.5"/>
+<path fill="none" stroke="black" d="M579.87,-19C588.81,-19 598.32,-19 605.4,-19"/>
+<polygon fill="black" stroke="black" points="605.54,-22.5 615.54,-19 605.54,-15.5 605.54,-22.5"/>
 </g>
 <!-- data&#45;&gt;data -->
 <g id="edge8" class="edge">
 <title>data&#45;&gt;data</title>
-<path fill="none" stroke="black" d="M622.02,-36.15C620.24,-45.54 624.1,-54 633.6,-54 639.39,-54 643.08,-50.86 644.68,-46.28"/>
-<polygon fill="black" stroke="black" points="648.19,-46.31 645.18,-36.15 641.19,-45.97 648.19,-46.31"/>
+<path fill="none" stroke="black" d="M541.02,-37.15C539.24,-46.54 543.1,-55 552.6,-55 558.39,-55 562.08,-51.86 563.68,-47.28"/>
+<polygon fill="black" stroke="black" points="567.19,-47.31 564.18,-37.15 560.19,-46.97 567.19,-47.31"/>
 </g>
 </g>
 </svg>
 </div>
 <h1 id="alignment">Alignment</h1>
 <p>All operands have to be naturally aligned, i.e. 16-bit numbers may only start on 16-bit boundaries and
-32-bit numbers may only start on 32-bit boundaries.</p>
-<p>The size of an operation, i.e. the opcode followed by all operands, should be a multiple of 32 bits.</p>
-<p>To achieve the required alignment, padding operands can be used.</p>
+32-bit numbers may only start on 32-bit boundaries. The size of an operation, i.e. the opcode followed by all operands,
+should be a multiple of 32 bits. To achieve the required alignment, padding operands can be used.</p>
 <h1 id="endianness">Endianness</h1>
 <p>All numbers are encoded in little-endian order.</p>
 <h1 id="control-code-pages">Control-Code Pages</h1>
-<p>Control-code is organized as a series of pages which are paged-in to the shared Data Memory (sDM) by the uC-DMA in
-a ping-pong fashion. A page cannot have a barrier or lock dependency on a following page, although backward
-dependency should work. Page boundary is hinted by the <code>.eop</code> <a href="#directives">directive</a>.</p>
+<p>Control-code is organized as a series of pages which are paged-in to the shared Data Memory (sDM)
+by the uC-DMA in a ping-pong fashion. A page cannot have a barrier or lock dependency on a following page,
+although backward dependency should work. Page boundary is hinted by the <code>.eop</code> <a href="#directives">directive</a>.</p>
 <h1 id="control-code-structure">Control-Code Structure</h1>
-<p>TODO: Describe START_JOB / END_JOB etc, state diagram?</p>
+<p>TODO: Describe START_JOB / END_JOB etc, state diagram?
+Control Code for uC 0 in Column 0</p>
+<div><svg width="399pt" height="217pt"
+ viewBox="0.00 0.00 399.00 217.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 213)">
+<title>control_code</title>
+<polygon fill="white" stroke="transparent" points="-4,4 -4,-213 395,-213 395,4 -4,4"/>
+<text text-anchor="middle" x="195.5" y="-22.8" font-family="Courier New" font-size="14.00">...</text>
+<text text-anchor="middle" x="195.5" y="-7.8" font-family="Courier New" font-size="14.00">Page n</text>
+<g id="clust1" class="cluster">
+<title>cluster_0</title>
+<polygon fill="none" stroke="black" points="8,-46 8,-201 383,-201 383,-46 8,-46"/>
+<text text-anchor="middle" x="195.5" y="-185.8" font-family="Courier New" font-size="14.00">Page 0</text>
+</g>
+<!-- structcertn -->
+<g id="node1" class="node">
+<title>structcertn</title>
+<polygon fill="none" stroke="black" points="291.5,-54.5 291.5,-169.5 374.5,-169.5 374.5,-54.5 291.5,-54.5"/>
+<text text-anchor="middle" x="333" y="-154.3" font-family="Courier New" font-size="14.00">Job&#45;n</text>
+<polyline fill="none" stroke="black" points="291.5,-146.5 374.5,-146.5 "/>
+<text text-anchor="middle" x="333" y="-131.3" font-family="Courier New" font-size="14.00">Opcode 0</text>
+<polyline fill="none" stroke="black" points="291.5,-123.5 374.5,-123.5 "/>
+<text text-anchor="middle" x="333" y="-108.3" font-family="Courier New" font-size="14.00">Opcode 1</text>
+<polyline fill="none" stroke="black" points="291.5,-100.5 374.5,-100.5 "/>
+<text text-anchor="middle" x="333" y="-85.3" font-family="Courier New" font-size="14.00">...</text>
+<polyline fill="none" stroke="black" points="291.5,-77.5 374.5,-77.5 "/>
+<text text-anchor="middle" x="333" y="-62.3" font-family="Courier New" font-size="14.00">Opcode n</text>
+</g>
+<!-- structcert2 -->
+<g id="node2" class="node">
+<title>structcert2</title>
+<polygon fill="none" stroke="black" points="219,-54.5 219,-169.5 273,-169.5 273,-54.5 219,-54.5"/>
+<text text-anchor="middle" x="246" y="-154.3" font-family="Courier New" font-size="14.00"> </text>
+<polyline fill="none" stroke="black" points="219,-146.5 273,-146.5 "/>
+<text text-anchor="middle" x="246" y="-131.3" font-family="Courier New" font-size="14.00"> </text>
+<polyline fill="none" stroke="black" points="219,-123.5 273,-123.5 "/>
+<text text-anchor="middle" x="246" y="-108.3" font-family="Courier New" font-size="14.00"> </text>
+<polyline fill="none" stroke="black" points="219,-100.5 273,-100.5 "/>
+<text text-anchor="middle" x="246" y="-85.3" font-family="Courier New" font-size="14.00">...</text>
+<polyline fill="none" stroke="black" points="219,-77.5 273,-77.5 "/>
+<text text-anchor="middle" x="246" y="-62.3" font-family="Courier New" font-size="14.00"> </text>
+</g>
+<!-- structcert1 -->
+<g id="node3" class="node">
+<title>structcert1</title>
+<polygon fill="none" stroke="black" points="117.5,-54.5 117.5,-169.5 200.5,-169.5 200.5,-54.5 117.5,-54.5"/>
+<text text-anchor="middle" x="159" y="-154.3" font-family="Courier New" font-size="14.00">Job&#45;1</text>
+<polyline fill="none" stroke="black" points="117.5,-146.5 200.5,-146.5 "/>
+<text text-anchor="middle" x="159" y="-131.3" font-family="Courier New" font-size="14.00">Opcode 0</text>
+<polyline fill="none" stroke="black" points="117.5,-123.5 200.5,-123.5 "/>
+<text text-anchor="middle" x="159" y="-108.3" font-family="Courier New" font-size="14.00">Opcode 1</text>
+<polyline fill="none" stroke="black" points="117.5,-100.5 200.5,-100.5 "/>
+<text text-anchor="middle" x="159" y="-85.3" font-family="Courier New" font-size="14.00">...</text>
+<polyline fill="none" stroke="black" points="117.5,-77.5 200.5,-77.5 "/>
+<text text-anchor="middle" x="159" y="-62.3" font-family="Courier New" font-size="14.00">Opcode n</text>
+</g>
+<!-- structcert0 -->
+<g id="node4" class="node">
+<title>structcert0</title>
+<polygon fill="none" stroke="black" points="16.5,-54.5 16.5,-169.5 99.5,-169.5 99.5,-54.5 16.5,-54.5"/>
+<text text-anchor="middle" x="58" y="-154.3" font-family="Courier New" font-size="14.00">Job&#45;0</text>
+<polyline fill="none" stroke="black" points="16.5,-146.5 99.5,-146.5 "/>
+<text text-anchor="middle" x="58" y="-131.3" font-family="Courier New" font-size="14.00">Opcode 0</text>
+<polyline fill="none" stroke="black" points="16.5,-123.5 99.5,-123.5 "/>
+<text text-anchor="middle" x="58" y="-108.3" font-family="Courier New" font-size="14.00">Opcode 1</text>
+<polyline fill="none" stroke="black" points="16.5,-100.5 99.5,-100.5 "/>
+<text text-anchor="middle" x="58" y="-85.3" font-family="Courier New" font-size="14.00">...</text>
+<polyline fill="none" stroke="black" points="16.5,-77.5 99.5,-77.5 "/>
+<text text-anchor="middle" x="58" y="-62.3" font-family="Courier New" font-size="14.00">Opcode n</text>
+</g>
+</g>
+</svg>
+</div>
 <h1 id="tile-and-actor-ids">Tile and actor IDs</h1>
-<p>t.b.d.</p>
+<h2 id="tile">Tile</h2>
+<ul>
+<li>All DMA S2MM channels</li>
+<li>All DMA MM2S channels</li>
+</ul>
+<h2 id="mem">MEM</h2>
+<ul>
+<li>All DMA S2MM channels</li>
+<li>All DMA MM2S channels</li>
+</ul>
+<h2 id="shim">Shim</h2>
+<ul>
+<li>All DMA S2MM channels</li>
+<li>All DMA MM2S channels</li>
+</ul>
 <h1 id="binary-format">Binary Format</h1>
 <p>Control-code asm files are assembled into standard 32-bit ELF binary files. The file is organized into <a href="#directives">sections</a>.
 A section's column number and page number tells CERT which column's sDM the section should be loaded on. The page number
@@ -426,6 +515,9 @@ In human-readable representations (asm file), padding operands are omitted from 
 <p>16-bit unsigned integer containing the size of the job (<code>START_JOB</code> until <code>END_JOB</code>), automatically
 calculated and filled by the assembler.
 In human-readable representations (asm file), this operand is omitted from the operand list.</p>
+<h2 id="patch_buf">patch_buf</h2>
+<p>Used for host address patching. Arg with this type has name starting with @, and this type of arg
+is consumed only by assembler.</p>
 <h1 id="operations">Operations</h1>
 <h2 id="start_job-0x00">START_JOB (0x00)</h2>
 <p>Indicates the start of a new job.</p>
@@ -479,8 +571,8 @@ explicitly by the user.</p>
 </tr>
 </tbody>
 </table>
-<p>Same as START_JOB, but does not schedule the job yet. The new job can be
-launched manually via LAUNCH_JOB.</p>
+<p>Same as <code>START_JOB</code>, but does not schedule the job yet. The new job can be
+launched manually via <code>LAUNCH_JOB</code>.</p>
 <h2 id="launch_job-0x18">LAUNCH_JOB (0x18)</h2>
 <p>Launches a deferred job.</p>
 <table>
@@ -501,7 +593,7 @@ launched manually via LAUNCH_JOB.</p>
 </tr>
 </tbody>
 </table>
-<p>Launch / schedule a job created with START_JOB_DEFERRED.
+<p>Launch / schedule a job created with <code>START_JOB_DEFERRED</code>.
 This operation might only be called once per job. Launching the same job multiple
 times is undefined behavior.
 The newly launched job will be first scheduled for the next scheduling cycle and
@@ -534,7 +626,7 @@ the current job will continue to run until encountering a blocking operation.</p
 </table>
 <p>Enqueues a DM2MM uC-DMA transfer with the given pointer used as the start
 BD. The pointer is relative to the data section of the control page.
-In case the DM2MM queue is full, the job will pre-empt and retried in the
+In case the DM2MM queue is full, the job will preempt and retried in the
 next scheduling cycle, i.e. the job will be blocked until there is space available
 in the queue.
 In case enqueueing is successful, the operation returns immediately without
@@ -661,7 +753,7 @@ the current job will be blocked until all the TCT arrive. The runtime will proce
 execution of other (non-blocked) jobs during that time.
 Use this operation only for tasks which have TCTs enabled and where the TCTs are
 routed to arrive at the uC executing this operation.
-Note that tasks can be enqueued from any jobs, but only one job can call WAIT_TCTS. And
+Note that tasks can be enqueued from any jobs, but only one job can call <code>WAIT_TCTS</code>. And
 waiting for more tcts than enqueued will hang the job forever</p>
 <h2 id="end_job-0x07">END_JOB (0x07)</h2>
 <p>Indicates the end of the current job.</p>
@@ -756,11 +848,13 @@ at <code>descriptor_ptr</code> and waits until the uC-DMA finishes processing th
 </tbody>
 </table>
 <p>Dynamic version of <code>WRITE_32</code>. The flags arg is used to tell whether address/value are immediate
-or a register number.
-| bit 0 | bit 1 |
-| ---  | --- |
-| 1 : address is immediate | 1 : value is immediate |
-| 0 : address is register number. The write address is in this register | 0 : value is register number. The write value is in this register |</p>
+or a register number.</p>
+<pre><code>| bit 0                                 | bit 1                               |
+| ------------------------------------- | ----------------------------------- |
+| 1 : address is immediate              | 1 : value is immediate              |
+| 0 : address is register number.       | 0 : value is register number.       |
+| The write address is in this register | The write value is in this register |
+</code></pre>
 <h2 id="read_32-0x0c">READ_32 (0x0c)</h2>
 <p>Reads the value of a constant AXI-MM address and stores it in a register.</p>
 <table>
@@ -827,6 +921,7 @@ completely when this operation finishes.</p>
 <th>table_ptr</th>
 <th>num_entries</th>
 <th>offset</th>
+<th>pad_buf</th>
 <th style="text-align: right;">instruction size</th>
 </tr>
 </thead>
@@ -837,24 +932,26 @@ completely when this operation finishes.</p>
 <td>const (16b)</td>
 <td>const (16b)</td>
 <td>const (16b)</td>
+<td>patch_buf (0b)</td>
 <td style="text-align: right;">8B</td>
 </tr>
 </tbody>
 </table>
-<p>Patches the base address of <code>num_entries</code> Shim DMA buffer descriptors by adding the offset
+<p>Patches the base address of <code>num_entries</code> shim DMA buffer descriptors by adding the offset
 loaded from 'offset' and 'offset+1' in argument list.
 if the offset is 0xFFFF, the offset added is the host address of 1st page of control code
 The location of the <code>num_entries</code> buffer descriptors should be given in a table stored
-at <code>table_ptr</code>. One entry in the table is a set of Shim DMA BDs. If there are multiple entries in the table,
+at <code>table_ptr</code>. One entry in the table is a set of shim DMA BDs. If there are multiple entries in the table,
 those set of BDS have to be contiguous.
-4th optional arg in APPLY_OFFSET_57, specifies the pad buffer to hold blob for control packet, or save/restore
-L2 as scratchpad. It is a string starting with @
+4th optional arg <code>pad_buf</code> with special type <code>patch_buf</code>, specifies the pad buffer to hold blob for control packet,
+or save/restore L2 as scratchpad. It is a string starting with @, and only consumed by assembler to do host address
+patch at compile time.
 Example:</p>
-<pre><code>  # non-contiguous BDs
-  APPLY_OFFSET_57     @mem21_bd0, 1, 0xffff
-  APPLY_OFFSET_57     @mem31_bd0, 1, 0xffff
-  # ...
-  ALIGN             4
+<pre><code># non-contiguous BDs
+  APPLY_OFFSET_57     @mem21_bd0, 1, 0xFFFF
+  APPLY_OFFSET_57     @mem31_bd0, 1, 0xFFFF
+# ...
+.align              4
 mem21_bd0:
   WORD              0x00000080
   WORD              0x00020000
@@ -865,7 +962,7 @@ mem21_bd0:
   WORD              0x00000000
   WORD              0x80000000
   WORD              0x00000000
-  ALIGN             4
+.align              4
 mem31_bd0:
   WORD              0x00000080
   WORD              0x00020000
@@ -876,10 +973,11 @@ mem31_bd0:
   WORD              0x00000000
   WORD              0x80000000
   WORD              0x00000000
-  # contiguous BDs
-  APPLY_OFFSET_57     @mem41_bd0, 2, 0xffff
-  # ...
-  ALIGN             4
+
+# contiguous BDs
+  APPLY_OFFSET_57     @mem41_bd0, 2, 0xFFFF
+# ...
+.align              4
 mem41_bd0:
   # 1st set BDs
   WORD              0x00000080
@@ -901,13 +999,13 @@ mem41_bd0:
   WORD              0x00000000
   WORD              0x80000000
   WORD              0x00000000
-
-  # patch scratchpad to BDs
-  .setpad ctrl_pkt ctrlpkt.bin
-  .setpad tile_pad 0x100
+# patch scratchpad to BDs
+  .setpad ctrl_pkt, ctrlpkt.bin
+  .setpad tile_pad, 0x100
+# ...
   APPLY_OFFSET_57     @mem21_bd0, 1, 3, @ctrl_pkt
   APPLY_OFFSET_57     @mem21_bd1, 1, 0xFFFF, @tile_pad
-  # ...
+# ...
   ALIGN             4
 mem21_bd0:
   WORD              0x00000080
@@ -930,7 +1028,7 @@ mem21_bd1:
   WORD              0x80000000
   WORD              0x00000000
 </code></pre>
-<p>The patching using this operation needs be done <em>before</em> programming the Shim DMA buffer
+<p>The patching using this operation needs be done <em>before</em> programming the shim DMA buffer
 descriptors via the uC-DMA.</p>
 <h2 id="add-0x0f">ADD (0x0f)</h2>
 <p>Adds <code>value</code> to the content of register <code>dest</code>.</p>
@@ -1141,31 +1239,43 @@ implementation, aka, TCT</p>
 control code change, trace probe can be placed at any place dynamically
 in control code to collect the trace info when the job runs there.
 This opcode should not be used in user control code.
-Operand <code>info</code> is encoded as following,
-| bit 0-10 | bit 11-15 |
-| ---  | --- |
-| <code>address</code> | <code>type</code> |
 In order to use this, for each trace probe that is inserted at a target opcode,
-user needs to create a control body, and replace the first 4 bytes of the target
-opcode binary with the binary of this opcode before the control code is loaded
-to CERT. Control body of all trace probes should be loaded to CERT first as well.
-In each of the control body, the first word is the replaced binary, following
-words are <code>type</code> dependent, eg. room for trace data that will be collected.
-The trace probe control body locates in sDM. Once collected,
-those data will be moved out to host ddr.
-There are amount of sDM preserved for dynamic tracing purpose. The operand <code>address</code>
-is the offset in word of address of trace probe control body within the preserved SDM
-Operand <code>type</code> defines the trace probe types.
-| type name | value |
-| ---  | --- |
-| timestamp | 0 |
-| count | 1 |
-| ... | ... |
-So far only timestamp is supported.
-For timestamp, There are 3 word fields in control body,
-| word 0 | word 1 | word 2 |
-| ---  | --- | --- |
-| original replaced assembly | high 32 bit timestamp | low 32 bit timestamp |</p>
+user needs to create a control body.
+The first 4 bytes of the target opcode binary are replaced with the binary of this opcode
+before the control code is loaded to CERT. Control body of all trace probes should be loaded to CERT first as well.
+The trace control body locates in sDM. There are amount of sDM preserved for dynamic tracing purpose.
+Once collected, those data will be moved out to host ddr.
+Control body:</p>
+<pre><code>| Word | B0 | B1 | B2 | B3 | Description                             |
+|------|----|----|----|----|---------------------------------------- |
+| W0   | 01 | 00 | ff | ff | `probe_begin`                           |
+| W1   | 01 | 01 | 04 | 00 | `probe_end`, control body at W4         |
+| W2   | 00 | 02 | m1 | 00 | `probe_jprobe`, control body at Wm1     |
+| W3   | 10 | 03 | n1 | 00 | `probe_tracepoint`, control body at Wn1 |
+| W4   | .. | .. | .. | .. |                                         |
+| ...  |    |    |    |    |                                         |
+| Wm1  | 00 | 02 | m2 | 00 | `jprobe` for opcode in                  |
+|      | p1 | 00 | o1 | 00 |  page p1 at offset o1                   |
+|      | .. | .. | .. | .. |                                         |
+| Wm2  | 00 | 02 | ff | ff | `jprobe` for opcode in                  |
+|      | p2 | 00 | o2 | 00 |  page p2 at offset o2                   |
+|      | .. | .. | .. | .. |                                         |
+| Wn1  | 00 | 03 | ff | ff | `tracepoint` at Wn1 with                |
+|      | 00 | 00 | i1 | 00 |  index i1                               |
+|      | .. | .. | .. | .. |                                         |
+</code></pre>
+<p>The control body is organized as link list of each probe type in order of
+<code>BEGIN/END/JPROBE/TRACEPOINT</code>. The second and third bytes of the probe's first word indicate the location of the next probe.
+For the last probe, these bytes are set to 0xFFFF. Each probe will have one or multiple actions.
+Each action specify what user wants to do once the probe fires. e.g collect timestamp, read/write aie register,
+block read/write aie registers, break control code run.
+For timestamp action, there are 3 word fields in control body,</p>
+<pre><code>| Word | B0 | B1 | B2 | B3 | Description           |
+|------|----|----|----|----|-----------------------|
+| W0   | 00 | 02 | 00 | 01 | `timestamp`           |
+| W1   | 00 | 00 | 00 | 00 | high 32 bit timestamp |
+| W2   | 00 | 00 | 00 | 00 | low 32 bit timestamp  |
+</code></pre>
 <h2 id="nop-0x16">NOP (0x16)</h2>
 <p>No-op (no operation) instruction.</p>
 <table>
@@ -1186,10 +1296,10 @@ For timestamp, There are 3 word fields in control body,
 </tr>
 </tbody>
 </table>
-<p>NOP instruction is ignored by the <em>job-runner</em>. NOP instructions may be used for benchmarking
+<p><code>NOP</code> instruction is ignored by the <em>job-runner</em>. <code>NOP</code> instructions may be used for benchmarking
 the <em>job-runner</em> performance and for inserting small delays. Calling this operation may yield
 control to another job.</p>
-<h2 id="preemption_checkpoint-0x19">PREEMPTION_CHECKPOINT (0x19)</h2>
+<h2 id="preempt-0x19">PREEMPT (0x19)</h2>
 <p>save/restore context of an inference at preemption point in control code</p>
 <table>
 <thead>
@@ -1228,6 +1338,7 @@ In multi-uc case, for each preemption point id, the control code of each uc shou
 <tr>
 <th style="text-align: center;">0x1a</th>
 <th>-</th>
+<th>-</th>
 <th>pdi_id</th>
 <th>pdi_host_addr_offset</th>
 <th style="text-align: right;">instruction size</th>
@@ -1237,9 +1348,10 @@ In multi-uc case, for each preemption point id, the control code of each uc shou
 <tr>
 <td style="text-align: center;">opcode (8b)</td>
 <td>pad (8b)</td>
+<td>pad (16b)</td>
 <td>const (16b)</td>
 <td>page_id (16b)</td>
-<td style="text-align: right;">6B</td>
+<td style="text-align: right;">8B</td>
 </tr>
 </tbody>
 </table>
@@ -1295,6 +1407,57 @@ in firmware. During restore (after a context switch), the last loaded pdi will b
 identifier while generating control code. The timestamps will get saved in shared data memory. Whenever the
 allocated shared memory gets fill, CERT should initiate the uc-DMA to transfer data from shared
 data memory to host memory.</p>
+<h2 id="sleep-0x1d">SLEEP (0x1d)</h2>
+<p>sleep instruction.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">0x1d</th>
+<th>-</th>
+<th>-</th>
+<th>target</th>
+<th style="text-align: right;">instruction size</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">opcode (8b)</td>
+<td>pad (8b)</td>
+<td>pad (16b)</td>
+<td>const (32b)</td>
+<td style="text-align: right;">8B</td>
+</tr>
+</tbody>
+</table>
+<p>Sleep instruction makes the current job busy waiting <code>target</code> microseconds. This opcode is for test purpose
+only. Calling this operation doesn't yield control to another job.</p>
+<h2 id="save_register-0x1e">SAVE_REGISTER (0x1e)</h2>
+<p>Reads value from specified register address and saves it in Shared Data Memory.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">0x1e</th>
+<th>-</th>
+<th>-</th>
+<th>address</th>
+<th>unq_id</th>
+<th style="text-align: right;">instruction size</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">opcode (8b)</td>
+<td>pad (8b)</td>
+<td>pad (16b)</td>
+<td>const (32b)</td>
+<td>const (32b)</td>
+<td style="text-align: right;">12B</td>
+</tr>
+</tbody>
+</table>
+<p>Used to save the register address values. AIE compiler will also add unique identifier while generating control code.
+Values will be saved in the shared data memory. Whenever the allocated shared memory gets fille, CERT will start uC-DMA
+to transfer data from sDM to host memory.</p>
 <h1 id="directives">Directives</h1>
 <p>The directive syntax is same as that used by GNU assembler <a href="https://sourceware.org/binutils/docs/as/Pseudo-Ops.html">https://sourceware.org/binutils/docs/as/Pseudo-Ops.html</a>,
 although only the following subset is supported.</p>
@@ -1341,9 +1504,9 @@ Example:</p>
 Example:</p>
 <pre><code>  .align           16
   INPUT_row1_actor11_taskleadin_ucbds:
-    UC_DMA_BD       0, 0x021A05C0, @INPUT_row1_actor11_taskleadin_data0, 8, 0, 1
-    UC_DMA_BD       0, 0x021A065C, @INPUT_row1_actor11_enqueue_0_0, 1, 0, 1
-    UC_DMA_BD       0, 0x021A0000, @INPUT_row1_actor6_taskleadin_data0, 56, 0, 1
+    UC_DMA_BD       0, 0x001A0000, @mem01_bd0, 8, 0, 1
+    UC_DMA_BD       0, 0x001A0020, @mem01_bd1, 8, 0, 1
+    UC_DMA_BD       0, 0x021A0000, @mem11_bd0, 8, 0, 0
     ...
 </code></pre>
 <h2 id="section">.section</h2>
@@ -1366,14 +1529,15 @@ Example:</p>
 </table>
 <p>Describes the name of a ctrlcode section and optional flags (A,W,X) for mapping at runtime.
 <code>.ctrltext</code> is used for text sections and <code>.ctrldata</code> is used for data sections. Suffix in the
-form of <code>.&lt;columnnumber&gt;</code> may be used with section names.
+form of <code>.&lt;ucnumber&gt;</code> may be used with section names.
 Example:</p>
 <pre><code>.section .ctrltext.2,&quot;ax&quot;
 .align 16
 START_JOB   0x15
-UC_DMA_WRITE_DES_SYNC   @label1
-LOCAL_BARRIER   $lb0, 0xB
+  UC_DMA_WRITE_DES_SYNC   @label1
+  LOCAL_BARRIER   $lb0, 0xB
 END_JOB
+
 START_JOB   0x16
 ...
 </code></pre>
@@ -1399,8 +1563,8 @@ Example:</p>
 .include &quot;resetcode.0.asm&quot;
 .include &quot;corecode.1.asm&quot;
 START_JOB   0x15
-UC_DMA_WRITE_DES_SYNC   @label1
-LOCAL_BARRIER   $lb0, 0xB
+  UC_DMA_WRITE_DES_SYNC   @label1
+  LOCAL_BARRIER   $lb0, 0xB
 END_JOB
 START_JOB   0x16
 ...
@@ -1423,20 +1587,21 @@ START_JOB   0x16
 Example:</p>
 <pre><code>...
 START_JOB   0x15
-UC_DMA_WRITE_DES_SYNC   @label1
-LOCAL_BARRIER   $lb0, 0xB
+  UC_DMA_WRITE_DES_SYNC   @label1
+  LOCAL_BARRIER   $lb0, 0xB
 END_JOB
 .eop
+
 START_JOB   0x16
 ...
 </code></pre>
 <h2 id="attach_to_group">.attach_to_group</h2>
-<p>Specifies the column number for the following sections.</p>
+<p>Specifies the uC index for the following sections.</p>
 <table>
 <thead>
 <tr>
 <th><code>.attach_to_group</code></th>
-<th>column number</th>
+<th>uC index</th>
 </tr>
 </thead>
 <tbody>
@@ -1446,29 +1611,41 @@ START_JOB   0x16
 </tr>
 </tbody>
 </table>
-<p>Provides a method to bind the following sections to a specific column. Multiple
-such directives may be used in a file each with a different column number. The
-assembler uses this directive to generate sections names like <code>.ctrltext.&lt;columnnumber&gt;</code>
-and <code>.ctrldata.&lt;columnnumber&gt;</code>
-Example:</p>
+<p>Provides a method to bind the following sections to a specific uC. Multiple
+such directives may be used in a file each with a different uC index. The
+assembler uses this directive to generate sections names like <code>.ctrltext.&lt;ucnumber&gt;</code>
+and <code>.ctrldata.&lt;ucnumber&gt;</code>.
+Note that aie2ps uC index and column index are same, aie4 uC index is not similar to column index,
+aie4 has two uC per column</p>
+<pre><code>aie4                          aie2ps
+| column index | uC index |   | column index | uC index |
+| -------------| -------- |   | -------------| -------- |
+| column 0_A   | 0        |   | column 0     | 0        |
+| column 0_B   | 1        |   | column 1     | 1        |
+| column 1_A   | 2        |   | column 2     | 2        |
+| column 1_B   | 3        |   | column 3     | 3        |
+| column 2_A   | 4        |   | column 4     | 4        |
+| column 2_B   | 5        |   | ...          | ...      |
+</code></pre>
+<p>Example:</p>
 <pre><code>...
 .attach_to_group 0
 START_JOB 0
-READ_32             $r0, 0x2100000
-WRITE_32_D          2, 0x4100000, 0
-REMOTE_BARRIER      $rb0, 0x6
+  READ_32             $r0, 0x2100000
+  WRITE_32_D          2, 0x4100000, 0
+  REMOTE_BARRIER      $rb0, 0x6
 END_JOB
 EOF
 .attach_to_group 1
 START_JOB 0
-uC_DMA_WRITE_DES    $r0, @uc_dma_bd0
-WAIT_uC_DMA         $r0
-LOCAL_BARRIER       $lb0, 2
+  uC_DMA_WRITE_DES    $r0, @uc_dma_bd0
+  WAIT_uC_DMA         $r0
+  LOCAL_BARRIER       $lb0, 2
 END_JOB
 START_JOB 1
-LOCAL_BARRIER       $lb0, 2
-WRITE_32            0x01A0634, 0x80000000
-WAIT_TCTS           TILE_0_1, MM2S_0, 1
+  LOCAL_BARRIER       $lb0, 2
+  WRITE_32            0x01A0634, 0x80000000
+  WAIT_TCTS           TILE_0_1, MM2S_0, 1
 END_JOB
 EOF
 ...
@@ -1479,27 +1656,73 @@ EOF
 <thead>
 <tr>
 <th><code>.setpad</code></th>
+<th>buffer name</th>
 <th>buffer size/path to buffer blob</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>-</td>
+<td>string</td>
 <td>integer/string</td>
 </tr>
 </tbody>
 </table>
 <p>Provides a method to specify buffer/buffer blob. If an immediate number is passed
-as arg, the number is size in word. There will be a buffer declared with that size
-and initialized as all 0s. If a file is passed as arg, there will be a buffer with
-the size of the file declared and initialized with contents in the file.
-<code>.setpad &lt;buffer size&gt;  or .setpad &lt;buffer file path&gt;</code>
+as 2nd arg, the number is size in words, there will be a buffer with name specified as 1st arg
+declared with that size and initialized as all 0s. If a file is passed as 2nd arg, there will
+be a buffer with name specified as 1st arg with the size of the file declared and initialized
+with contents in the file.
+<code>.setpad buffer_name, &lt;buffer size&gt;  or .setpad buffer_name, &lt;buffer file path&gt;</code>
 All the buffers declared with this directive will be in .pad.<colnum> section in the elf.
 Example:</p>
 <pre><code>...
-.setpad 0x100
-.setpad ctrlpkt.bin
+.setpad save, 0x100
+.setpad ctrl_pkt, ctrlpkt.bin
 ...
+</code></pre>
+<h2 id="uc_dma_bd">UC_DMA_BD</h2>
+<p>In control code, the BD that needs to patch is defined by directive UC_DMA_BD</p>
+<table>
+<thead>
+<tr>
+<th><code>UC_DMA_BD</code></th>
+<th>address high</th>
+<th>address low</th>
+<th>local address</th>
+<th>length</th>
+<th>external</th>
+<th>next_bd</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>-</td>
+<td>integer</td>
+<td>integer</td>
+<td>integer</td>
+<td>integer</td>
+<td>integer</td>
+<td>integer</td>
+</tr>
+</tbody>
+</table>
+<p><code>address high</code>, always 0 in current generation of aie.
+<code>address low</code>, address of aie array register that uC-DMA is going to access.
+<code>local address</code> in sDM, it is a label in the data section of the page where the value of the BD registers are specified.
+<code>length</code> is the number of registers staring from the <code>remote address</code>.
+<code>external</code> flag, always 0.
+<code>next_bd</code> flag, this is to tell whether this is the last uC-DMA BD in the chain.
+Example:</p>
+<pre><code>  START_JOB 0
+    uC_DMA_WRITE_DES_SYNC    $r0, @uc_dma_bd0
+  END_JOB
+  .align           16
+  uc_dma_bd0:
+    UC_DMA_BD       0, 0x001A0000, @mem01_bd0, 8, 0, 1
+    UC_DMA_BD       0, 0x001A0020, @mem01_bd1, 8, 0, 1
+    UC_DMA_BD       0, 0x021A0000, @mem11_bd0, 8, 0, 0
+    ...
 </code></pre>
         </div>
       </div>

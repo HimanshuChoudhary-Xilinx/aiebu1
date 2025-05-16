@@ -1,21 +1,22 @@
 # Introduction
 This document outlines the specification of the _ctrlcode_ ISA which serves as the instruction set
 interpreted by the *CERT* _VM_ also referred to as _job-runner_ in this document. The _job-runner_
-is hosted on top of a Baremetal OS which runs on top of Microblaze uController. The whole stack is called CERT.
+is hosted on top of a Baremetal OS which runs on top of Microblaze uController.
+The whole stack is called CERT.
 
 {{ '{% dot
 digraph cert_stack {
     fontname="Courier New"
 	subgraph cluster_0 {
 	rankdir=TB;
-	node [shape="tab" fontname="Courier New"];
+	node [shape="box" fontname="Courier New"];
 	CtrlCode;
 	node [shape="record" fontname="Courier New"];
 	label="CERT Array";
 	labelloc="t";
 	structcert0 [ label = "{Job-Runner|Baremetal OS|uController}"; ];
-	structcert2 [ label = "{|...|}"; ];
 	structcert1 [ label = "{Job-Runner|Baremetal OS|uController}"; ];
+	structcert2 [ label = "{|...|}"; ];
 	structcertn [ label = "{Job-Runner|Baremetal OS|uController}"; ];
 	structcert0 -> CtrlCode;
 	structcert1 -> CtrlCode;
@@ -35,10 +36,8 @@ The control-code is a sequence of opcodes along with operands, organized as _job
 pseudo-parallel fashion using cooperative multi-tasking.
 
 Each job is stack-less and has a private set of 8 working registers `r0`..`r7` which can be used as input
-and output operands.
-
-The sequence of jobs can be followed by user-defined custom data, e.g. configuration data which is to be
-transferred via the uC-DMA.
+and output operands. The sequence of jobs can be followed by user-defined custom data, e.g.
+configuration data which is to be transferred via the uC-DMA.
 
 {{ '{% dot
 digraph control_code_structure {
@@ -48,7 +47,7 @@ digraph control_code_structure {
   begin [shape=point]
   end [shape=point]
 
-  START_JOB [label="START_JOB(_DEFERRED)"]
+  START_JOB [label="START_JOB\n(_DEFERRED)"]
 
   begin -> START_JOB
   START_JOB -> operation
@@ -66,25 +65,55 @@ digraph control_code_structure {
 
 # Alignment
 All operands have to be naturally aligned, i.e. 16-bit numbers may only start on 16-bit boundaries and
-32-bit numbers may only start on 32-bit boundaries.
-
-The size of an operation, i.e. the opcode followed by all operands, should be a multiple of 32 bits.
-
-To achieve the required alignment, padding operands can be used.
+32-bit numbers may only start on 32-bit boundaries. The size of an operation, i.e. the opcode followed by all operands,
+should be a multiple of 32 bits. To achieve the required alignment, padding operands can be used.
 
 # Endianness
 All numbers are encoded in little-endian order.
 
 # Control-Code Pages
-Control-code is organized as a series of pages which are paged-in to the shared Data Memory (sDM) by the uC-DMA in
-a ping-pong fashion. A page cannot have a barrier or lock dependency on a following page, although backward
-dependency should work. Page boundary is hinted by the `.eop` [directive](#directives).
+Control-code is organized as a series of pages which are paged-in to the shared Data Memory (sDM)
+by the uC-DMA in a ping-pong fashion. A page cannot have a barrier or lock dependency on a following page,
+although backward dependency should work. Page boundary is hinted by the `.eop` [directive](#directives).
 
 # Control-Code Structure
 TODO: Describe START_JOB / END_JOB etc, state diagram?
+Control Code for uC 0 in Column 0
+
+{{ '{% dot
+digraph control_code {
+    fontname="Courier New";
+    rankdir=TB;
+    subgraph cluster_0 {
+        rankdir=TB;
+        node [shape="record" fontname="Courier New"];
+        label="Page 0";
+        labelloc="t";
+        fontname="Courier New";
+
+        structcertn [label="{Job-n|Opcode 0|Opcode 1|...|Opcode n}"];
+        structcert2 [label="{|||...|}"];
+        structcert1 [label="{Job-1|Opcode 0|Opcode 1|...|Opcode n}"];
+        structcert0 [label="{Job-0|Opcode 0|Opcode 1|...|Opcode n}"];
+    }
+	label="...\nPage n";
+	labelloc="b";
+}
+%}' }}
+
 
 # Tile and actor IDs
-t.b.d.
+## Tile
+- All DMA S2MM channels
+- All DMA MM2S channels
+
+## MEM
+- All DMA S2MM channels
+- All DMA MM2S channels
+
+## Shim
+- All DMA S2MM channels
+- All DMA MM2S channels
 
 # Binary Format
 Control-code asm files are assembled into standard 32-bit ELF binary files. The file is organized into [sections](#directives).
@@ -123,7 +152,6 @@ digraph cert_stack {
 
 {{operation.description}}
 {% endfor %}
-
 
 # Directives
 The directive syntax is same as that used by GNU assembler <https://sourceware.org/binutils/docs/as/Pseudo-Ops.html>,

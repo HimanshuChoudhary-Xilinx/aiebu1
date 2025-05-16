@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT */
 /*
- * Copyright (c) 2023 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2023-2025 Advanced Micro Devices, Inc. All rights reserved.
  */
 
 #ifndef _ISA_DEFINES_H_
@@ -11,7 +11,7 @@
 
 // Operation implementation forward declarations
 {% for operation in operations %}
-static unsigned int control_op_{{operation.mnemonic.lower()}}(const uint8_t *_pc{% for arg in operation.arguments if arg.type != 'pad' %}, {{get_arg_c_type(arg)}} {{arg.name}}{% if arg.type == 'register' %}_reg{% endif %}{% endfor %});{% endfor %}
+static unsigned int control_op_{{operation.mnemonic.lower()}}(const uint8_t *_pc{% for arg in operation.arguments if arg.type != 'pad' and arg.type != 'patch_buf' %}, {{get_arg_c_type(arg)}} {{arg.name}}{% if arg.type == 'register' %}_reg{% endif %}{% endfor %});{% endfor %}
 
 
 // Dispatchers
@@ -19,7 +19,7 @@ static unsigned int control_op_{{operation.mnemonic.lower()}}(const uint8_t *_pc
 static inline unsigned int control_dispatch_{{operation.mnemonic.lower()}}(const uint8_t *pc)
 {
   return control_op_{{operation.mnemonic.lower()}}(
-    pc{% for arg in operation.arguments if arg.type != 'pad' %},
+    pc{% for arg in operation.arguments if arg.type != 'pad' and arg.type != 'patch_buf' %},
     /* {{arg.name}} ({{arg.type}}) */ *({{get_arg_c_type(arg)}} *)(&pc[{{arg._offset}}]){% endfor %}
   );
 }

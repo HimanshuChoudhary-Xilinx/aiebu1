@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-# Copyright (C) 2024 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2024-2025 Advanced Micro Devices, Inc. All rights reserved.
 
 import yaml
 from ctrlcode.common.op_arg import OpArg
@@ -32,6 +32,8 @@ class ISA:
         for op in spec['operations']:
             offset = 16
             for arg in op['arguments']:
+                if arg['type'] == 'patch_buf':
+                    continue
                 arg['_offset'] = offset // 8
                 offset += self.get_arg_width(arg)
 
@@ -45,6 +47,8 @@ class ISA:
         for operation in spec['operations']:
             opargs = []
             for arg in operation['arguments']:
+                if arg['type'] == 'patch_buf':
+                    continue
                 atype = OpArg.fromString(arg['type'].lower())
                 if arg['type'] != 'pad':
                     aname = arg['name']

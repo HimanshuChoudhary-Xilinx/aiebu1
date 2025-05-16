@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT */
 /*
- * Copyright (c) 2023 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2023-2025 Advanced Micro Devices, Inc. All rights reserved.
  */
 
 #ifndef _ISA_DEFINES_H_
@@ -35,10 +35,12 @@ static unsigned int control_op_poll_32(const uint8_t *_pc, uint32_t address, uin
 static unsigned int control_op_mask_poll_32(const uint8_t *_pc, uint32_t address, uint32_t mask, uint32_t value);
 static unsigned int control_op_trace(const uint8_t *_pc, uint16_t info);
 static unsigned int control_op_nop(const uint8_t *_pc);
-static unsigned int control_op_preemption_checkpoint(const uint8_t *_pc, uint16_t id, uint16_t save_control_code_offset, uint16_t restore_control_code_offset);
+static unsigned int control_op_preempt(const uint8_t *_pc, uint16_t id, uint16_t save_control_code_offset, uint16_t restore_control_code_offset);
 static unsigned int control_op_load_pdi(const uint8_t *_pc, uint16_t pdi_id, uint16_t pdi_host_addr_offset);
 static unsigned int control_op_load_last_pdi(const uint8_t *_pc);
 static unsigned int control_op_save_timestamps(const uint8_t *_pc, uint32_t unq_id);
+static unsigned int control_op_sleep(const uint8_t *_pc, uint32_t target);
+static unsigned int control_op_save_register(const uint8_t *_pc, uint32_t address, uint32_t unq_id);
 
 
 // Dispatchers
@@ -252,9 +254,9 @@ static inline unsigned int control_dispatch_nop(const uint8_t *pc)
   );
 }
 
-static inline unsigned int control_dispatch_preemption_checkpoint(const uint8_t *pc)
+static inline unsigned int control_dispatch_preempt(const uint8_t *pc)
 {
-  return control_op_preemption_checkpoint(
+  return control_op_preempt(
     pc,
     /* id (const) */ *(uint16_t *)(&pc[2]),
     /* save_control_code_offset (page_id) */ *(uint16_t *)(&pc[4]),
@@ -266,8 +268,8 @@ static inline unsigned int control_dispatch_load_pdi(const uint8_t *pc)
 {
   return control_op_load_pdi(
     pc,
-    /* pdi_id (const) */ *(uint16_t *)(&pc[2]),
-    /* pdi_host_addr_offset (page_id) */ *(uint16_t *)(&pc[4])
+    /* pdi_id (const) */ *(uint16_t *)(&pc[4]),
+    /* pdi_host_addr_offset (page_id) */ *(uint16_t *)(&pc[6])
   );
 }
 
@@ -283,6 +285,23 @@ static inline unsigned int control_dispatch_save_timestamps(const uint8_t *pc)
   return control_op_save_timestamps(
     pc,
     /* unq_id (const) */ *(uint32_t *)(&pc[4])
+  );
+}
+
+static inline unsigned int control_dispatch_sleep(const uint8_t *pc)
+{
+  return control_op_sleep(
+    pc,
+    /* target (const) */ *(uint32_t *)(&pc[4])
+  );
+}
+
+static inline unsigned int control_dispatch_save_register(const uint8_t *pc)
+{
+  return control_op_save_register(
+    pc,
+    /* address (const) */ *(uint32_t *)(&pc[4]),
+    /* unq_id (const) */ *(uint32_t *)(&pc[8])
   );
 }
 
@@ -310,10 +329,12 @@ static inline unsigned int control_dispatch_save_timestamps(const uint8_t *pc)
   case ISA_OPCODE_MASK_POLL_32: pc += control_dispatch_mask_poll_32(pc); break; \
   case ISA_OPCODE_TRACE: pc += control_dispatch_trace(pc); break; \
   case ISA_OPCODE_NOP: pc += control_dispatch_nop(pc); break; \
-  case ISA_OPCODE_PREEMPTION_CHECKPOINT: pc += control_dispatch_preemption_checkpoint(pc); break; \
+  case ISA_OPCODE_PREEMPT: pc += control_dispatch_preempt(pc); break; \
   case ISA_OPCODE_LOAD_PDI: pc += control_dispatch_load_pdi(pc); break; \
   case ISA_OPCODE_LOAD_LAST_PDI: pc += control_dispatch_load_last_pdi(pc); break; \
-  case ISA_OPCODE_SAVE_TIMESTAMPS: pc += control_dispatch_save_timestamps(pc); break;
+  case ISA_OPCODE_SAVE_TIMESTAMPS: pc += control_dispatch_save_timestamps(pc); break; \
+  case ISA_OPCODE_SLEEP: pc += control_dispatch_sleep(pc); break; \
+  case ISA_OPCODE_SAVE_REGISTER: pc += control_dispatch_save_register(pc); break;
 
 
 #endif
