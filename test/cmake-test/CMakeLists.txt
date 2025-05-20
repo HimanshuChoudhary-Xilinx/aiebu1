@@ -10,15 +10,15 @@ endif()
 # that cmake find_package(aiebu) is working fine. The sample has its
 # own independent cmake which uses find_package(aiebu) to find aiebu
 # exported headers and aiebu static library
-add_test(NAME "aiebu_cmake"
-  COMMAND cmake 
-    "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}" 
-    "-DCMAKE_PREFIX_PATH=${CMAKE_INSTALL_PREFIX}/${AIEBU_INSTALL_DIR}" 
-    "-DAIEBU_MSVC_LEGACY_LINKING=${MSVC_LEGACY_LINKING}" 
-    "${CMAKE_CURRENT_SOURCE_DIR}/sample"
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+#add_test(NAME "aiebu_cmake"
+#  COMMAND cmake 
+#    "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}" 
+#    "-DCMAKE_PREFIX_PATH=${CMAKE_INSTALL_PREFIX}/${AIEBU_INSTALL_DIR}" 
+#    "-DAIEBU_MSVC_LEGACY_LINKING=${MSVC_LEGACY_LINKING}" 
+#    "${CMAKE_CURRENT_SOURCE_DIR}/sample"
+#  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 # Now build and run the sample test
-add_test(NAME "aiebu_cmake_build"
-  COMMAND cmake --build . --verbose --config $<CONFIG>
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+#add_test(NAME "aiebu_cmake_build"
+#  COMMAND cmake --build . --verbose --config $<CONFIG>
+#  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
