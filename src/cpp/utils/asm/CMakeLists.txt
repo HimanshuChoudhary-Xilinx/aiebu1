@@ -5,6 +5,12 @@ add_library(aiebu_asm_objects OBJECT
   ${AIEBU_SOURCE_DIR}/src/cpp/utils/target/target.cpp
   )
 
+# Remove globle includes in case of submodule XRT as there are conflicts
+# in version.h and utils.h
+set_target_properties(aiebu_asm_objects PROPERTIES
+  INCLUDE_DIRECTORIES ""  # Clear inherited dirs
+  )
+
 target_include_directories(aiebu_asm_objects
   PRIVATE
   ${AIEBU_SOURCE_DIR}/src/cpp
