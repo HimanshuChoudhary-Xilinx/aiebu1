@@ -24,6 +24,12 @@ add_library(aiebu_library_objects OBJECT
   ops/ops.cpp
   )
 
+# Remove globle includes in case of submodule XRT as there are conflicts
+# in version.h and utils.h
+set_target_properties(aiebu_library_objects PROPERTIES
+  INCLUDE_DIRECTORIES ""  # Clear inherited dirs
+  )
+
 target_include_directories(aiebu_library_objects
   PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}

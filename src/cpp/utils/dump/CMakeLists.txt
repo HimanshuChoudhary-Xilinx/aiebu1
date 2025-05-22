@@ -5,6 +5,12 @@ add_library(aiebu_dump_objects OBJECT
   dump.cpp
   )
 
+# Remove globle includes in case of submodule XRT as there are conflicts
+# in version.h and utils.h
+set_target_properties(aiebu_dump_objects PROPERTIES
+  INCLUDE_DIRECTORIES ""  # Clear inherited dirs
+  )
+
 target_include_directories(aiebu_dump_objects
   PRIVATE
   ${AIEBU_SOURCE_DIR}/src/cpp/include

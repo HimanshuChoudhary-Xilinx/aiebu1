@@ -41,13 +41,18 @@ add_test(NAME "aie2ps_cpp_eff_net_coal"
 #   COMMAND ${AIE2PS_TESTNAME} "eff_net_ctrlpacket" "${AIEBU_SOURCE_DIR}/test/cpp_test/aie2ps/eff_net_ctrlpacket/"
 #   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
-add_test(NAME "aie2ps_cpp_eff_net_coal_md5sum"
-  COMMAND cmake -P "${AIEBU_SOURCE_DIR}/cmake/md5sum-compare.cmake" "${CMAKE_CURRENT_BINARY_DIR}/eff_net_coal.elf" "${AIEBU_SOURCE_DIR}/test/cpp_test/aie2ps/eff_net_coal/gold.md5"
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+# Check checksum only then boost > 1.70 else there is mismatch in uid because of endianness issue
+# https://github.com/boostorg/uuid/pull/109
+# https://github.com/boostorg/uuid/issues/111
+if(Boost_VERSION VERSION_GREATER 1.70)
+  add_test(NAME "aie2ps_cpp_eff_net_coal_md5sum"
+    COMMAND cmake -P "${AIEBU_SOURCE_DIR}/cmake/md5sum-compare.cmake" "${CMAKE_CURRENT_BINARY_DIR}/eff_net_coal.elf" "${AIEBU_SOURCE_DIR}/test/cpp_test/aie2ps/eff_net_coal/gold.md5"
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 # add_test(NAME "aie2ps_cpp_eff_net_ctrlpacket_md5sum"
 #   COMMAND cmake -P "${AIEBU_SOURCE_DIR}/cmake/md5sum-compare.cmake" "${CMAKE_CURRENT_BINARY_DIR}/eff_net_ctrlpacket.elf" "${AIEBU_SOURCE_DIR}/test/cpp_test/aie2ps/eff_net_ctrlpacket/gold.md5"
 #   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+endif()
 
 add_test(NAME "aie2_cpp_4x4"
   COMMAND ${AIE2_TESTNAME} "${AIEBU_BINARY_DIR}/lib/gen/preempt_restore_stx_4x4.bin"
