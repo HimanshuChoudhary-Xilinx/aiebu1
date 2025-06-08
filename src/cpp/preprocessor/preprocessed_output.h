@@ -10,6 +10,7 @@ class preprocessed_output
 {
 public:
   preprocessed_output() {}
+  virtual ~preprocessed_output() {}
 };
 
 }

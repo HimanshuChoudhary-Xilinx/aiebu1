@@ -75,19 +75,28 @@ protected:
   ELFIO::section* str_sec = nullptr;
   ELFIO::section* sym_sec = nullptr;
   std::once_flag symtab_flag;
+
+  ELFIO::section* dstr_sec = nullptr;
+  ELFIO::section* dsym_sec = nullptr;
+  ELFIO::section* rel_sec = nullptr;
+  ELFIO::section* dynamic_sec = nullptr;
+  std::once_flag dynamic_flag;
   uid_md5 m_uid;
 
   ELFIO::section* add_section(const elf_section& data);
   ELFIO::segment* add_segment(const elf_segment& data);
   ELFIO::string_section_accessor add_dynstr_section();
-  void add_dynsym_section(ELFIO::string_section_accessor* stra, std::vector<symbol>& syms);
+  void add_dynsym_section(ELFIO::string_section_accessor* stra, std::vector<symbol>& syms, const std::string& index_string);
   void add_reldyn_section(std::vector<symbol>& syms);
   void add_dynamic_section_segment();
   std::vector<char> finalize();
-  void add_text_data_section(const std::vector<writer>& mwriter, std::vector<symbol>& syms);
+  std::vector<uint32_t> add_text_data_section(const std::vector<std::shared_ptr<writer>>& mwriter, std::vector<symbol>& syms, const std::string& index_string);
   void add_note(ELFIO::Elf_Word type, const std::string& name, const std::vector<char>& dec);
-  void add_symtab(const std::string& name);
-  void process_common_helper(std::vector<writer>& mwriter);
+  ELFIO::Elf_Word add_symtab(const std::string& name);
+  ELFIO::Elf_Word add_symtab_section(const std::string& name, int index);
+  void init_symtab();
+  void init_dynamic_sections();
+  std::vector<uint32_t> process_common_helper(std::vector<std::shared_ptr<writer>>& mwriter, const std::string& index_string);
 public:
 
   elf_writer(unsigned char abi, unsigned char version)
@@ -110,7 +119,7 @@ public:
 
   }
 
-  virtual std::vector<char> process(std::vector<writer>& mwriter);
+  virtual std::vector<char> process(std::vector<std::shared_ptr<writer>>& mwriter);
 
   virtual ~elf_writer() = default;
 

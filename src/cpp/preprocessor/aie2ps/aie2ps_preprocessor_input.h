@@ -7,6 +7,7 @@
 #include <map>
 #include "symbol.h"
 #include "utils.h"
+#include "file_utils.h"
 #include "preprocessor_input.h"
 #include <boost/format.hpp>
 #include <boost/property_tree/json_parser.hpp>
@@ -85,5 +86,151 @@ public:
 
 };
 
+class asm_config_preprocessor_input : public preprocessor_input
+{
+public:
+  std::map<std::string, std::map<std::string, std::shared_ptr<asm_preprocessor_input>>> m_preprocessor_input;
+protected:
+  class argument {
+    public:
+    std::string name;
+    std::string type;
+    std::string offset;
+
+    argument(std::string na, std::string ty, std::string off):
+             name(std::move(na)),
+             type(std::move(ty)),
+             offset(std::move(off)) {}
+    argument(const argument& rhs) = default;
+    argument& operator=(const argument& rhs) = default;
+    argument(argument &&s) = default;
+    ~argument() = default;
+  };
+
+  struct function {
+    std::string name;
+    std::vector<argument> arguments;
+  };
+
+  std::string mangle_function_name(const function& func) {
+    std::string mangled_name = "_Z" + std::to_string(func.name.length()) + func.name;
+    for (const auto& arg : func.arguments) {
+        if (arg.type == "char *") {
+            mangled_name += "Pc"; // 'Pc' represents 'char *' in Itanium C++ ABI
+        } else if (arg.type == "void *") {
+            mangled_name += "Pv"; // 'Pv' represents 'void *' in Itanium C++ ABI
+        } else if (arg.type == "scalar") {
+            mangled_name += "i"; // 'i' represents 'int' in Itanium C++ ABI for scalar
+        } else if (arg.type == "int *") {
+            mangled_name += "Pi"; // 'Pi' represents 'int *' in Itanium C++ ABI
+        }
+    }
+    return mangled_name;
+  }
+
+public:
+  void add_instance(const std::string& kernel,
+                    const boost::property_tree::ptree& pinstance,
+                    const std::vector<std::string>& flags,
+                    const std::vector<std::string>& paths)
+  {
+    for (const auto& [unused, pic] : pinstance)
+    {
+      std::string tname = pic.get<std::string>("id");
+      std::vector<char> ccode = std::move(readfile(pic.get<std::string>("TXN_ctrl_code_file")));
+      //std::cout << "TXN_ctrl_code_file id:" << pic.get<std::string>("id") << std::endl;
+      //std::cout << "TXN_ctrl_code_file:" << pic.get<std::string>("TXN_ctrl_code_file") << std::endl;
+
+      std::vector<char> jdata;
+      if (!pic.get<std::string>("patch_info_file", "").empty())
+        jdata = readfile(pic.get<std::string>("patch_info_file"));
+
+      add_preprocessor_input(kernel, tname, ccode, jdata, flags, paths);
+    }
+  }
+
+  void parse_config_json(std::istream& patch_json,
+                         const std::vector<std::string>& flags,
+                         const std::vector<std::string>& paths)
+  {
+    boost::property_tree::ptree pt;
+    boost::property_tree::read_json(patch_json, pt);
+
+    const auto& pt_xrt_kernel_instance = pt.get_child_optional("xrt-kernels");
+    if (!pt_xrt_kernel_instance) {
+      std::cout << "xrt-kernels instance not found returning\n";
+      return;
+    }
+    const auto& p_xrt_kernel_instance = pt_xrt_kernel_instance.get();
+    for (const auto& [unused, ctrlcode] : p_xrt_kernel_instance)
+    {
+      //const auto& ctrlcode = pt_ctrlcode.second;
+      //get mangled kernel name
+      function func;
+      func.name = ctrlcode.get<std::string>("name");
+      for (const auto& item : ctrlcode.get_child("arguments")) {
+        func.arguments.emplace_back(item.second.get<std::string>("name"),
+                                    item.second.get<std::string>("type"),
+                                    item.second.get<std::string>("offset"));
+      }
+      std::string mangled_name = mangle_function_name(func);
+      //std::cout << "Mangled Function Name: " << mangled_name << std::endl;
+      add_metadata("kernel.signature", mangled_name);
+
+      const auto& pt_pdis = ctrlcode.get_child_optional("PDIs");
+      if (pt_pdis)
+        throw error(error::error_code::invalid_asm, "PDIs section should not be present for json with controlcode in asm format\n");
+
+      const auto& pt_instance = ctrlcode.get_child_optional("instance");
+      if (pt_instance) {
+        const auto& pinstance = pt_instance.get();
+        add_instance(mangled_name, pinstance, flags, paths);
+      } else {
+        std::cout << "instance not found\n";
+      }
+    }
+  }
+
+  virtual void set_args(const std::vector<char>& /*control_code*/,
+                        const std::vector<char>& patch_json,
+                        const std::vector<char>& /*buffer2*/,
+                        const std::vector<std::string>& libs,
+                        const std::vector<std::string>& libpaths,
+                        const std::map<uint32_t, std::vector<char> >& /*ctrlpkt*/) override
+  {
+    if (patch_json.size() !=0)
+    {
+      vector_streambuf vsb(patch_json);
+      std::istream elf_stream(&vsb);
+      parse_config_json(elf_stream, libs, libpaths);
+    }
+    //parse_config_json(patch_json, libs, libpaths);
+  }
+
+  virtual void add_preprocessor_input(const std::string& /*kernel*/,
+                                      const std::string& /*instance*/,
+                                      const std::vector<char>& /*control_code*/,
+                                      const std::vector<char>& /*patch_json*/,
+                                      const std::vector<std::string>& /*flags*/,
+                                      const std::vector<std::string>& /*paths*/) {}
+};
+
+template <typename T>
+class controlcode_config_preprocessor_input : public asm_config_preprocessor_input
+{
+public:
+  void add_preprocessor_input(const std::string& kernel,
+                              const std::string& instance,
+                              const std::vector<char>& control_code,
+                              const std::vector<char>& patch_json,
+                              const std::vector<std::string>& flags,
+                              const std::vector<std::string>& paths) override
+  {
+    auto input = std::make_shared<T>();
+    input->set_args(control_code, patch_json, {}, flags, paths, {});
+    m_preprocessor_input[kernel][instance] = input;
+    //m_preprocessor_input.at(m_preprocessor_input.size()-1).set_args(control_code, patch_json, {}, flags, paths, {});
+  }
+};
 }
 #endif //_AIEBU_PREPROCESSOR_AIE2PS_PREPROCESSOR_INPUT_H_

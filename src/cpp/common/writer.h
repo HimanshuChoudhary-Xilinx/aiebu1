@@ -16,6 +16,12 @@ namespace aiebu {
 // Class to hold sections name, data, symbols, type
 class writer
 {
+public:
+  virtual ~writer() = default;
+};
+
+class section_writer: public writer
+{
   const std::string m_name;
   const code_section m_type;
   std::vector<uint8_t> m_data;
@@ -23,12 +29,12 @@ class writer
   std::unordered_map<std::string, std::string> m_metadata;
 
 public:
-  writer(std::string name, code_section type, std::vector<uint8_t>&& data)
+  section_writer(std::string name, code_section type, std::vector<uint8_t>&& data)
     : m_name(std::move(name)),
       m_type(type),
       m_data(std::move(data)) {}
-  writer(std::string name, code_section type): m_name(std::move(name)), m_type(type) {}
-  virtual ~writer() = default;
+  section_writer(std::string name, code_section type): m_name(std::move(name)), m_type(type) {}
+  virtual ~section_writer() = default;
 
   virtual void write_byte(uint8_t byte);
 
@@ -97,5 +103,13 @@ public:
     return m_metadata[key];
   }
 };
+
+class config_writer: public writer
+{
+public:
+  std::map<std::string, std::map<std::string, std::vector<std::shared_ptr<writer>>>> m_output;
+
+};
+
 }
 #endif //_AIEBU_COMMON_WRITER_H_

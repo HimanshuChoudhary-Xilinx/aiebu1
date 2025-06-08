@@ -21,22 +21,25 @@ public:
   { }
 
   std::vector<char>
-  process(std::vector<writer>& mwriter) override
+  process(std::vector<std::shared_ptr<writer>>& mwriter) override
   {
-    process_common_helper(mwriter);
+    process_common_helper(mwriter, "");
     //std::string uuid = mwriter[0].get_metadata("kernel.config.uuid");
     //if (!uuid.empty())
     //  add_note(NT_XRT_UUID, ".note.xrt.kernel.config.uuid", uuid);
 
-    const std::string configuration = mwriter[0].get_metadata(const_configuration);
+    auto element = std::dynamic_pointer_cast<section_writer>(mwriter[0]);
+    const std::string configuration = element->get_metadata(const_configuration);
     std::vector<char> configuration_vec(configuration.begin(), configuration.end());
     if (!configuration.empty())
       add_note(NT_XRT_PARTITION_SIZE, xrt_configuration, configuration_vec);
 
-    std::string kernel_signature = mwriter[0].get_metadata(const_kernel_signature);
+    std::string kernel_signature = element->get_metadata(const_kernel_signature);
     if (!kernel_signature.empty())
+    {
+      init_symtab();
       add_symtab(kernel_signature);
-
+    }
     return finalize();
   }
 };

@@ -101,5 +101,26 @@ public:
   }
 };
 
+//asm_config_preprocessor<aie2ps_preprocessor, aie2ps_preprocessed_output>
+template <typename preprocessor_template, typename input_tamplete, typename output_tamplete>
+class asm_config_preprocessor: public preprocessor
+{
+
+public:
+  //std::shared_ptr<asm_config_preprocessed_output<output_tamplete>>
+  virtual std::shared_ptr<preprocessed_output>
+  process(std::shared_ptr<preprocessor_input> input) override
+  {
+    preprocessor_template m_preprocessor;
+    auto rinput = std::dynamic_pointer_cast<asm_config_preprocessor_input>(input);
+    auto toutput = std::make_shared<asm_config_preprocessed_output<output_tamplete>>();
+
+    for (auto& [kernel, instances] : rinput->m_preprocessor_input) {
+      for(auto& [iname, instance] : instances)
+        toutput->m_output[kernel][iname] = std::dynamic_pointer_cast<output_tamplete>(m_preprocessor.process(instance));
+    }
+    return toutput;
+  }
+};
 }
 #endif //_AIEBU_PREPROCESSOR_AIE2PS_PREPROCESSOR_H_

@@ -129,6 +129,19 @@ class target_aie4: public target
   explicit target_aie4(const std::string& name): target(name, "aie4", "aie4 asm assembler") {}
 };
 
+class target_aie2ps_config: public target
+{
+  public:
+  void assemble(const sub_cmd_options &_options) override;
+  explicit target_aie2ps_config(const std::string& name): target(name, "aie2ps_config", "generate aie2ps config elf") {}
+};
+
+class target_aie4_config: public target
+{
+  public:
+  void assemble(const sub_cmd_options &_options) override;
+  explicit target_aie4_config(const std::string& name): target(name, "aie4_config", "generate aie4 config elf") {}
+};
 } //namespace aiebu::utilities
 
 #endif // AIEBU_UTILITIES_TARGET_H_

@@ -388,3 +388,119 @@ target_aie4::assemble(const sub_cmd_options &_options)
     throw std::runtime_error(errMsg.str());
   }
 }
+
+void
+aiebu::utilities::
+target_aie2ps_config::assemble(const sub_cmd_options &options)
+{
+  std::string output_elffile;
+  std::string json_file;
+  std::vector<std::string> libpaths;
+  cxxopts::Options all_options("Target config Options", m_description);
+
+  try {
+    all_options.add_options()
+            ("o,outputelf", "ELF output file name", cxxopts::value<decltype(output_elffile)>())
+            ("j,json", "control packet Patching json file", cxxopts::value<decltype(json_file)>())
+            ("L,libpath", "libs path", cxxopts::value<decltype(libpaths)>())
+            ("h,help", "show help message and exit", cxxopts::value<bool>()->default_value("false"))
+    ;
+
+
+    auto char_ver = aiebu::utilities::vector_of_string_to_vector_of_char(options);
+
+    auto result = all_options.parse(static_cast<int>(char_ver.size()), char_ver.data());
+
+    if (result.count("help")) {
+      std::cout << all_options.help({"", "Target config Options"});
+      return;
+    }
+
+    if (result.count("outputelf"))
+      output_elffile = result["outputelf"].as<decltype(output_elffile)>();
+    else
+      throw std::runtime_error("the option '--outputelf' is required but missing\n");
+
+    if (result.count("json"))
+      json_file = result["json"].as<decltype(json_file)>();
+
+    if (result.count("libpath"))
+      libpaths = result["libpath"].as<decltype(libpaths)>();
+  }
+  catch (const cxxopts::exceptions::exception& e) {
+    std::cout << all_options.help({"", "Target config Options"});
+    auto errMsg = boost::format("Error parsing options: %s\n") % e.what() ;
+    throw std::runtime_error(errMsg.str());
+  }
+
+  std::vector<char> json_buffer;
+  if (!json_file.empty())
+    readfile(json_file, json_buffer);
+
+  try {
+    aiebu::aiebu_assembler as(aiebu::aiebu_assembler::buffer_type::aie2ps_config, {}, {}, libpaths, json_buffer);
+    write_elf(as, output_elffile);
+  }
+  catch (aiebu::error &ex) {
+    auto errMsg = boost::format("Error: %s, code:%d\n") % ex.what() % ex.get_code() ;
+    throw std::runtime_error(errMsg.str());
+  }
+}
+
+void
+aiebu::utilities::
+target_aie4_config::assemble(const sub_cmd_options &options)
+{
+  std::string output_elffile;
+  std::string json_file;
+  std::vector<std::string> libpaths;
+  cxxopts::Options all_options("Target config Options", m_description);
+
+  try {
+    all_options.add_options()
+            ("o,outputelf", "ELF output file name", cxxopts::value<decltype(output_elffile)>())
+            ("j,json", "control packet Patching json file", cxxopts::value<decltype(json_file)>())
+            ("L,libpath", "libs path", cxxopts::value<decltype(libpaths)>())
+            ("h,help", "show help message and exit", cxxopts::value<bool>()->default_value("false"))
+    ;
+
+
+    auto char_ver = aiebu::utilities::vector_of_string_to_vector_of_char(options);
+
+    auto result = all_options.parse(static_cast<int>(char_ver.size()), char_ver.data());
+
+    if (result.count("help")) {
+      std::cout << all_options.help({"", "Target config Options"});
+      return;
+    }
+
+    if (result.count("outputelf"))
+      output_elffile = result["outputelf"].as<decltype(output_elffile)>();
+    else
+      throw std::runtime_error("the option '--outputelf' is required but missing\n");
+
+    if (result.count("json"))
+      json_file = result["json"].as<decltype(json_file)>();
+
+    if (result.count("libpath"))
+      libpaths = result["libpath"].as<decltype(libpaths)>();
+  }
+  catch (const cxxopts::exceptions::exception& e) {
+    std::cout << all_options.help({"", "Target config Options"});
+    auto errMsg = boost::format("Error parsing options: %s\n") % e.what() ;
+    throw std::runtime_error(errMsg.str());
+  }
+
+  std::vector<char> json_buffer;
+  if (!json_file.empty())
+    readfile(json_file, json_buffer);
+
+  try {
+    aiebu::aiebu_assembler as(aiebu::aiebu_assembler::buffer_type::aie4_config, {}, {}, libpaths, json_buffer);
+    write_elf(as, output_elffile);
+  }
+  catch (aiebu::error &ex) {
+    auto errMsg = boost::format("Error: %s, code:%d\n") % ex.what() % ex.get_code() ;
+    throw std::runtime_error(errMsg.str());
+  }
+}

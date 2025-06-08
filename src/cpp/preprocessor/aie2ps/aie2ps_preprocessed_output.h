@@ -46,5 +46,12 @@ public:
   }
 };
 
+template <typename T>
+class asm_config_preprocessed_output: public preprocessed_output
+{
+public:
+  std::map<std::string, std::map<std::string, std::shared_ptr<T>>> m_output;
+};
+
 }
 #endif //_AIEBU_PREPROCESSOR_AIE2PS_PREPROCESSED_OUTPUT_H_
