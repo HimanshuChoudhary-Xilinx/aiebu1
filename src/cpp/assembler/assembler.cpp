@@ -67,6 +67,20 @@ assembler(const elf_type type)
     m_elfwriter = std::make_unique<aie4_elf_writer>();
     m_ppi = std::make_shared<aie4_preprocessor_input>();
   }
+  else if (type == elf_type::aie2ps_config)
+  {
+    m_preprocessor = std::make_unique<asm_config_preprocessor<aie2ps_preprocessor, aie2ps_preprocessor_input, aie2ps_preprocessed_output>>();
+    m_enoder = std::make_unique<asm_config_encoder<aie2ps_encoder, aie2ps_preprocessed_output>>();
+    m_elfwriter = std::make_unique<aie2ps_config_elf_writer>();
+    m_ppi = std::make_shared<controlcode_config_preprocessor_input<aie2ps_preprocessor_input>>();
+  }
+  else if (type == elf_type::aie4_config)
+  {
+    m_preprocessor = std::make_unique<asm_config_preprocessor<aie4_preprocessor, aie4_preprocessor_input, aie2ps_preprocessed_output>>();
+    m_enoder = std::make_unique<asm_config_encoder<aie4_encoder, aie2ps_preprocessed_output>>();
+    m_elfwriter = std::make_unique<aie4_config_elf_writer>();
+    m_ppi = std::make_shared<controlcode_config_preprocessor_input<aie4_preprocessor_input>>();
+  }
   else {
     throw error(error::error_code::invalid_buffer_type ,"Invalid elf type!!!");
   }

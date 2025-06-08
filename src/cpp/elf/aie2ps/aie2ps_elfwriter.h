@@ -10,12 +10,80 @@ namespace aiebu {
 
 class aie2ps_elf_writer: public elf_writer
 {
-  constexpr static unsigned char ob_abi = 0x40;
+  constexpr static unsigned char ob_abi = 0x46;
   constexpr static unsigned char version = 0x02;
 public:
   aie2ps_elf_writer(): elf_writer(ob_abi, version)
   { }
 };
 
+class aie2ps_config_elf_writer: public elf_writer
+{
+  constexpr static unsigned char ob_abi = 0x46;
+  constexpr static unsigned char version = 0x03;
+  const std::string const_configuration = "configuration";
+  const std::string xrt_configuration = ".note.xrt.configuration";
+  const std::string const_kernel_signature = "kernel.signature";
+
+public:
+  aie2ps_config_elf_writer(): elf_writer(ob_abi, version)
+  { }
+
+  std::string get_group_name(uint32_t index) {return ".group."+ std::to_string(index); }
+  std::string get_section_prefix(uint32_t index) {return "."+ std::to_string(index); }
+
+  void
+  add_group(const std::string& name, const std::vector<uint32_t>& member, ELFIO::Elf_Word info_index)
+  {
+    // add section
+    ELFIO::section* sec = m_elfio.sections.add(name);
+    sec->set_type(ELFIO::SHT_GROUP);
+    sec->set_flags(ELFIO::SHF_ALLOC);
+    sec->set_addr_align(align);
+    sec->set_info(info_index);
+    sec->set_entry_size(4);
+
+    if(member.size())
+      sec->set_data(reinterpret_cast<const char*>(member.data()), static_cast<ELFIO::Elf_Word>(member.size()*4));
+
+    const ELFIO::section* lsec = m_elfio.sections[".symtab"];
+    sec->set_link(lsec->get_index());
+  }
+
+  /**
+   * This function gets config_writer object which has map<kernel, map<instance, vector<pages>>.
+   * It traverse each kernel, its instances and push corresponding pages in elf.
+   * It add dynamic section correspondly.
+   * It add partition info in note section and finalize to generate elf
+   */
+  std::vector<char>
+  process(std::vector<std::shared_ptr<writer>>& mwriter) override
+  {
+    auto mconfig_writer = std::dynamic_pointer_cast<config_writer>(mwriter[0]);
+    init_symtab();
+    uint32_t index=0;
+    for( auto& [kernel, instances] : mconfig_writer->get_kernel_map())
+    {
+       auto kernel_index = add_symtab(kernel);
+       for(auto& [iname, instance] : instances)
+       {
+         auto instance_index = add_symtab_section(iname, kernel_index);
+         std::vector<uint32_t> group_data = process_common_helper(instance, get_section_prefix(index));
+         // first word is GRP_COMDAT
+         group_data.insert(group_data.begin(), 1);
+         add_group(get_group_name(index), group_data, instance_index);
+         index++;
+       }
+    }
+    if (dstr_sec)
+      add_dynamic_section_segment();
+    std::vector<char> configuration_vec(4);
+    auto col = mconfig_writer->get_partition_info()->get_numcolumn();
+    std::memcpy(configuration_vec.data(), &col, sizeof(uint32_t));
+
+    add_note(NT_XRT_PARTITION_SIZE, xrt_configuration, configuration_vec);
+    return finalize();
+  }
+};
 }
 #endif //_AIEBU_ELF_AIE2PS_ELF_WRITER_H_

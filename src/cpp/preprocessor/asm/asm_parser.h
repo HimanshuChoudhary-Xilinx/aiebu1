@@ -5,6 +5,7 @@
 
 #include "code_section.h"
 #include "utils.h"
+#include "file_utils.h"
 
 #include <map>
 #include <memory>
@@ -77,62 +78,32 @@ public:
 class attach_to_group_directive: public directive
 {
 public:
-  attach_to_group_directive() {}
-  void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm);
+  attach_to_group_directive() = default;
+  void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm) override;
+  ~attach_to_group_directive() override = default;
 };
 
 class include_directive: public directive
 {
 
   bool read_include_file(std::string filename);
-  bool isAbsolutePath(const std::string& path) {
-    // On Unix-like systems, an absolute path starts with '/'
-    if (path.empty()) {
-      return false;
-    }
-    if (path[0] == '/') {
-      return true;
-    }
-
-    // On Windows, an absolute path can start with a drive letter followed by ':'
-    // and a backslash or forward slash, e.g., "C:\\" or "C:/"
-    if (path.size() > 1 && path[1] == ':' && (path[2] == '\\' || path[2] == '/')) {
-      return true;
-    }
-    return false;
-  }
 public:
-  include_directive() {}
-  void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm);
+  include_directive() = default;
+  void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm) override;
+  ~include_directive() override = default;
 };
 
 class end_of_label_directive: public directive
 {
 public:
-  end_of_label_directive() {}
-  void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm);
+  end_of_label_directive() = default;
+  void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm) override;
+  ~end_of_label_directive() override = default;
 };
 
 class pad_directive: public directive
 {
   bool read_pad_file(std::string& name, std::string& filename);
-
-  bool isAbsolutePath(const std::string& path) {
-    // On Unix-like systems, an absolute path starts with '/'
-    if (path.empty()) {
-      return false;
-    }
-    if (path[0] == '/') {
-      return true;
-    }
-
-    // On Windows, an absolute path can start with a drive letter followed by ':'
-    // and a backslash or forward slash, e.g., "C:\\" or "C:/"
-    if (path.size() > 1 && path[1] == ':' && (path[2] == '\\' || path[2] == '/')) {
-      return true;
-    }
-    return false;
-  }
 public:
   offset_type convert2int(std::string& str)
   {
@@ -151,8 +122,9 @@ public:
     return size;
   }
   void add_scratchpad(std::string& name, std::string& str);
-  pad_directive() {}
-  void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm);
+  pad_directive() = default;
+  void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm) override;
+  ~pad_directive() override = default;
 };
 
 class section_directive: public directive
@@ -161,8 +133,21 @@ class section_directive: public directive
   bool is_data_section(const std::string& str) {return !str.substr(0,9).compare(".ctrldata"); }
   bool is_annotation_section(const std::string& str) {return !str.substr(0,10).compare("annotation"); }
 public:
-  section_directive() {}
-  void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm);
+  section_directive() = default;
+  void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm) override;
+  ~section_directive() override = default;
+};
+
+class partition_directive: public directive
+{
+public:
+  partition_directive() = default;
+  void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm) override;
+  ~partition_directive() override = default;
+  partition_directive(const partition_directive&) = default;
+  partition_directive& operator=(const partition_directive&) = default;
+  partition_directive(partition_directive&&) = default;
+  partition_directive& operator=(partition_directive&&) = default;
 };
 
 class asm_data
@@ -292,6 +277,7 @@ class include_directive;
 class end_of_label_directive;
 class pad_directive;
 class section_directive;
+class partition_directive;
 
 class asm_parser: public std::enable_shared_from_this<asm_parser>
 {
@@ -304,12 +290,14 @@ class asm_parser: public std::enable_shared_from_this<asm_parser>
   const std::vector<std::string>& m_include_list;
   bool annotation_state = false;
   std::vector<annotation_type> m_annotation_list;
+  std::shared_ptr<partition_info> m_partition;
 
 public:
-  asm_parser(const std::vector<char>& data, const std::vector<std::string>& include_list):m_data(data), m_include_list(include_list)
+  asm_parser(const std::vector<char>& data, const std::vector<std::string>& include_list):m_data(data), m_include_list(include_list)//, m_partition(DEFAULT_COLUMN,0)
   {
     set_data_state(false);
     m_current_col = -1;
+    m_partition = std::make_shared<partition_info>(DEFAULT_COLUMN, 0);
   }
 
   void set_data_state(bool state) { isdatastack.push(state); }
@@ -355,6 +343,14 @@ public:
   std::vector<uint32_t> get_col_list();
 
   col_data& get_col_asmdata(uint32_t colnum);
+
+  std::shared_ptr<const partition_info> get_partition_info() const { return std::const_pointer_cast<const partition_info>(m_partition); }
+
+  void set_numcolumn(uint32_t val) { m_partition->set_numcolumn(val); }
+
+  void set_numcore(uint32_t val) { m_partition->set_numcore(val); }
+
+  void set_nummem(uint32_t val) { m_partition->set_nummem(val); }
 
   void parse_lines();
 

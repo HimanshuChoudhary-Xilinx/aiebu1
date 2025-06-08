@@ -42,13 +42,13 @@ public:
   std::shared_ptr<preprocessed_output>
   process_internal(std::shared_ptr<asm_preprocessor_input> tinput)
   {
-    auto toutput = std::make_shared<aie2ps_preprocessed_output>();
     //auto keys = tinput->get_keys();
     std::shared_ptr<asm_parser> parser(new asm_parser(tinput->get_data(), tinput->get_include_paths()));
     parser->parse_lines();
     auto collist = parser->get_col_list();
     isa i;
     m_isa = i.get_isamap();
+    auto toutput = std::make_shared<aie2ps_preprocessed_output>(parser->get_partition_info());
     auto flags = tinput->get_flags();
     for (const auto& flag: flags)
     {
@@ -111,5 +111,27 @@ public:
   }
 };
 
+template <typename preprocessor_template, typename input_tamplete, typename output_tamplete>
+class asm_config_preprocessor: public preprocessor
+{
+
+public:
+  std::shared_ptr<preprocessed_output>
+  process(std::shared_ptr<preprocessor_input> input) override
+  {
+    preprocessor_template m_preprocessor;
+    auto rinput = std::dynamic_pointer_cast<asm_config_preprocessor_input>(input);
+    auto toutput = std::make_shared<asm_config_preprocessed_output<output_tamplete>>();
+
+    for (auto& [kernel, instances] : rinput->get_kernel_map()) {
+      for(auto& [iname, instance] : instances)
+      {
+        auto val = std::dynamic_pointer_cast<output_tamplete>(m_preprocessor.process(instance));
+        toutput->add_kernel_map(kernel, iname, val);
+      }
+    }
+    return toutput;
+  }
+};
 }
 #endif //_AIEBU_PREPROCESSOR_AIE2PS_PREPROCESSOR_H_

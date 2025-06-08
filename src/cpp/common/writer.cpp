@@ -9,14 +9,14 @@
 namespace aiebu {
 
 void
-writer::
+section_writer::
 write_byte(uint8_t byte)
 {
   m_data.push_back(byte);
 }
 
 void
-writer::
+section_writer::
 write_word(uint32_t word)
 {
   write_byte((word >> FIRST_BYTE_SHIFT) & BYTE_MASK);
@@ -26,14 +26,14 @@ write_word(uint32_t word)
 }
 
 offset_type
-writer::
+section_writer::
 tell() const
 {
   return static_cast<offset_type>(m_data.size());
 }
 
 uint32_t
-writer::
+section_writer::
 read_word(offset_type offset) const
 {
   if (offset + 3 >= m_data.size())
@@ -45,7 +45,7 @@ read_word(offset_type offset) const
 }
 
 void
-writer::
+section_writer::
 write_word_at(offset_type offset, uint32_t word)
 {
   m_data[offset] = ((word >> FIRST_BYTE_SHIFT) & BYTE_MASK);
@@ -55,7 +55,7 @@ write_word_at(offset_type offset, uint32_t word)
 }
 
 void
-writer::
+section_writer::
 padding(offset_type pagesize)
 {
   auto datasize = tell();

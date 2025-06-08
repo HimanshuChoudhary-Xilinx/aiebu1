@@ -16,7 +16,7 @@ class encoder
 public:
   encoder() = default;
 
-  virtual std::vector<writer>
+  virtual std::vector<std::shared_ptr<writer>>
   process(std::shared_ptr<preprocessed_output> input) = 0;
   virtual ~encoder() = default;
 };

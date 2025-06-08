@@ -16,6 +16,12 @@ namespace aiebu {
 // Class to hold sections name, data, symbols, type
 class writer
 {
+public:
+  virtual ~writer() = default;
+};
+
+class section_writer: public writer
+{
   const std::string m_name;
   const code_section m_type;
   std::vector<uint8_t> m_data;
@@ -23,12 +29,17 @@ class writer
   std::unordered_map<std::string, std::string> m_metadata;
 
 public:
-  writer(std::string name, code_section type, std::vector<uint8_t>&& data)
+  section_writer(std::string name, code_section type, std::vector<uint8_t>&& data)
     : m_name(std::move(name)),
       m_type(type),
       m_data(std::move(data)) {}
-  writer(std::string name, code_section type): m_name(std::move(name)), m_type(type) {}
-  virtual ~writer() = default;
+  section_writer(std::string name, code_section type): m_name(std::move(name)), m_type(type) {}
+
+  ~section_writer() override= default;
+  section_writer(const section_writer& rhs) = default;
+  section_writer& operator=(const section_writer& rhs) = delete;
+  section_writer(section_writer &&s) = default;
+  //section_writer& operator=(const section_writer&& rhs) = default;
 
   virtual void write_byte(uint8_t byte);
 
@@ -97,5 +108,25 @@ public:
     return m_metadata[key];
   }
 };
+
+class config_writer: public writer
+{
+  // map<kernel, map<instance, vector<section_writer object having control code pages and symbol info>>
+  std::map<std::string, std::map<std::string, std::vector<std::shared_ptr<writer>>>> m_output;
+  std::shared_ptr<const partition_info> m_partition;
+
+public:
+  config_writer(std::shared_ptr<const partition_info> partition): m_partition(partition) {}
+
+  const std::map<std::string, std::map<std::string,  std::vector<std::shared_ptr<writer>>>>&
+  get_kernel_map() const { return m_output; }
+
+  void add_kernel_map(const std::string& kernel, const std::string& instance, std::vector<std::shared_ptr<writer>> val) {
+    m_output[kernel][instance] = std::move(val);
+  }
+
+  std::shared_ptr<const partition_info> get_partition_info() const { return m_partition; }
+};
+
 }
 #endif //_AIEBU_COMMON_WRITER_H_

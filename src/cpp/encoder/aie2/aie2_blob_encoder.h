@@ -16,20 +16,21 @@ class aie2_blob_encoder: public encoder
 public:
   aie2_blob_encoder() {}
 
-  virtual std::vector<writer> process(std::shared_ptr<preprocessed_output> input) override
+  std::vector<std::shared_ptr<writer>> process(std::shared_ptr<preprocessed_output> input) override
   {
     // encode : nothing to be done as blob is already encoded
     auto rinput = std::static_pointer_cast<aie2_blob_preprocessed_output>(input);
-    std::vector<writer> rwriter;
+    std::vector<std::shared_ptr<writer>> rwriter;
 
     for(auto key : rinput->get_keys())
       if ( !key.compare(".ctrltext") )
-        rwriter.emplace_back(key, code_section::text, std::move(rinput->get_data(key)));
+        rwriter.emplace_back(std::make_shared<section_writer>(key, code_section::text, std::move(rinput->get_data(key))));
       else
-        rwriter.emplace_back(key, code_section::data, std::move(rinput->get_data(key)));
+        rwriter.emplace_back(std::make_shared<section_writer>(key, code_section::data, std::move(rinput->get_data(key))));
 
-    rwriter[0].add_symbols(rinput->get_symbols());
-    rwriter[0].add_metadata(std::move(rinput->get_metadata()));
+    std::shared_ptr<section_writer> element = std::dynamic_pointer_cast<section_writer>(rwriter[0]);
+    element->add_symbols(rinput->get_symbols());
+    element->add_metadata(std::move(rinput->get_metadata()));
     return rwriter;
   }
 };

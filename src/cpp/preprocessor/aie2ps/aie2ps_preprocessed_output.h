@@ -5,6 +5,7 @@
 #define _AIEBU_PREPROCESSOR_AIE2PS_PREPROCESSED_OUTPUT_H_
 
 #include "asm/page.h"
+#include "symbol.h"
 #include "preprocessed_output.h"
 
 namespace aiebu {
@@ -24,8 +25,12 @@ class aie2ps_preprocessed_output : public preprocessed_output
   std::vector<symbol> m_sym;
   std::vector<annotation_type> m_annotation_list;
   bool isdebug = true;
+  std::shared_ptr<const partition_info> m_partition;
 public:
-  aie2ps_preprocessed_output() {}
+
+  aie2ps_preprocessed_output(std::shared_ptr<const partition_info> partition): m_partition(partition) {}
+
+  std::shared_ptr<const partition_info> get_partition_info() const { return m_partition; }
 
   void set_coldata(const uint32_t col, const std::vector<page> &pages, std::map<std::string, std::shared_ptr<scratchpad_info>> &scratchpad, std::map<std::string, uint32_t>& labelpageindex, uint32_t control_packet_index)
   {
@@ -62,6 +67,20 @@ public:
   bool get_debug() const
   {
     return isdebug;
+  }
+};
+
+template <typename T>
+class asm_config_preprocessed_output: public preprocessed_output
+{
+  std::map<std::string, std::map<std::string, std::shared_ptr<T>>> m_output;
+
+public:
+  const std::map<std::string, std::map<std::string, std::shared_ptr<T>>>&
+  get_kernel_map() const { return m_output; }
+
+  void add_kernel_map(const std::string& kernel, const std::string& instance, std::shared_ptr<T> val) {
+    m_output[kernel][instance] = val;
   }
 };
 
