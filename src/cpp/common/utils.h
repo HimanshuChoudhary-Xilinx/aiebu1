@@ -50,6 +50,17 @@ namespace aiebu {
     }
 
 
+union partition_info {
+  struct {
+      uint32_t core;
+      uint32_t mem;
+  };
+  uint32_t column;
+
+  partition_info() {}
+  partition_info(uint32_t core, uint32_t mem) : core(core), mem(mem) {}
+};
+
 inline uint8_t low_8(uint32_t num) { return (num >> FIRST_BYTE_SHIFT ) & BYTE_MASK; }
 inline uint8_t high_8(uint32_t num) { return (num >> SECOND_BYTE_SHIFT) & BYTE_MASK; }
 

@@ -22,7 +22,9 @@ class aie2ps_preprocessed_output : public preprocessed_output
   };
   std::map<uint32_t, std::shared_ptr<coldata>> m_coldata;
   std::vector<symbol> m_sym;
+
 public:
+  partition_info m_partition;
   aie2ps_preprocessed_output() {}
 
   void set_coldata(const uint32_t col, const std::vector<page> &pages, std::map<std::string, std::shared_ptr<scratchpad_info>> &scratchpad, std::map<std::string, uint32_t>& labelpageindex, uint32_t control_packet_index)

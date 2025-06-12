@@ -67,24 +67,10 @@ public:
     }
     if (dstr_sec)
       add_dynamic_section_segment();
-    std::vector<char> configuration_vec = {8};
+    std::vector<char> configuration_vec(4);
+    std::memcpy(configuration_vec.data(), &mconfig_writer->m_partition.column, sizeof(uint32_t));
+
     add_note(NT_XRT_PARTITION_SIZE, xrt_configuration, configuration_vec);
-/*
-    process_common_helper(mwriter);
-    //std::string uuid = mwriter[0].get_metadata("kernel.config.uuid");
-    //if (!uuid.empty())
-    //  add_note(NT_XRT_UUID, ".note.xrt.kernel.config.uuid", uuid);
-
-    auto element = std::dynamic_pointer_cast<section_writer>(mwriter[0]);
-    const std::string configuration = element->get_metadata(const_configuration);
-    std::vector<char> configuration_vec(configuration.begin(), configuration.end());
-    if (!configuration.empty())
-      add_note(NT_XRT_PARTITION_SIZE, xrt_configuration, configuration_vec);
-
-    std::string kernel_signature = element->get_metadata(const_kernel_signature);
-    if (!kernel_signature.empty())
-      add_symtab(kernel_signature);
-*/
     return finalize();
   }
 };

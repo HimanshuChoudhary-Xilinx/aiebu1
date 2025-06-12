@@ -48,6 +48,8 @@ public:
     auto collist = parser->get_col_list();
     isa i;
     m_isa = i.get_isamap();
+    toutput->m_partition.core = parser->get_numcore();
+    toutput->m_partition.mem = parser->get_nummem();
 
     for (auto col: collist)
     {

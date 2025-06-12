@@ -108,7 +108,7 @@ class config_writer: public writer
 {
 public:
   std::map<std::string, std::map<std::string, std::vector<std::shared_ptr<writer>>>> m_output;
-
+  partition_info m_partition;
 };
 
 }

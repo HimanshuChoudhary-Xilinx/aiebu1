@@ -5,6 +5,7 @@
 
 #include "code_section.h"
 #include "utils.h"
+#include "file_utils.h"
 
 #include <map>
 #include <memory>
@@ -83,6 +84,7 @@ class include_directive: public directive
 {
 
   bool read_include_file(std::string filename);
+  /*
   bool isAbsolutePath(const std::string& path) {
     // On Unix-like systems, an absolute path starts with '/'
     if (path.empty()) {
@@ -99,6 +101,7 @@ class include_directive: public directive
     }
     return false;
   }
+  */
 public:
   include_directive() {}
   void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm);
@@ -114,7 +117,7 @@ public:
 class pad_directive: public directive
 {
   bool read_pad_file(std::string& name, std::string& filename);
-
+/*
   bool isAbsolutePath(const std::string& path) {
     // On Unix-like systems, an absolute path starts with '/'
     if (path.empty()) {
@@ -131,6 +134,7 @@ class pad_directive: public directive
     }
     return false;
   }
+*/
 public:
   offset_type convert2int(std::string& str)
   {
@@ -159,6 +163,13 @@ class section_directive: public directive
   bool is_data_section(const std::string& str) {return !str.substr(0,9).compare(".ctrldata"); }
 public:
   section_directive() {}
+  void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm);
+};
+
+class partition_directive: public directive
+{
+public:
+  partition_directive() {}
   void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm);
 };
 
@@ -266,6 +277,7 @@ class include_directive;
 class end_of_label_directive;
 class pad_directive;
 class section_directive;
+class partition_directive;
 
 class asm_parser: public std::enable_shared_from_this<asm_parser>
 {
@@ -276,9 +288,10 @@ class asm_parser: public std::enable_shared_from_this<asm_parser>
   std::string m_current_label = "default";
   int m_current_col = -1;
   const std::vector<std::string>& m_include_list;
+  partition_info m_partition;
 
 public:
-  asm_parser(const std::vector<char>& data, const std::vector<std::string>& include_list):m_data(data), m_include_list(include_list)
+  asm_parser(const std::vector<char>& data, const std::vector<std::string>& include_list):m_data(data), m_include_list(include_list), m_partition(8,0)
   {
     set_data_state(false);
     m_current_col = -1;
@@ -317,6 +330,16 @@ public:
   std::vector<uint32_t> get_col_list();
 
   col_data& get_col_asmdata(uint32_t colnum);
+
+  uint32_t get_numcore() const { return m_partition.core; }
+
+  uint32_t get_nummem() const { return m_partition.mem; }
+
+  void set_numcolumn(uint32_t val) { m_partition.column = val; }
+
+  void set_numcore(uint32_t val) { m_partition.core = val; }
+
+  void set_nummem(uint32_t val) { m_partition.mem = val; }
 
   void parse_lines();
 

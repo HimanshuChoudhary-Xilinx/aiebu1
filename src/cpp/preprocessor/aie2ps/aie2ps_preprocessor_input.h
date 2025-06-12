@@ -137,15 +137,19 @@ public:
     for (const auto& [unused, pic] : pinstance)
     {
       std::string tname = pic.get<std::string>("id");
-      std::vector<char> ccode = std::move(readfile(pic.get<std::string>("TXN_ctrl_code_file")));
+      std::string ccode_file = findFilePath(pic.get<std::string>("TXN_ctrl_code_file"), paths);
+      //std::vector<char> ccode = std::move(readfile(pic.get<std::string>("TXN_ctrl_code_file"), paths));
+      std::vector<char> ccode = std::move(readfile(ccode_file));
       //std::cout << "TXN_ctrl_code_file id:" << pic.get<std::string>("id") << std::endl;
       //std::cout << "TXN_ctrl_code_file:" << pic.get<std::string>("TXN_ctrl_code_file") << std::endl;
 
       std::vector<char> jdata;
       if (!pic.get<std::string>("patch_info_file", "").empty())
-        jdata = readfile(pic.get<std::string>("patch_info_file"));
+        jdata = std::move(readfile(pic.get<std::string>("patch_info_file"), paths));
 
-      add_preprocessor_input(kernel, tname, ccode, jdata, flags, paths);
+      std::vector<std::string> asmpath;
+      asmpath.emplace_back(get_parent_directory(ccode_file));
+      add_preprocessor_input(kernel, tname, ccode, jdata, flags, asmpath);
     }
   }
 

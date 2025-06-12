@@ -46,6 +46,12 @@ public:
   }
 
   std::vector<std::shared_ptr<writer>> get_writers() { return twriter; }
+
+  virtual void check_partition_info(const partition_info source, partition_info& dest)
+  {
+    if(dest.column != source.column)
+      throw error(error::error_code::invalid_asm, "Partition column " + std::to_string(dest.column) + " != " + std::to_string(source.column) + "\n");
+  }
 };
 
 class aie2ps_config_encoder : public aie2ps_encoder
@@ -75,6 +81,10 @@ public:
       for(auto& [iname, instance] : instances)
       {
         T encoder_object;
+        static partition_info partition = {instance->m_partition.core, instance->m_partition.mem};
+        encoder_object.check_partition_info(instance->m_partition, partition);
+        output_writer->m_partition.core = instance->m_partition.core;
+        output_writer->m_partition.mem = instance->m_partition.mem;
         output_writer->m_output[kernel][iname] = std::move(encoder_object.process(instance));
       }
     }

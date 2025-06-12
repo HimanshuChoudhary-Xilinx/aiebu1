@@ -59,7 +59,9 @@ process(std::shared_ptr<preprocessed_output> input)
 
   auto& totalcoldata = tinput->get_coldata();
   auto& totalsyms = tinput->get_symbols();
-
+  //std::cout << "ENCODE col:" << tinput->partition.column << "\n";
+  //std::cout << "ENCODE core:" << tinput->partition.core << "\n";
+  //std::cout << "ENCODE mem:" << tinput->partition.mem<< "\n\n";
   // for each colnum encode each page
   for (auto coldata: totalcoldata) {
     auto colnum = coldata.first;

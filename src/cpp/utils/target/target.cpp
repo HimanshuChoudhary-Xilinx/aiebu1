@@ -9,6 +9,7 @@
 
 #include "target.h"
 #include "utils.h"
+#include "file_utils.h"
 
 std::map<uint32_t, std::vector<char> >
 aiebu::utilities::
@@ -402,7 +403,6 @@ target_aie2ps_config::assemble(const sub_cmd_options &options)
     all_options.add_options()
             ("o,outputelf", "ELF output file name", cxxopts::value<decltype(output_elffile)>())
             ("j,json", "control packet Patching json file", cxxopts::value<decltype(json_file)>())
-            ("L,libpath", "libs path", cxxopts::value<decltype(libpaths)>())
             ("h,help", "show help message and exit", cxxopts::value<bool>()->default_value("false"))
     ;
 
@@ -423,9 +423,6 @@ target_aie2ps_config::assemble(const sub_cmd_options &options)
 
     if (result.count("json"))
       json_file = result["json"].as<decltype(json_file)>();
-
-    if (result.count("libpath"))
-      libpaths = result["libpath"].as<decltype(libpaths)>();
   }
   catch (const cxxopts::exceptions::exception& e) {
     std::cout << all_options.help({"", "Target config Options"});
@@ -434,9 +431,10 @@ target_aie2ps_config::assemble(const sub_cmd_options &options)
   }
 
   std::vector<char> json_buffer;
-  if (!json_file.empty())
+  if (!json_file.empty()) {
     readfile(json_file, json_buffer);
-
+    libpaths.push_back(get_parent_directory(json_file));
+  }
   try {
     aiebu::aiebu_assembler as(aiebu::aiebu_assembler::buffer_type::aie2ps_config, {}, {}, libpaths, json_buffer);
     write_elf(as, output_elffile);
@@ -460,7 +458,6 @@ target_aie4_config::assemble(const sub_cmd_options &options)
     all_options.add_options()
             ("o,outputelf", "ELF output file name", cxxopts::value<decltype(output_elffile)>())
             ("j,json", "control packet Patching json file", cxxopts::value<decltype(json_file)>())
-            ("L,libpath", "libs path", cxxopts::value<decltype(libpaths)>())
             ("h,help", "show help message and exit", cxxopts::value<bool>()->default_value("false"))
     ;
 
@@ -481,9 +478,6 @@ target_aie4_config::assemble(const sub_cmd_options &options)
 
     if (result.count("json"))
       json_file = result["json"].as<decltype(json_file)>();
-
-    if (result.count("libpath"))
-      libpaths = result["libpath"].as<decltype(libpaths)>();
   }
   catch (const cxxopts::exceptions::exception& e) {
     std::cout << all_options.help({"", "Target config Options"});
@@ -492,9 +486,10 @@ target_aie4_config::assemble(const sub_cmd_options &options)
   }
 
   std::vector<char> json_buffer;
-  if (!json_file.empty())
+  if (!json_file.empty()) {
     readfile(json_file, json_buffer);
-
+    libpaths.push_back(get_parent_directory(json_file));
+  }
   try {
     aiebu::aiebu_assembler as(aiebu::aiebu_assembler::buffer_type::aie4_config, {}, {}, libpaths, json_buffer);
     write_elf(as, output_elffile);

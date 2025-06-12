@@ -79,6 +79,7 @@ parse_lines()
   directive_list[".endl"] = std::make_shared<end_of_label_directive>();
   directive_list[".setpad"] = std::make_shared<pad_directive>();
   directive_list[".section"] = std::make_shared<section_directive>();
+  directive_list[".partition"] = std::make_shared<partition_directive>();
   std::string file = "default";
   parse_lines(m_data, file);
 }
@@ -170,6 +171,31 @@ operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm)
     m_parserptr->set_data_state(true);
   else
     std::cout << "section directive with unknown section found:" << args[0] << std::endl;
+}
+
+void
+partition_directive::
+operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm)
+{
+  m_parserptr = parserptr;
+  static const std::regex pattern(R"(\.partition\s+(\d+)(column|core:(\d+)mem))");
+  std::smatch match;
+  std::cout << "PARTITION:" << sm[0].str() << "\n";
+  std::string line = sm[0].str();
+  if (std::regex_match(line, match, pattern)) {
+    if (match[2] == "column") {
+      std::cout << "Column count: " << match[1] << std::endl;
+      m_parserptr->set_numcolumn(to_uinteger<uint32_t>(match[1]));
+    } else {
+      m_parserptr->set_numcore(to_uinteger<uint32_t>(match[1]));
+      m_parserptr->set_nummem(to_uinteger<uint32_t>(match[3]));
+      std::cout << "Core count: " << match[1] << std::endl;
+      std::cout << "Memory size: " << match[3] << std::endl;
+    }
+  } else {
+    throw error(error::error_code::invalid_asm, "Invalid format!! " + line + "\n");
+    std::cout << "Invalid format!" << std::endl;
+  }
 }
 
 bool
