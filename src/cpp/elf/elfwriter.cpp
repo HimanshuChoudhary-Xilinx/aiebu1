@@ -51,12 +51,6 @@ ELFIO::string_section_accessor
 elf_writer::
 add_dynstr_section()
 {
-/*
-  // add .dynstr section
-  ELFIO::section* dstr_sec = m_elfio.sections.add( ".dynstr" );
-  dstr_sec->set_type( ELFIO::SHT_STRTAB );
-  dstr_sec->set_entry_size( 0 );
-*/
   ELFIO::string_section_accessor stra( dstr_sec );
   return stra;
 }
@@ -65,17 +59,6 @@ void
 elf_writer::
 add_dynsym_section(ELFIO::string_section_accessor* stra, std::vector<symbol>& syms, const std::string&index_string)
 {
-/*
-  // add .dynsym section
-  ELFIO::section* dsym_sec = m_elfio.sections.add(".dynsym");
-  dsym_sec->set_type( ELFIO::SHT_DYNSYM );
-  dsym_sec->set_flags(ELFIO::SHF_ALLOC);
-  dsym_sec->set_addr_align( phdr_align );
-  dsym_sec->set_entry_size(m_elfio.get_default_entry_size(ELFIO::SHT_SYMTAB));
-  ELFIO::section* dstr_sec = m_elfio.sections[".dynstr"];
-  dsym_sec->set_link( dstr_sec->get_index() );
-  dsym_sec->set_info( 1 );
-*/
   // Create symbol table writer
   ELFIO::symbol_section_accessor syma( m_elfio, dsym_sec );
   std::map<std::string, ELFIO::Elf_Word> hash;
@@ -100,18 +83,6 @@ void
 elf_writer::
 add_reldyn_section(std::vector<symbol>& syms)
 {
-/*
-  // Create relocation table section
-  ELFIO::section* rel_sec = m_elfio.sections.add( ".rela.dyn" );
-  rel_sec->set_type( ELFIO::SHT_RELA );
-  rel_sec->set_flags(ELFIO::SHF_ALLOC);
-  //section* data_sec = m_elfio.sections[".data"];
-  //rel_sec->set_info( data_sec->get_index());
-  rel_sec->set_addr_align(phdr_align);
-  rel_sec->set_entry_size(m_elfio.get_default_entry_size(ELFIO::SHT_RELA));
-  ELFIO::section* dsym_sec = m_elfio.sections[".dynsym"];
-  rel_sec->set_link( dsym_sec->get_index() );
-*/
   // Create relocation table writer
   ELFIO::relocation_section_accessor rela( m_elfio, rel_sec );
   for (auto & sym : syms) {
@@ -137,7 +108,6 @@ add_dynamic_section_segment()
   dyn_sec->set_info( 0 );
 
   ELFIO::dynamic_section_accessor dyn(m_elfio, dyn_sec);
-  //ELFIO::section* rel_sec = m_elfio.sections[".rela.dyn"];
   dyn.add_entry(ELFIO::DT_RELA, rel_sec->get_index());
   dyn.add_entry(ELFIO::DT_RELASZ, rel_sec->get_size());
 
@@ -245,19 +215,6 @@ ELFIO::Elf_Word
 elf_writer::
 add_symtab(const std::string& name)
 {
-/*
-  std::call_once(symtab_flag, [this] {
-    str_sec = m_elfio.sections.add(".strtab");
-    str_sec->set_type(ELFIO::SHT_STRTAB);
-    str_sec->set_entry_size(0);
-    sym_sec = m_elfio.sections.add(".symtab");
-    sym_sec->set_type(ELFIO::SHT_SYMTAB);
-    sym_sec->set_info(1);
-    sym_sec->set_addr_align(0x4);
-    sym_sec->set_entry_size(m_elfio.get_default_entry_size(ELFIO::SHT_SYMTAB));
-    sym_sec->set_link(str_sec->get_index());
-  });
-*/
   ELFIO::string_section_accessor stra(str_sec);
   // Create symbol table writer
   ELFIO::symbol_section_accessor syma( m_elfio, sym_sec );
@@ -302,10 +259,7 @@ init_dynamic_sections()
     rel_sec->set_flags(ELFIO::SHF_ALLOC);
     rel_sec->set_addr_align(phdr_align);
     rel_sec->set_entry_size(m_elfio.get_default_entry_size(ELFIO::SHT_RELA));
-    //ELFIO::section* dsym_sec = m_elfio.sections[".dynsym"];
     rel_sec->set_link( dsym_sec->get_index() );
-
-    //add_dynamic_section_segment();
   });
 }
 
@@ -322,7 +276,6 @@ process_common_helper(std::vector<std::shared_ptr<writer>>& mwriter, const std::
     ELFIO::string_section_accessor str = add_dynstr_section();
     add_dynsym_section(&str, syms, index_string);
     add_reldyn_section(syms);
-    //add_dynamic_section_segment();
   }
   return section_index_list;
 }

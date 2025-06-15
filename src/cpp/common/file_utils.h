@@ -59,7 +59,7 @@ readfile(const std::string& filename)
 }
 
 inline bool
-isAbsolutePath(const std::string& path) {
+is_absolute_path(const std::string& path) {
   // On Unix-like systems, an absolute path starts with '/'
   if (path.empty()) {
     return false;
@@ -75,28 +75,11 @@ isAbsolutePath(const std::string& path) {
   return false;
 }
 
-inline std::vector<char>
-readfile(const std::string& file, const std::vector<std::string>& paths)
-{
-  if (isAbsolutePath(file))
-    return readfile(file);
-
-  for (auto& path : paths)
-  {
-    std::string fullpath = path + "/" + file;
-    if (std::filesystem::exists(fullpath))
-      return readfile(fullpath);
-  }
-
-  throw error(error::error_code::internal_error, "File " + file + " not exist\n");
-  return {};
-}
-
 inline std::string
 findFilePath(const std::string& filename, const std::vector<std::string>& libpaths)
 {
 
-  if (isAbsolutePath(filename))
+  if (is_absolute_path(filename))
     return filename;
   for (const auto &dir : libpaths ) {
     auto ret = std::filesystem::exists(dir + "/" + filename);
@@ -105,6 +88,13 @@ findFilePath(const std::string& filename, const std::vector<std::string>& libpat
     }
   }
   throw error(error::error_code::internal_error, filename + " file not found!!\n");
+}
+
+inline std::vector<char>
+readfile(const std::string& file, const std::vector<std::string>& paths)
+{
+  std::string fullpath = findFilePath(file, paths);
+  return readfile(fullpath);
 }
 
 aiebu_assembler::buffer_type

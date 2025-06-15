@@ -227,7 +227,7 @@ operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm)
   if (file.size() >= 2 && file.front() == '"' && file.back() == '"')
     file =  file.substr(1, file.size() - 2);
 
-  if (isAbsolutePath(file))
+  if (is_absolute_path(file))
   {
     if (!read_include_file(file))
       throw error(error::error_code::internal_error, "File " + file + " not exist\n");
@@ -290,7 +290,7 @@ add_scratchpad(std::string& name, std::string& str) {
   if (file.front() == '"' && file.back() == '"')
     file = str.substr(1, str.size() - 2);
 
-  if (isAbsolutePath(file))
+  if (is_absolute_path(file))
   {
     if (!read_pad_file(name, file))
       throw error(error::error_code::internal_error, "File " + file + " not exist\n");

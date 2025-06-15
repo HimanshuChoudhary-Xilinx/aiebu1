@@ -20,6 +20,44 @@ protected:
   std::map<std::string, std::vector<char>> m_data;
   std::vector<symbol> m_sym;
   std::unordered_map<std::string, std::string> m_metadata;
+
+  class argument {
+    public:
+    std::string name;
+    std::string type;
+    std::string offset;
+
+    argument(std::string na, std::string ty, std::string off):
+             name(std::move(na)),
+             type(std::move(ty)),
+             offset(std::move(off)) {}
+    argument(const argument& rhs) = default;
+    argument& operator=(const argument& rhs) = default;
+    argument(argument &&s) = default;
+    ~argument() = default;
+  };
+
+  struct function {
+    std::string name;
+    std::vector<argument> arguments;
+  };
+
+  std::string mangle_function_name(const function& func) {
+    std::string mangled_name = "_Z" + std::to_string(func.name.length()) + func.name;
+    for (const auto& arg : func.arguments) {
+        if (arg.type == "char *") {
+            mangled_name += "Pc"; // 'Pc' represents 'char *' in Itanium C++ ABI
+        } else if (arg.type == "void *") {
+            mangled_name += "Pv"; // 'Pv' represents 'void *' in Itanium C++ ABI
+        } else if (arg.type == "scalar") {
+            mangled_name += "i"; // 'i' represents 'int' in Itanium C++ ABI for scalar
+        } else if (arg.type == "int *") {
+            mangled_name += "Pi"; // 'Pi' represents 'int *' in Itanium C++ ABI
+        }
+    }
+    return mangled_name;
+  }
+
 public:
   preprocessor_input() {}
   virtual ~preprocessor_input() = default;

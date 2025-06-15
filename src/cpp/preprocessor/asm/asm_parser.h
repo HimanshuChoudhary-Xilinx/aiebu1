@@ -84,24 +84,6 @@ class include_directive: public directive
 {
 
   bool read_include_file(std::string filename);
-  /*
-  bool isAbsolutePath(const std::string& path) {
-    // On Unix-like systems, an absolute path starts with '/'
-    if (path.empty()) {
-      return false;
-    }
-    if (path[0] == '/') {
-      return true;
-    }
-
-    // On Windows, an absolute path can start with a drive letter followed by ':'
-    // and a backslash or forward slash, e.g., "C:\\" or "C:/"
-    if (path.size() > 1 && path[1] == ':' && (path[2] == '\\' || path[2] == '/')) {
-      return true;
-    }
-    return false;
-  }
-  */
 public:
   include_directive() {}
   void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm);
@@ -117,24 +99,6 @@ public:
 class pad_directive: public directive
 {
   bool read_pad_file(std::string& name, std::string& filename);
-/*
-  bool isAbsolutePath(const std::string& path) {
-    // On Unix-like systems, an absolute path starts with '/'
-    if (path.empty()) {
-      return false;
-    }
-    if (path[0] == '/') {
-      return true;
-    }
-
-    // On Windows, an absolute path can start with a drive letter followed by ':'
-    // and a backslash or forward slash, e.g., "C:\\" or "C:/"
-    if (path.size() > 1 && path[1] == ':' && (path[2] == '\\' || path[2] == '/')) {
-      return true;
-    }
-    return false;
-  }
-*/
 public:
   offset_type convert2int(std::string& str)
   {

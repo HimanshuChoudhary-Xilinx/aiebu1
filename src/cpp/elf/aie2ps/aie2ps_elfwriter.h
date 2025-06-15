@@ -38,6 +38,7 @@ public:
     sec->set_flags(ELFIO::SHF_ALLOC);
     sec->set_addr_align(align);
     sec->set_info(info_index);
+    sec->set_entry_size(4);
 
     if(member.size())
       sec->set_data(reinterpret_cast<const char*>(member.data()), static_cast<ELFIO::Elf_Word>(member.size()*4));

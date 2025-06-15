@@ -91,42 +91,6 @@ class asm_config_preprocessor_input : public preprocessor_input
 public:
   std::map<std::string, std::map<std::string, std::shared_ptr<asm_preprocessor_input>>> m_preprocessor_input;
 protected:
-  class argument {
-    public:
-    std::string name;
-    std::string type;
-    std::string offset;
-
-    argument(std::string na, std::string ty, std::string off):
-             name(std::move(na)),
-             type(std::move(ty)),
-             offset(std::move(off)) {}
-    argument(const argument& rhs) = default;
-    argument& operator=(const argument& rhs) = default;
-    argument(argument &&s) = default;
-    ~argument() = default;
-  };
-
-  struct function {
-    std::string name;
-    std::vector<argument> arguments;
-  };
-
-  std::string mangle_function_name(const function& func) {
-    std::string mangled_name = "_Z" + std::to_string(func.name.length()) + func.name;
-    for (const auto& arg : func.arguments) {
-        if (arg.type == "char *") {
-            mangled_name += "Pc"; // 'Pc' represents 'char *' in Itanium C++ ABI
-        } else if (arg.type == "void *") {
-            mangled_name += "Pv"; // 'Pv' represents 'void *' in Itanium C++ ABI
-        } else if (arg.type == "scalar") {
-            mangled_name += "i"; // 'i' represents 'int' in Itanium C++ ABI for scalar
-        } else if (arg.type == "int *") {
-            mangled_name += "Pi"; // 'Pi' represents 'int *' in Itanium C++ ABI
-        }
-    }
-    return mangled_name;
-  }
 
 public:
   void add_instance(const std::string& kernel,
@@ -208,7 +172,6 @@ public:
       std::istream elf_stream(&vsb);
       parse_config_json(elf_stream, libs, libpaths);
     }
-    //parse_config_json(patch_json, libs, libpaths);
   }
 
   virtual void add_preprocessor_input(const std::string& /*kernel*/,
@@ -216,7 +179,9 @@ public:
                                       const std::vector<char>& /*control_code*/,
                                       const std::vector<char>& /*patch_json*/,
                                       const std::vector<std::string>& /*flags*/,
-                                      const std::vector<std::string>& /*paths*/) {}
+                                      const std::vector<std::string>& /*paths*/) = 0;
+
+  virtual ~asm_config_preprocessor_input() = default;
 };
 
 template <typename T>
@@ -233,8 +198,8 @@ public:
     auto input = std::make_shared<T>();
     input->set_args(control_code, patch_json, {}, flags, paths, {});
     m_preprocessor_input[kernel][instance] = input;
-    //m_preprocessor_input.at(m_preprocessor_input.size()-1).set_args(control_code, patch_json, {}, flags, paths, {});
   }
 };
+
 }
 #endif //_AIEBU_PREPROCESSOR_AIE2PS_PREPROCESSOR_INPUT_H_

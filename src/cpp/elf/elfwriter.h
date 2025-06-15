@@ -74,7 +74,6 @@ protected:
   ELFIO::elfio m_elfio;
   ELFIO::section* str_sec = nullptr;
   ELFIO::section* sym_sec = nullptr;
-  std::once_flag symtab_flag;
 
   ELFIO::section* dstr_sec = nullptr;
   ELFIO::section* dsym_sec = nullptr;
@@ -111,9 +110,11 @@ public:
 
     ELFIO::segment* seg = m_elfio.segments.add();
     seg->set_type( ELFIO::PT_PHDR );
+    //seg->set_type( ELFIO::PT_LOAD );
     seg->set_virtual_address( 0x0 );
     seg->set_physical_address( 0x0 );
     seg->set_flags( ELFIO::PF_R );
+    //seg->set_flags( ELFIO::PF_R | ELFIO::PF_X);
     seg->set_file_size(0x0);
     seg->set_memory_size(0x0);
 
