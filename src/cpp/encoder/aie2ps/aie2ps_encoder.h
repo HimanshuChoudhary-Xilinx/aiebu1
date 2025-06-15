@@ -54,22 +54,12 @@ public:
   }
 };
 
-class aie2ps_config_encoder : public aie2ps_encoder
-{
-
-public:
-  std::string get_TextSectionName(uint32_t colnum, pageid_type pagenum/*, uint32_t group*/) override {return ".ctrltext." + std::to_string(colnum) + "." + std::to_string(pagenum);/* + "." + std::to_string(group);*/ }
-  std::string get_DataSectionName(uint32_t colnum, pageid_type pagenum/*, uint32_t group*/) override {return ".ctrldata." + std::to_string(colnum) + "." + std::to_string(pagenum);/* + "." + std::to_string(group);*/ }
-  std::string get_PadSectionName(uint32_t colnum/*, uint32_t group*/) override {return ".pad." + std::to_string(colnum);/* + "." + std::to_string(group);*/ }
-};
-
 //asm_config_preprocessor<aie2ps_config_encoder, aie2ps_preprocessed_output>
 template <typename T, typename input_tamplete>
 class asm_config_encoder : public encoder
 {
   std::vector<std::shared_ptr<writer>> twriter;
 public:
-  //std::shared_ptr<asm_config_preprocessed_output<input_tamplete>>
   virtual std::vector<std::shared_ptr<writer>>
   process(std::shared_ptr<preprocessed_output> input) override
   {
@@ -77,19 +67,18 @@ public:
     twriter.push_back(output_writer);
     auto tinput = std::static_pointer_cast<asm_config_preprocessed_output<input_tamplete>>(input);
 
-    for (auto& [kernel, instances] : tinput->m_output) {
+    for (auto& [kernel, instances] : tinput->get_kernel_map()) {
       for(auto& [iname, instance] : instances)
       {
         T encoder_object;
-        static partition_info partition = {instance->m_partition.core, instance->m_partition.mem};
-        encoder_object.check_partition_info(instance->m_partition, partition);
-        output_writer->m_partition.core = instance->m_partition.core;
-        output_writer->m_partition.mem = instance->m_partition.mem;
-        output_writer->m_output[kernel][iname] = std::move(encoder_object.process(instance));
+        static partition_info partition = {instance->get_numcore(), instance->get_nummem()};
+        encoder_object.check_partition_info(instance->get_partition_info(), partition);
+        output_writer->set_numcore(instance->get_numcore());
+        output_writer->set_nummem(instance->get_numcore());
+        output_writer->add_kernel_map(kernel, iname, encoder_object.process(instance));
       }
     }
     return twriter;
-    //return encoder_object.get_writers();
   }
 };
 }

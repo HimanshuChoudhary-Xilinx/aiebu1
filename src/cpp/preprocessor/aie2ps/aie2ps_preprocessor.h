@@ -48,8 +48,8 @@ public:
     auto collist = parser->get_col_list();
     isa i;
     m_isa = i.get_isamap();
-    toutput->m_partition.core = parser->get_numcore();
-    toutput->m_partition.mem = parser->get_nummem();
+    toutput->set_numcore(parser->get_numcore());
+    toutput->set_nummem(parser->get_nummem());
 
     for (auto col: collist)
     {
@@ -117,9 +117,12 @@ public:
     auto rinput = std::dynamic_pointer_cast<asm_config_preprocessor_input>(input);
     auto toutput = std::make_shared<asm_config_preprocessed_output<output_tamplete>>();
 
-    for (auto& [kernel, instances] : rinput->m_preprocessor_input) {
+    for (auto& [kernel, instances] : rinput->get_kernel_map()) {
       for(auto& [iname, instance] : instances)
-        toutput->m_output[kernel][iname] = std::dynamic_pointer_cast<output_tamplete>(m_preprocessor.process(instance));
+      {
+        auto val = std::dynamic_pointer_cast<output_tamplete>(m_preprocessor.process(instance));
+        toutput->add_kernel_map(kernel, iname, val);
+      }
     }
     return toutput;
   }

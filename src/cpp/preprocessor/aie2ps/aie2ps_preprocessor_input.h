@@ -88,11 +88,14 @@ public:
 
 class asm_config_preprocessor_input : public preprocessor_input
 {
-public:
-  std::map<std::string, std::map<std::string, std::shared_ptr<asm_preprocessor_input>>> m_preprocessor_input;
 protected:
+  std::map<std::string, std::map<std::string, std::shared_ptr<asm_preprocessor_input>>> m_preprocessor_input;
 
 public:
+
+  const std::map<std::string, std::map<std::string, std::shared_ptr<asm_preprocessor_input>>>&
+  get_kernel_map() const { return m_preprocessor_input; }
+
   void add_instance(const std::string& kernel,
                     const boost::property_tree::ptree& pinstance,
                     const std::vector<std::string>& flags,

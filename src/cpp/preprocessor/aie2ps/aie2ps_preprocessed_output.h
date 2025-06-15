@@ -22,10 +22,22 @@ class aie2ps_preprocessed_output : public preprocessed_output
   };
   std::map<uint32_t, std::shared_ptr<coldata>> m_coldata;
   std::vector<symbol> m_sym;
-
-public:
   partition_info m_partition;
+public:
+
   aie2ps_preprocessed_output() {}
+
+  const partition_info& get_partition_info() const { return m_partition; }
+
+  uint32_t get_numcore() const { return m_partition.core; }
+
+  uint32_t get_nummem() const { return m_partition.mem; }
+
+  void set_numcolumn(uint32_t val) { m_partition.column = val; }
+
+  void set_numcore(uint32_t val) { m_partition.core = val; }
+
+  void set_nummem(uint32_t val) { m_partition.mem = val; }
 
   void set_coldata(const uint32_t col, const std::vector<page> &pages, std::map<std::string, std::shared_ptr<scratchpad_info>> &scratchpad, std::map<std::string, uint32_t>& labelpageindex, uint32_t control_packet_index)
   {
@@ -51,8 +63,16 @@ public:
 template <typename T>
 class asm_config_preprocessed_output: public preprocessed_output
 {
-public:
+protected:
   std::map<std::string, std::map<std::string, std::shared_ptr<T>>> m_output;
+
+public:
+  const std::map<std::string, std::map<std::string, std::shared_ptr<T>>>&
+  get_kernel_map() const { return m_output; }
+
+  void add_kernel_map(const std::string& kernel, const std::string& instance, std::shared_ptr<T> val) {
+    m_output[kernel][instance] = val;
+  }
 };
 
 }

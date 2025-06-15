@@ -106,9 +106,28 @@ public:
 
 class config_writer: public writer
 {
-public:
   std::map<std::string, std::map<std::string, std::vector<std::shared_ptr<writer>>>> m_output;
   partition_info m_partition;
+
+public:
+  const std::map<std::string, std::map<std::string,  std::vector<std::shared_ptr<writer>>>>&
+  get_kernel_map() const { return m_output; }
+
+  void add_kernel_map(const std::string& kernel, const std::string& instance, std::vector<std::shared_ptr<writer>> val) {
+    m_output[kernel][instance] = std::move(val);
+  }
+
+  uint32_t get_numcore() const { return m_partition.core; }
+
+  uint32_t get_numcolumn() const { return m_partition.column; }
+
+  uint32_t get_nummem() const { return m_partition.mem; }
+
+  void set_numcolumn(uint32_t val) { m_partition.column = val; }
+
+  void set_numcore(uint32_t val) { m_partition.core = val; }
+
+  void set_nummem(uint32_t val) { m_partition.mem = val; }
 };
 
 }

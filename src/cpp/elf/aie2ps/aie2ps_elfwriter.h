@@ -53,7 +53,7 @@ public:
     auto mconfig_writer = std::dynamic_pointer_cast<config_writer>(mwriter[0]);
     init_symtab();
     int index=0;
-    for( auto& [kernel, instances] : mconfig_writer->m_output)
+    for( auto& [kernel, instances] : mconfig_writer->get_kernel_map())
     {
        auto kernel_index = add_symtab(kernel);
        for(auto& [iname, instance] : instances)
@@ -69,7 +69,8 @@ public:
     if (dstr_sec)
       add_dynamic_section_segment();
     std::vector<char> configuration_vec(4);
-    std::memcpy(configuration_vec.data(), &mconfig_writer->m_partition.column, sizeof(uint32_t));
+    auto col = mconfig_writer->get_numcolumn();
+    std::memcpy(configuration_vec.data(), &col, sizeof(uint32_t));
 
     add_note(NT_XRT_PARTITION_SIZE, xrt_configuration, configuration_vec);
     return finalize();

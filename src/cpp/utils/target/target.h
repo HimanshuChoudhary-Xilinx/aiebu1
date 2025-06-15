@@ -129,18 +129,31 @@ class target_aie4: public target
   explicit target_aie4(const std::string& name): target(name, "aie4", "aie4 asm assembler") {}
 };
 
-class target_aie2ps_config: public target
+class asm_config_parser: public target
 {
+  protected:
+  std::string output_elffile;
+  std::string json_file;
+  std::vector<char> json_buffer;
+  std::vector<std::string> libpaths;
+  void parser(const sub_cmd_options &options);
   public:
-  void assemble(const sub_cmd_options &_options) override;
-  explicit target_aie2ps_config(const std::string& name): target(name, "aie2ps_config", "generate aie2ps config elf") {}
+  asm_config_parser(const std::string& exename, const std::string& name, const std::string& description)
+    : target(exename, name, description) {}
 };
 
-class target_aie4_config: public target
+class target_aie2ps_config: public asm_config_parser
 {
   public:
   void assemble(const sub_cmd_options &_options) override;
-  explicit target_aie4_config(const std::string& name): target(name, "aie4_config", "generate aie4 config elf") {}
+  explicit target_aie2ps_config(const std::string& name): asm_config_parser(name, "aie2ps_config", "generate aie2ps config elf") {}
+};
+
+class target_aie4_config: public asm_config_parser
+{
+  public:
+  void assemble(const sub_cmd_options &_options) override;
+  explicit target_aie4_config(const std::string& name): asm_config_parser(name, "aie4_config", "generate aie4 config elf") {}
 };
 } //namespace aiebu::utilities
 

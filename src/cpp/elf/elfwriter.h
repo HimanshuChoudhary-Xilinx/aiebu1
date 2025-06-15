@@ -95,7 +95,7 @@ protected:
   ELFIO::Elf_Word add_symtab_section(const std::string& name, int index);
   void init_symtab();
   void init_dynamic_sections();
-  std::vector<uint32_t> process_common_helper(std::vector<std::shared_ptr<writer>>& mwriter, const std::string& index_string);
+  std::vector<uint32_t> process_common_helper(const std::vector<std::shared_ptr<writer>>& mwriter, const std::string& index_string);
 public:
 
   elf_writer(unsigned char abi, unsigned char version)

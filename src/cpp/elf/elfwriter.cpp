@@ -265,7 +265,7 @@ init_dynamic_sections()
 
 std::vector<uint32_t>
 elf_writer::
-process_common_helper(std::vector<std::shared_ptr<writer>>& mwriter, const std::string& index_string)
+process_common_helper(const std::vector<std::shared_ptr<writer>>& mwriter, const std::string& index_string)
 {
   // add sections
   std::vector<symbol> syms;

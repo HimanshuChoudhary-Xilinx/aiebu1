@@ -192,10 +192,8 @@ operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm)
       std::cout << "Core count: " << match[1] << std::endl;
       std::cout << "Memory size: " << match[3] << std::endl;
     }
-  } else {
+  } else
     throw error(error::error_code::invalid_asm, "Invalid format!! " + line + "\n");
-    std::cout << "Invalid format!" << std::endl;
-  }
 }
 
 bool

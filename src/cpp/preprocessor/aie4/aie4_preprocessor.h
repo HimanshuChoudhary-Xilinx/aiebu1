@@ -31,7 +31,6 @@ public:
   {
     return std::make_shared<assembler_state_aie4>(isa, data, scratchpad, labelpageindex, control_packet_index, makeunique);
   }
-
 };
 
 }
