@@ -142,6 +142,10 @@ public:
   partition_directive() = default;
   void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm) override;
   ~partition_directive() override = default;
+  partition_directive(const partition_directive&) = default;
+  partition_directive& operator=(const partition_directive&) = default;
+  partition_directive(partition_directive&&) = default;
+  partition_directive& operator=(partition_directive&&) = default;
 };
 
 class asm_data

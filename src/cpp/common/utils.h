@@ -52,12 +52,12 @@ namespace aiebu {
 constexpr uint32_t DEFAULT_COLUMN = 16;
 union partition_info {
   struct {
-      uint32_t core{};
-      uint32_t mem{};
+      uint32_t core;
+      uint32_t mem;
   };
   uint32_t column;
 
-  partition_info() {}
+  partition_info() : core(0),  mem(0) {}
   partition_info(uint32_t core, uint32_t mem) : core(core), mem(mem) {}
 };
 
