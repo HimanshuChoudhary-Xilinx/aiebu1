@@ -49,7 +49,7 @@ namespace aiebu {
         return m_##FNAME;                     \
     }
 
-
+constexpr uint32_t DEFAULT_COLUMN = 16;
 union partition_info {
   struct {
       uint32_t core{};

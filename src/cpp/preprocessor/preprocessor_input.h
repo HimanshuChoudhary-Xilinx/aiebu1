@@ -35,6 +35,7 @@ protected:
     argument& operator=(const argument& rhs) = default;
     argument(argument &&s) = default;
     ~argument() = default;
+    argument& operator =(argument &&) = default;
   };
 
   struct function {

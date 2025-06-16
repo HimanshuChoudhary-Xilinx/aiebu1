@@ -64,7 +64,6 @@ public:
 template <typename T>
 class asm_config_preprocessed_output: public preprocessed_output
 {
-protected:
   std::map<std::string, std::map<std::string, std::shared_ptr<T>>> m_output;
 
 public:

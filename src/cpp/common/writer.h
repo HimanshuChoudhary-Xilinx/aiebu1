@@ -37,8 +37,9 @@ public:
 
   ~section_writer() override= default;
   section_writer(const section_writer& rhs) = default;
-  section_writer& operator=(const section_writer& rhs) = default;
+  section_writer& operator=(const section_writer& rhs) = delete;
   section_writer(section_writer &&s) = default;
+  //section_writer& operator=(const section_writer&& rhs) = default;
 
   virtual void write_byte(uint8_t byte);
 

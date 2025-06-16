@@ -131,9 +131,8 @@ class target_aie4: public target
 
 class asm_config_parser: public target
 {
-  protected:
+  protected: // NOLINT
   std::string output_elffile;
-  std::string json_file;
   std::vector<char> json_buffer;
   std::vector<std::string> libpaths;
   void parser(const sub_cmd_options &options);

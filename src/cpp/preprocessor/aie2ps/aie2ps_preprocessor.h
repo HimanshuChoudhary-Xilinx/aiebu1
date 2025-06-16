@@ -103,14 +103,12 @@ public:
   }
 };
 
-//asm_config_preprocessor<aie2ps_preprocessor, aie2ps_preprocessed_output>
 template <typename preprocessor_template, typename input_tamplete, typename output_tamplete>
 class asm_config_preprocessor: public preprocessor
 {
 
 public:
-  //std::shared_ptr<asm_config_preprocessed_output<output_tamplete>>
-  virtual std::shared_ptr<preprocessed_output>
+  std::shared_ptr<preprocessed_output>
   process(std::shared_ptr<preprocessor_input> input) override
   {
     preprocessor_template m_preprocessor;

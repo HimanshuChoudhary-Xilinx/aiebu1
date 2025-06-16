@@ -43,6 +43,10 @@ protected:
 
 public:
   asm_preprocessor_input() = default;
+  asm_preprocessor_input(const asm_preprocessor_input& rhs) = default;
+  asm_preprocessor_input& operator=(const asm_preprocessor_input& rhs) = default;
+  asm_preprocessor_input(asm_preprocessor_input &&s) = default;
+  asm_preprocessor_input& operator=(asm_preprocessor_input&& rhs) = default;
 
   const std::vector<std::string>& get_include_paths() const { return m_libpaths; }
   uint32_t get_control_packet_index() const { return m_control_packet_index; }
@@ -88,7 +92,7 @@ public:
 
 class asm_config_preprocessor_input : public preprocessor_input
 {
-protected:
+protected: // NOLINT
   std::map<std::string, std::map<std::string, std::shared_ptr<asm_preprocessor_input>>> m_preprocessor_input;
 
 public:
@@ -103,16 +107,15 @@ public:
   {
     for (const auto& [unused, pic] : pinstance)
     {
-      std::string tname = pic.get<std::string>("id");
-      std::string ccode_file = findFilePath(pic.get<std::string>("TXN_ctrl_code_file"), paths);
-      //std::vector<char> ccode = std::move(readfile(pic.get<std::string>("TXN_ctrl_code_file"), paths));
-      std::vector<char> ccode = readfile(ccode_file);
+      auto tname = pic.get<std::string>("id");
+      auto ccode_file = findFilePath(pic.get<std::string>("ctrl_code_file"), paths);
+      auto ccode = readfile(ccode_file);
       //std::cout << "TXN_ctrl_code_file id:" << pic.get<std::string>("id") << std::endl;
       //std::cout << "TXN_ctrl_code_file:" << pic.get<std::string>("TXN_ctrl_code_file") << std::endl;
 
       std::vector<char> jdata;
       if (!pic.get<std::string>("patch_info_file", "").empty())
-        jdata = std::move(readfile(pic.get<std::string>("patch_info_file"), paths));
+        jdata = readfile(pic.get<std::string>("patch_info_file"), paths);
 
       std::vector<std::string> asmpath;
       asmpath.emplace_back(get_parent_directory(ccode_file));
@@ -162,12 +165,12 @@ public:
     }
   }
 
-  virtual void set_args(const std::vector<char>& /*control_code*/,
-                        const std::vector<char>& patch_json,
-                        const std::vector<char>& /*buffer2*/,
-                        const std::vector<std::string>& libs,
-                        const std::vector<std::string>& libpaths,
-                        const std::map<uint32_t, std::vector<char> >& /*ctrlpkt*/) override
+  void set_args(const std::vector<char>& /*control_code*/,
+                const std::vector<char>& patch_json,
+                const std::vector<char>& /*buffer2*/,
+                const std::vector<std::string>& libs,
+                const std::vector<std::string>& libpaths,
+                const std::map<uint32_t, std::vector<char> >& /*ctrlpkt*/) override
   {
     if (patch_json.size() !=0)
     {
@@ -184,7 +187,7 @@ public:
                                       const std::vector<std::string>& /*flags*/,
                                       const std::vector<std::string>& /*paths*/) = 0;
 
-  virtual ~asm_config_preprocessor_input() = default;
+  ~asm_config_preprocessor_input() override = default;
 };
 
 template <typename T>

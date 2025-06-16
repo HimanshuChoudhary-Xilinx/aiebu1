@@ -71,13 +71,15 @@ public:
 public:
   directive() {}
   virtual void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm) = 0;
+  virtual ~directive() = default;
 };
 
 class attach_to_group_directive: public directive
 {
 public:
-  attach_to_group_directive() {}
-  void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm);
+  attach_to_group_directive() = default;
+  void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm) override;
+  ~attach_to_group_directive() override = default;
 };
 
 class include_directive: public directive
@@ -85,15 +87,17 @@ class include_directive: public directive
 
   bool read_include_file(std::string filename);
 public:
-  include_directive() {}
-  void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm);
+  include_directive() = default;
+  void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm) override;
+  ~include_directive() override = default;
 };
 
 class end_of_label_directive: public directive
 {
 public:
-  end_of_label_directive() {}
-  void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm);
+  end_of_label_directive() = default;
+  void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm) override;
+  ~end_of_label_directive() override = default;
 };
 
 class pad_directive: public directive
@@ -117,8 +121,9 @@ public:
     return size;
   }
   void add_scratchpad(std::string& name, std::string& str);
-  pad_directive() {}
-  void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm);
+  pad_directive() = default;
+  void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm) override;
+  ~pad_directive() override = default;
 };
 
 class section_directive: public directive
@@ -126,15 +131,17 @@ class section_directive: public directive
   bool is_test_section(const std::string& str) {return !str.substr(0,9).compare(".ctrltext"); }
   bool is_data_section(const std::string& str) {return !str.substr(0,9).compare(".ctrldata"); }
 public:
-  section_directive() {}
-  void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm);
+  section_directive() = default;
+  void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm) override;
+  ~section_directive() override = default;
 };
 
 class partition_directive: public directive
 {
 public:
-  partition_directive() {}
-  void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm);
+  partition_directive() = default;
+  void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm) override;
+  ~partition_directive() override = default;
 };
 
 class asm_data
@@ -255,7 +262,7 @@ class asm_parser: public std::enable_shared_from_this<asm_parser>
   partition_info m_partition;
 
 public:
-  asm_parser(const std::vector<char>& data, const std::vector<std::string>& include_list):m_data(data), m_include_list(include_list), m_partition(8,0)
+  asm_parser(const std::vector<char>& data, const std::vector<std::string>& include_list):m_data(data), m_include_list(include_list), m_partition(DEFAULT_COLUMN,0)
   {
     set_data_state(false);
     m_current_col = -1;

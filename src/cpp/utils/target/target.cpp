@@ -394,6 +394,7 @@ void
 aiebu::utilities::
 asm_config_parser::parser(const sub_cmd_options &options)
 {
+  std::string json_file;
   cxxopts::Options all_options("Target config Options", m_description);
 
   try {
