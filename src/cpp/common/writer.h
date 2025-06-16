@@ -122,17 +122,17 @@ public:
     m_output[kernel][instance] = std::move(val);
   }
 
-  uint32_t get_numcore() const { return m_partition.core; }
+  uint32_t get_numcore() const { return m_partition.get_numcore(); }
 
-  uint32_t get_numcolumn() const { return m_partition.column; }
+  uint32_t get_numcolumn() const { return m_partition.get_numcolumn(); }
 
-  uint32_t get_nummem() const { return m_partition.mem; }
+  uint32_t get_nummem() const { return m_partition.get_nummem(); }
 
-  void set_numcolumn(uint32_t val) { m_partition.column = val; }
+  void set_numcolumn(uint32_t val) { m_partition.set_numcolumn(val); }
 
-  void set_numcore(uint32_t val) { m_partition.core = val; }
+  void set_numcore(uint32_t val) { m_partition.set_numcore(val); }
 
-  void set_nummem(uint32_t val) { m_partition.mem = val; }
+  void set_nummem(uint32_t val) { m_partition.set_nummem(val); }
 };
 
 }

@@ -306,15 +306,17 @@ public:
 
   col_data& get_col_asmdata(uint32_t colnum);
 
-  uint32_t get_numcore() const { return m_partition.core; }
+  uint32_t get_numcore() const { return m_partition.get_numcore(); }
 
-  uint32_t get_nummem() const { return m_partition.mem; }
+  uint32_t get_numcolumn() const { return m_partition.get_numcolumn(); }
 
-  void set_numcolumn(uint32_t val) { m_partition.column = val; }
+  uint32_t get_nummem() const { return m_partition.get_nummem(); }
 
-  void set_numcore(uint32_t val) { m_partition.core = val; }
+  void set_numcolumn(uint32_t val) { m_partition.set_numcolumn(val); }
 
-  void set_nummem(uint32_t val) { m_partition.mem = val; }
+  void set_numcore(uint32_t val) { m_partition.set_numcore(val); }
+
+  void set_nummem(uint32_t val) { m_partition.set_nummem(val); }
 
   void parse_lines();
 

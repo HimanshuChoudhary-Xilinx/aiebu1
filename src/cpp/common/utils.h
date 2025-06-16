@@ -49,16 +49,30 @@ namespace aiebu {
         return m_##FNAME;                     \
     }
 
-constexpr uint32_t DEFAULT_COLUMN = 16;
-union partition_info {
-  struct {
+constexpr uint32_t DEFAULT_COLUMN = 8;
+class partition_info {
+  union info {
+    struct {
       uint32_t core;
       uint32_t mem;
-  };
-  uint32_t column;
+    };
+    uint32_t column;
+  }m_info;
+  public:
+  partition_info() : partition_info(0, 0) {}
+  partition_info(uint32_t core, uint32_t mem) { m_info.core = core; m_info.mem = mem; }
 
-  partition_info() : core(0),  mem(0) {}
-  partition_info(uint32_t core, uint32_t mem) : core(core), mem(mem) {}
+  uint32_t get_numcore() const { return m_info.core; }
+
+  uint32_t get_numcolumn() const { return m_info.column; }
+
+  uint32_t get_nummem() const { return m_info.mem; }
+
+  void set_numcolumn(uint32_t val) { m_info.column = val; }
+
+  void set_numcore(uint32_t val) { m_info.core = val; }
+
+  void set_nummem(uint32_t val) { m_info.mem = val; }
 };
 
 inline uint8_t low_8(uint32_t num) { return (num >> FIRST_BYTE_SHIFT ) & BYTE_MASK; }

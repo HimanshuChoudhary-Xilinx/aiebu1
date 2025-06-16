@@ -49,8 +49,8 @@ public:
 
   virtual void check_partition_info(const partition_info source, partition_info& dest)
   {
-    if(dest.column != source.column)
-      throw error(error::error_code::invalid_asm, "Partition column " + std::to_string(dest.column) + " != " + std::to_string(source.column) + "\n");
+    if(dest.get_numcolumn() != source.get_numcolumn())
+      throw error(error::error_code::invalid_asm, "Partition column " + std::to_string(dest.get_numcolumn()) + " != " + std::to_string(source.get_numcolumn()) + "\n");
   }
 };
 
