@@ -225,7 +225,7 @@ add_symtab(const std::string& name)
 
 ELFIO::Elf_Word
 elf_writer::
-add_symtab_section(const std::string& name, int index)
+add_symtab_section(const std::string& name, ELFIO::Elf_Word index)
 {
   ELFIO::string_section_accessor stra(str_sec);
   // Create symbol table writer

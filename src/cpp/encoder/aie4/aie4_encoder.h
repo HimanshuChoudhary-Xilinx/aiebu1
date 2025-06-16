@@ -44,7 +44,7 @@ public:
     datawriter->write_word_at(offset, (((patch >> 32) & 0x1FFFFFF) | (bd0 & 0xFE000000)));  // NOLINT
   }
 
-  virtual void check_partition_info(const partition_info source, partition_info& dest)
+  void check_partition_info(const partition_info source, partition_info& dest) override
   {
     if(dest.core != source.core || dest.mem != source.mem)
       throw error(error::error_code::invalid_asm, "Partition (core, mem) (" + std::to_string(dest.core) + ", " + std::to_string(dest.core) + ") != (" + std::to_string(source.mem) + ", " + std::to_string(source.mem) + ")\n");

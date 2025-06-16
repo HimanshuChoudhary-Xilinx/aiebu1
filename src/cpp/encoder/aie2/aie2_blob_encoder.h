@@ -16,7 +16,7 @@ class aie2_blob_encoder: public encoder
 public:
   aie2_blob_encoder() {}
 
-  virtual std::vector<std::shared_ptr<writer>> process(std::shared_ptr<preprocessed_output> input) override
+  std::vector<std::shared_ptr<writer>> process(std::shared_ptr<preprocessed_output> input) override
   {
     // encode : nothing to be done as blob is already encoded
     auto rinput = std::static_pointer_cast<aie2_blob_preprocessed_output>(input);

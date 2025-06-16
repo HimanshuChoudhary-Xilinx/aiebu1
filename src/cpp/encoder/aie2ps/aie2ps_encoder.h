@@ -60,7 +60,7 @@ class asm_config_encoder : public encoder
 {
   std::vector<std::shared_ptr<writer>> twriter;
 public:
-  virtual std::vector<std::shared_ptr<writer>>
+  std::vector<std::shared_ptr<writer>>
   process(std::shared_ptr<preprocessed_output> input) override
   {
     auto output_writer = std::make_shared<config_writer>();

@@ -70,7 +70,7 @@ public:
 
 class elf_writer
 {
-protected:
+protected:  // NOLINT(cppcoreguidelines-non-private-member-variables-in-classes)
   ELFIO::elfio m_elfio;
   ELFIO::section* str_sec = nullptr;
   ELFIO::section* sym_sec = nullptr;
@@ -92,7 +92,7 @@ protected:
   std::vector<uint32_t> add_text_data_section(const std::vector<std::shared_ptr<writer>>& mwriter, std::vector<symbol>& syms, const std::string& index_string);
   void add_note(ELFIO::Elf_Word type, const std::string& name, const std::vector<char>& dec);
   ELFIO::Elf_Word add_symtab(const std::string& name);
-  ELFIO::Elf_Word add_symtab_section(const std::string& name, int index);
+  ELFIO::Elf_Word add_symtab_section(const std::string& name, ELFIO::Elf_Word index);
   void init_symtab();
   void init_dynamic_sections();
   std::vector<uint32_t> process_common_helper(const std::vector<std::shared_ptr<writer>>& mwriter, const std::string& index_string);

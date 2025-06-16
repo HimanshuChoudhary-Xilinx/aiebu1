@@ -106,7 +106,7 @@ public:
       std::string tname = pic.get<std::string>("id");
       std::string ccode_file = findFilePath(pic.get<std::string>("TXN_ctrl_code_file"), paths);
       //std::vector<char> ccode = std::move(readfile(pic.get<std::string>("TXN_ctrl_code_file"), paths));
-      std::vector<char> ccode = std::move(readfile(ccode_file));
+      std::vector<char> ccode = readfile(ccode_file);
       //std::cout << "TXN_ctrl_code_file id:" << pic.get<std::string>("id") << std::endl;
       //std::cout << "TXN_ctrl_code_file:" << pic.get<std::string>("TXN_ctrl_code_file") << std::endl;
 

@@ -52,8 +52,8 @@ namespace aiebu {
 
 union partition_info {
   struct {
-      uint32_t core;
-      uint32_t mem;
+      uint32_t core{};
+      uint32_t mem{};
   };
   uint32_t column;
 

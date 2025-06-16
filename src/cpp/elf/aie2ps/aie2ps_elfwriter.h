@@ -30,7 +30,7 @@ public:
   { }
 
   void
-  add_group(std::string name, std::vector<uint32_t> member, int info_index)
+  add_group(std::string name, std::vector<uint32_t> member, ELFIO::Elf_Word info_index)
   {
     // add section
     ELFIO::section* sec = m_elfio.sections.add(name);
@@ -59,7 +59,7 @@ public:
        for(auto& [iname, instance] : instances)
        {
          auto instance_index = add_symtab_section(iname, kernel_index);
-         std::vector<uint32_t> group_data = std::move(process_common_helper(instance, "."+std::to_string(index)));
+         std::vector<uint32_t> group_data = process_common_helper(instance, "."+std::to_string(index));
          //group_data.push_front(1);
          group_data.insert(group_data.begin(), 1);
          add_group(".group."+ std::to_string(index), group_data, instance_index);

@@ -34,7 +34,11 @@ public:
       m_type(type),
       m_data(std::move(data)) {}
   section_writer(std::string name, code_section type): m_name(std::move(name)), m_type(type) {}
-  virtual ~section_writer() = default;
+
+  ~section_writer() override= default;
+  section_writer(const section_writer& rhs) = default;
+  section_writer& operator=(const section_writer& rhs) = default;
+  section_writer(section_writer &&s) = default;
 
   virtual void write_byte(uint8_t byte);
 

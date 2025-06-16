@@ -205,15 +205,15 @@ aie2ps_encoder::
 patch57(const std::shared_ptr<section_writer> textwriter, std::shared_ptr<section_writer> datawriter, offset_type offset, uint64_t patch)
 {
   offset = offset - textwriter->tell();
-  uint64_t bd1 = datawriter->read_word(offset + 1*4);
-  uint64_t bd2 = datawriter->read_word(offset + 2*4);
-  uint64_t bd8 = datawriter->read_word(offset + 8*4);
+  uint64_t bd1 = datawriter->read_word(offset + 1*4); // NOLINT
+  uint64_t bd2 = datawriter->read_word(offset + 2*4); // NOLINT
+  uint64_t bd8 = datawriter->read_word(offset + 8*4); // NOLINT
 
   uint64_t arg = ((bd8 & 0x1FF) << 48) + ((bd2 & 0xFFFF) << 32) + (bd1 & 0xFFFFFFFF); // NOLINT
   patch = arg + patch;
-  datawriter->write_word_at(offset + 1*4, patch & 0xFFFFFFFF);
-  datawriter->write_word_at(offset + 2*4, ((patch >> 32) & 0xFFFF) | (bd2 & 0xFFFF0000));
-  datawriter->write_word_at(offset + 8*4, ((patch >> 48) & 0x1FF) | (bd8 & 0xFFFFFE00));
+  datawriter->write_word_at(offset + 1*4, patch & 0xFFFFFFFF); // NOLINT
+  datawriter->write_word_at(offset + 2*4, ((patch >> 32) & 0xFFFF) | (bd2 & 0xFFFF0000)); // NOLINT
+  datawriter->write_word_at(offset + 8*4, ((patch >> 48) & 0x1FF) | (bd8 & 0xFFFFFE00));  // NOLINT
 }
 
 }
