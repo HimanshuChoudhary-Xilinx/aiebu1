@@ -29,6 +29,7 @@ protected:
   const std::string scratch_pad = "scratch-pad-mem";
   const std::string ctrlpkt_pm = "ctrlpkt-pm-";
   const std::string scratch_pad_ctrl = "scratch-pad-ctrl";
+  const std::string legacydpuxclbin = "legacydpuxclbin";
 
   constexpr static uint32_t SHIM_DMA_BD0_0 = 0x0001D000;
   constexpr static uint32_t SHIM_DMA_BD_NUM = 16;
@@ -87,10 +88,18 @@ public:
   virtual void set_args(const std::vector<char>& mc_code,
                         const std::vector<char>& patch_json,
                         const std::vector<char>& control_packet,
-                        const std::vector<std::string>& /*libs*/,
+                        const std::vector<std::string>& libs,
                         const std::vector<std::string>& /*libpaths*/,
                         const std::map<uint32_t, std::vector<char> >& ctrlpkt) override
   {
+    for (const auto& lib: libs)
+    {
+      if (lib == legacydpuxclbin)
+        arg_offset = 1;
+      else
+        std::cout << "Invalid flag: " << lib << ", ignored !!!" << std::endl;
+    }
+
     m_data[".ctrltext"] = mc_code;
 
     if(control_packet.size())
