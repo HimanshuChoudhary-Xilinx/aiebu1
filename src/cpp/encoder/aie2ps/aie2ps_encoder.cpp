@@ -59,6 +59,7 @@ process(std::shared_ptr<preprocessed_output> input)
 
   auto& totalcoldata = tinput->get_coldata();
   auto& totalsyms = tinput->get_symbols();
+  m_debug.set_annotations(tinput->get_annotations());
 
   // for each colnum encode each page
   for (auto coldata: totalcoldata) {
@@ -82,6 +83,25 @@ process(std::shared_ptr<preprocessed_output> input)
     twriter.push_back(padwriter);
   }
 
+  // Report
+  m_report.summary(std::cout);
+
+  // Debug JSON serialization
+  json dbg_json = m_debug.to_json();
+
+  // Write to debug_map.json
+  std::ofstream file("debug_map.json");
+  file << dbg_json.dump(4);  // pretty print with 4-space indent
+  file.close();
+
+  // Optional binary dump if debug flag is active
+  if (tinput->get_debug()) {
+    writer dumpwriter(".dump", code_section::data);
+    std::string dbg_str = dbg_json.dump(); // no indent for compact output
+    for (char c : dbg_str)
+      dumpwriter.write_byte(c);
+    twriter.push_back(std::move(dumpwriter));
+  }
   return twriter;
 }
 
@@ -139,10 +159,21 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
   // encode text section
   offset_type offset = textwriter.tell();
   std::vector<symbol> tsym;
+  std::string fid;
   for (auto text : lpage.m_text)
   {
     //TODO add debug info
     std::string name = text->get_operation()->get_name();
+    offset_type pc_low, pc_high;
+    if (name == "start_job" || name == "start_job_deferred") {
+      pc_low = pagenum * PAGE_SIZE + textwriter.tell();
+      pc_high = pc_low + page_state->m_jobmap[page_state->gen_job_name(false, text)]->get_size() - 1;
+      fid = m_debug.add_function(text->get_file(), name + "_" + page_state->gen_job_name(false, text), pc_high, pc_low, colnum, pagenum);
+    }
+    pc_low = pagenum * PAGE_SIZE + textwriter.tell();
+    pc_high = pc_low + (*m_isa)[name]->serializer(text->get_operation()->get_args())->size(*page_state) - 1;
+    m_debug.add_textline(fid, text->get_linenumber(), pc_high, pc_low, text->get_line(), text->get_annotation_index());
+
     if (text->isOpcode())
     {
       page_state->set_pos(textwriter.tell() - offset);
@@ -168,7 +199,9 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
       // TODO assert
     } else if (data->isOpcode())
     {
-      //TODO add debug info
+      offset_type pc_low = pagenum * PAGE_SIZE + textwriter.tell() + datawriter.tell();
+      offset_type pc_high = pc_low + (*m_isa)[name]->serializer(data->get_operation()->get_args())->size(*page_state) - 1;
+      m_debug.add_dataline(fid, data->get_linenumber(), pc_high, pc_low, data->get_line(), data->get_annotation_index());
       std::vector<uint8_t> ret = (*m_isa)[name]->serializer(data->get_operation()->get_args())
                                                ->serialize(page_state, dsym, colnum, pagenum);
       for (auto byte : ret) {
@@ -194,6 +227,7 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
   datawriter.add_symbols(dsym);
   twriter.push_back(textwriter);
   twriter.push_back(datawriter);
+  m_report.addpage(lpage, page_state, textwriter.tell(), datawriter.tell());
 
   return page_state->m_controlpacket_padname;
   // TODO add size and generate report

@@ -35,6 +35,31 @@ insert_col_asmdata(std::shared_ptr<asm_data> data)
 
 void
 asm_parser::
+insert_annotation(int annotation_index)
+{
+  // insert annotation_index in col list
+  if (m_current_col == -1)
+    throw error(error::error_code::internal_error, "Invalid while adding annotation "
+                + std::to_string(m_current_col) + "!!!");
+
+  if (m_col.find(m_current_col) == m_col.end())
+    throw error(error::error_code::internal_error, "Col data not find while adding annotation for col"
+                + std::to_string(m_current_col) + "!!!");
+
+  auto& label_data = m_col[m_current_col].get_label_data();
+
+  for (auto it = label_data[m_current_label].text.rbegin(); it != label_data[m_current_label].text.rend(); ++it)
+  {
+    if ((*it)->get_operation()->get_name().compare(".eop"))
+    {
+      (*it)->set_annotation_index(annotation_index);
+      break;
+    }
+  }
+}
+
+void
+asm_parser::
 insert_scratchpad(std::string& name, offset_type size, std::vector<char>& content)
 {
   if (m_current_col == -1)
@@ -99,6 +124,7 @@ parse_lines(const std::vector<char>& data, std::string& file)
   uint32_t linenumber = 0;
 
   while (std::getline(isstr, line)) {
+    ++linenumber;
     line = trim(line);
     if(line.empty())
       continue;
@@ -112,7 +138,27 @@ parse_lines(const std::vector<char>& data, std::string& file)
     std::regex_match(line, sm, DIRCETIVE_REGEX);
     if (operate_directive(line))
     {
-      ++linenumber;
+      if (!get_annotation_state())
+        continue;
+      std::string aline, id_line, name_line, description_line;
+      // there are 3 lines for annotation data (id,name,description)
+      for (int count = 0 ; count < 3 ; ++count)   // NOLINT
+      {
+        std::getline(isstr, aline);
+        aline = trim(aline);
+        if (!aline.substr(0,3).compare("id:"))                 // NOLINT
+          id_line = trim(aline.substr(aline.find(":") + 1));   // NOLINT
+        else if (!aline.substr(0,5).compare("name:"))          // NOLINT
+          name_line = trim(aline.substr(aline.find(":") + 1)); // NOLINT
+        else if (!aline.substr(0,12).compare("description:"))  // NOLINT
+          description_line = trim(aline.substr(aline.find(":") + 1)); // NOLINT
+        else
+          throw error(error::error_code::internal_error, "Unknown annotation field " + aline + "!!!");
+      }
+      m_annotation_list.emplace_back(id_line, name_line, description_line);
+      insert_annotation(m_annotation_list.size() - 1);
+      reset_annotation_state();
+      linenumber+=3;
       continue;
     }
 
@@ -137,7 +183,6 @@ parse_lines(const std::vector<char>& data, std::string& file)
       if (!sm[1].str().compare("EOF"))
         set_data_state(true);
     }
-    ++linenumber;
   }
 
 }
@@ -168,6 +213,8 @@ operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm)
     m_parserptr->set_data_state(false);
   else if (is_data_section(args[0]))
     m_parserptr->set_data_state(true);
+  else if (is_annotation_section(args[0]))
+    m_parserptr->set_annotation_state();
   else
     std::cout << "section directive with unknown section found:" << args[0] << std::endl;
 }
