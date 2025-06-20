@@ -60,19 +60,8 @@ readfile(const std::string& filename)
 
 inline bool
 is_absolute_path(const std::string& path) {
-  // On Unix-like systems, an absolute path starts with '/'
-  if (path.empty()) {
-    return false;
-  }
-  if (path[0] == '/') {
-    return true;
-  }
-  // On Windows, an absolute path can start with a drive letter followed by ':'
-  // and a backslash or forward slash, e.g., "C:\\" or "C:/"
-  if (path.size() > 1 && path[1] == ':' && (path[2] == '\\' || path[2] == '/')) {
-    return true;
-  }
-  return false;
+  std::filesystem::path p(path);
+  return p.is_absolute();
 }
 
 inline std::string
