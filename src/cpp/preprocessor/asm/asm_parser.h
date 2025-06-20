@@ -70,6 +70,7 @@ public:
 public:
   directive() {}
   virtual void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm) = 0;
+  virtual ~directive() = default;
 };
 
 class attach_to_group_directive: public directive

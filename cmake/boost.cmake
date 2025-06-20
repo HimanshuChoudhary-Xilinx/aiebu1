@@ -5,7 +5,12 @@ if(POLICY CMP0144)
 endif()
 
 # We use header only libraries
-find_package(Boost REQUIRED)
+if(${CMAKE_VERSION} VERSION_LESS "3.30")
+  find_package(Boost REQUIRED)
+else()
+  find_package(Boost CONFIG REQUIRED)
+endif()
+
 message("-- Boost version: ${Boost_VERSION}")
 message("-- Boost include dir:${Boost_INCLUDE_DIRS}")
 
