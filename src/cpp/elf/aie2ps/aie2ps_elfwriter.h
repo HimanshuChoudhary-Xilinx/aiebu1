@@ -10,7 +10,7 @@ namespace aiebu {
 
 class aie2ps_elf_writer: public elf_writer
 {
-  constexpr static unsigned char ob_abi = 0x40;
+  constexpr static unsigned char ob_abi = 0x46;
   constexpr static unsigned char version = 0x02;
 public:
   aie2ps_elf_writer(): elf_writer(ob_abi, version)
@@ -19,7 +19,7 @@ public:
 
 class aie2ps_config_elf_writer: public elf_writer
 {
-  constexpr static unsigned char ob_abi = 0x40;
+  constexpr static unsigned char ob_abi = 0x46;
   constexpr static unsigned char version = 0x03;
   const std::string const_configuration = "configuration";
   const std::string xrt_configuration = ".note.xrt.configuration";
