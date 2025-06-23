@@ -122,6 +122,9 @@ extractlabels(assembler_state& state, std::shared_ptr<asm_data> token)
         throw error(error::error_code::internal_error, "Label not found " + lb);
       }
       std::vector<std::string> vlb {lb};
+      if (state.m_dependent_labelmap.find(lb) != state.m_dependent_labelmap.end())
+        vlb.insert(vlb.end(), state.m_dependent_labelmap[lb].begin(), state.m_dependent_labelmap[lb].end());
+
       labels = union_of_lists_inorder<std::string>(labels, vlb);
       auto index = state.m_labelmap[lb]->get_index();
       for (auto i = 0; i <= state.m_labelmap[lb]->get_count(); ++i)
