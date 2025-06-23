@@ -37,7 +37,7 @@ process(bool makeunique)
   uint32_t eopnum = 0;
   std::string clabelname;
   jobid_type cjob_id = "";
-  std::map<std::string, int> apply_label_map;
+  std::map<std::string, uint32_t> apply_label_map;
   for (auto data : m_data)
   {
     if (data->isLabel())
@@ -143,7 +143,7 @@ process(bool makeunique)
     if (pair.second == 1)
       continue;
     size_t index = find_label_entry(pair.first);
-    for (int i = 0; i < pair.second; ++i)
+    for (uint32_t i = 0; i < pair.second; ++i)
     {
       auto label = get_label_at(index+i);
       m_dependent_labelmap[pair.first].push_back(label.substr(1));

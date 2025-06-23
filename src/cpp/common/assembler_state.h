@@ -109,6 +109,8 @@ class assembler_state : public std::enable_shared_from_this<assembler_state>
 {
 protected:
   offset_type m_pos = 0;
+  std::vector<std::string> m_labellist;
+  std::map<std::string, std::vector<std::string>> m_dependent_labelmap;
 
   inline std::string gen_label_name(bool makeunique, const std::shared_ptr<asm_data> data)
   {
@@ -152,13 +154,11 @@ public:
   std::vector<jobid_type> m_jobids;
   std::map<jobid_type, std::shared_ptr<job>> m_jobmap;
   std::map<std::string, std::shared_ptr<label>> m_labelmap;
-  std::vector<std::string> m_labellist;
   std::map<barrierid_type, std::vector<jobid_type>> m_localbarriermap;
   std::map<jobid_type, std::vector<jobid_type>> m_joblaunchmap;
   std::map<std::string, std::shared_ptr<scratchpad_info>>& m_scratchpad;
   std::map<std::string, std::vector<std::string>> m_patch;
   std::map<std::string, uint32_t>& m_labelpageindex;
-  std::map<std::string, std::vector<std::string>> m_dependent_labelmap;
   uint32_t m_control_packet_index;
   std::string m_controlpacket_padname;
 
@@ -215,6 +215,12 @@ public:
     if (index >  m_labellist.size())
       throw error(error::error_code::internal_error, "index " + std::to_string(index) + " > label list size!!!");
     return "@" + m_labellist.at(index);
+  }
+
+  const std::map<std::string, std::vector<std::string>>&
+  get_dependent_labelmap() const
+  {
+    return m_dependent_labelmap;
   }
 
   virtual symbol::patch_schema get_shim_dma_patching() const = 0;
