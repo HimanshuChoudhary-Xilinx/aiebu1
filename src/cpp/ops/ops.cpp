@@ -99,11 +99,18 @@ serialize(std::shared_ptr<assembler_state> state, std::vector<symbol>& symbols,
         {
           if (val == state->m_control_packet_index || val == 0xFFFF)       // NOLINT
             sval = "control-code-" + std::to_string(colnum);
-          symbols.emplace_back(sval, state->parse_num_arg(m_args[0]),
-                               colnum, pagenum, 0, 0, ".ctrltext." + std::to_string(colnum)
-                               + "." + std::to_string(pagenum),
-                               state->get_shim_dma_patching());
 
+          size_t index = state->find_label_entry(m_args[0].substr(1));
+          auto num_entries = state->parse_num_arg(m_args[1]);
+          for (uint32_t numbd = 0; numbd < num_entries; ++numbd)
+          {
+            auto label = state->get_label_at(index);
+            symbols.emplace_back(sval, state->parse_num_arg(label),
+                                 colnum, pagenum, 0, 0, ".ctrltext." + std::to_string(colnum)
+                                 + "." + std::to_string(pagenum),
+                                 state->get_shim_dma_patching());
+            ++index;
+          }
           if (val == state->m_control_packet_index && !arg.get_name().compare("offset") && m_args.size() == 4)
             state->m_controlpacket_padname = m_args[3];
 
@@ -119,12 +126,19 @@ serialize(std::shared_ptr<assembler_state> state, std::vector<symbol>& symbols,
             val = val * 2;
           }
 
+          index = state->find_label_entry(m_args[0].substr(1));
           if (!arg.get_name().compare("offset") && m_args.size() == 4)
           {
             auto usymbo = m_args[3].substr(1);
             if (state->m_scratchpad.find(usymbo) != state->m_scratchpad.end())
             {
-              state->m_patch[m_args[3]].emplace_back(m_args[0]);
+              auto num_entries = state->parse_num_arg(m_args[1]);
+              for (uint32_t numbd = 0; numbd < num_entries; ++numbd)
+              {
+                auto label = state->get_label_at(index);
+                state->m_patch[m_args[3]].emplace_back(label);
+                ++index;
+              }
             }
           }
 

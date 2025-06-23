@@ -108,6 +108,7 @@ extractlabels(assembler_state& state, std::shared_ptr<asm_data> token)
   if (token->isLabel())
     return labels;
 
+  auto dependent_labelmap = state.get_dependent_labelmap();
   for (auto &arg : token->get_operation()->get_args())
   {
     auto it = std::find(OOO.begin(), OOO.end(), token->get_operation()->get_name());
@@ -122,6 +123,9 @@ extractlabels(assembler_state& state, std::shared_ptr<asm_data> token)
         throw error(error::error_code::internal_error, "Label not found " + lb);
       }
       std::vector<std::string> vlb {lb};
+      if (dependent_labelmap.find(lb) != dependent_labelmap.end())
+        vlb.insert(vlb.end(), dependent_labelmap[lb].begin(), dependent_labelmap[lb].end());
+
       labels = union_of_lists_inorder<std::string>(labels, vlb);
       auto index = state.m_labelmap[lb]->get_index();
       for (auto i = 0; i <= state.m_labelmap[lb]->get_count(); ++i)

@@ -5,10 +5,12 @@
 #define _AIEBU_COMMON_ASSEMBLER_STATE_H_
 
 #include "asm/asm_parser.h"
+#include "aiebu/aiebu_error.h"
 #include "oparg.h"
 #include "utils.h"
 #include "symbol.h"
 #include "ops.h"
+#include <algorithm>
 #include <iostream>
 #include <memory>
 #include <map>
@@ -107,6 +109,8 @@ class assembler_state : public std::enable_shared_from_this<assembler_state>
 {
 protected:
   offset_type m_pos = 0;
+  std::vector<std::string> m_labellist;
+  std::map<std::string, std::vector<std::string>> m_dependent_labelmap;
 
   inline std::string gen_label_name(bool makeunique, const std::shared_ptr<asm_data> data)
   {
@@ -196,6 +200,27 @@ public:
       std::back_inserter(keys),
       [](const std::map<std::string, std::shared_ptr<label>>::value_type &pair){return pair.first;});
     return keys;
+  }
+
+  size_t find_label_entry(const std::string& entry) const
+  {
+    auto it = std::find(m_labellist.begin(), m_labellist.end(), entry);
+    if (it == m_labellist.end())
+      throw error(error::error_code::internal_error, "label " + entry + " not found in label list!!!");
+    return std::distance(m_labellist.begin(), it);
+  }
+
+  std::string get_label_at(size_t index) const
+  {
+    if (index >  m_labellist.size())
+      throw error(error::error_code::internal_error, "index " + std::to_string(index) + " > label list size!!!");
+    return "@" + m_labellist.at(index);
+  }
+
+  const std::map<std::string, std::vector<std::string>>&
+  get_dependent_labelmap() const
+  {
+    return m_dependent_labelmap;
   }
 
   virtual symbol::patch_schema get_shim_dma_patching() const = 0;
