@@ -460,6 +460,28 @@ add_preemption_code(uint32_t col)
             ptr += sizeof(XAie_NoOpHdr);
             break;
         }
+        case XAIE_IO_CREATE_SCRATCHPAD: {
+            auto cs_header = reinterpret_cast<const XAie_CreateScratchpadHdr *>(ptr);
+            uint64_t buffer_length_in_bytes = cs_header->Size;
+            auto offset = static_cast<uint32_t>(reinterpret_cast<const char *>(&(cs_header->ScratchOffset)) - mc_code.data());
+            patch_helper_input input = {section_name, scratch_pad_ctrl,
+                                        0, 0, offset, buffer_length_in_bytes, 0};
+            patch_helper(mc_code, input);
+            ptr += sizeof(XAie_CreateScratchpadHdr);
+            break;
+        }
+        case XAIE_IO_UPDATE_STATE_TABLE: {
+            ptr += sizeof(XAie_UpdateStateHdr);
+            break;
+        }
+        case XAIE_IO_UPDATE_REG: {
+            ptr += sizeof(XAie_UpdateRegHdr);
+            break;
+        }
+        case XAIE_IO_UPDATE_SCRATCH: {
+            ptr += sizeof(XAie_UpdateScratchHdr);
+            break;
+        }
         case XAIE_IO_PREEMPT: {
             haspreempt = true;
             ptr += sizeof(XAie_PreemptHdr);
@@ -608,6 +630,28 @@ add_preemption_code(uint32_t col)
             ptr += sizeof(XAie_NoOpHdr);
             break;
         }
+        case XAIE_IO_CREATE_SCRATCHPAD: {
+            auto cs_header = reinterpret_cast<const XAie_CreateScratchpadHdr *>(ptr);
+            uint64_t buffer_length_in_bytes = cs_header->Size;
+            auto offset = static_cast<uint32_t>(reinterpret_cast<const char *>(&(cs_header->ScratchOffset)) - mc_code.data());
+            patch_helper_input input = {section_name, scratch_pad_ctrl,
+                                        0, 0, offset, buffer_length_in_bytes, 0};
+            patch_helper(mc_code, input);
+            ptr += sizeof(XAie_CreateScratchpadHdr);
+            break;
+        }
+        case XAIE_IO_UPDATE_STATE_TABLE: {
+            ptr += sizeof(XAie_UpdateStateHdr);
+            break;
+        }
+        case XAIE_IO_UPDATE_REG: {
+            ptr += sizeof(XAie_UpdateRegHdr);
+            break;
+        }
+        case XAIE_IO_UPDATE_SCRATCH: {
+            ptr += sizeof(XAie_UpdateScratchHdr);
+            break;
+        }
         case XAIE_IO_PREEMPT: {
             haspreempt = true;
             ptr += sizeof(XAie_PreemptHdr);
@@ -743,6 +787,14 @@ add_preemption_code(uint32_t col)
     std::vector<uint32_t> SHIM_BD_ADDRESS;
     for (auto i=0U; i < SHIM_DMA_BD_NUM; ++i)
       SHIM_BD_ADDRESS.push_back(SHIM_DMA_BD0_0 + i * SHIM_DMA_BD_SIZE);
+
+    {
+      if (!argname.compare(scratch_pad_ctrl))
+      {
+        add_symbol({argname, offset, 0, 0, addend, buffer_length_in_bytes, section_name, symbol::patch_schema::address_64});
+        return;
+      }
+    }
 
     {
       //MEM bd buffer length patch: reg point to mem bd_0
