@@ -117,11 +117,6 @@ protected:
     return makeunique ? data->get_file() + ":" + data->get_operation()->get_name() : data->get_operation()->get_name();
   }
 
-  inline std::string gen_job_name(bool makeunique, const std::shared_ptr<asm_data> data)
-  {
-    return makeunique ? data->get_file() + ":" + data->get_operation()->get_args()[0] : data->get_operation()->get_args()[0];
-  }
-
   inline std::string gen_eop_name(uint32_t eopnum)
   {
     return EOP_ID + std::to_string(eopnum);
@@ -165,6 +160,11 @@ public:
   HEADER_ACCESS_GET_SET(offset_type, pos);
 
   void printstate() const;
+
+  inline std::string gen_job_name(bool makeunique, const std::shared_ptr<asm_data> data)
+  {
+    return makeunique ? data->get_file() + ":" + data->get_operation()->get_args()[0] : data->get_operation()->get_args()[0];
+  }
 
   bool is_number(const std::string& s) const {
     return !s.empty() && std::all_of(s.begin(), s.end(), ::isdigit);

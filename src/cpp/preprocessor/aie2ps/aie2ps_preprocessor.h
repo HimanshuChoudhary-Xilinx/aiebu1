@@ -16,7 +16,8 @@
 namespace aiebu {
 
 class aie2ps_preprocessor: public preprocessor
-{  
+{
+  const std::string disable_dump_map = "disabledump";
   std::shared_ptr<std::map<std::string, std::shared_ptr<isa_op>>> m_isa;
 public:
   aie2ps_preprocessor() {}
@@ -48,6 +49,15 @@ public:
     auto collist = parser->get_col_list();
     isa i;
     m_isa = i.get_isamap();
+    auto flags = tinput->get_flags();
+    for (const auto& flag: flags)
+    {
+      if (flag == disable_dump_map)
+        toutput->set_debug(false);
+      else
+        std::cout << "Invalid flag: " << flag << ", ignored !!!" << std::endl;
+    }
+    toutput->set_annotations(parser->get_annotations());
 
     for (auto col: collist)
     {

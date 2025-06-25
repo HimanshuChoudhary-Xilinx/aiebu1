@@ -23,13 +23,14 @@ inline std::string trim(const std::string& line)
     std::string WhiteSpace = " \t\f\v\n\r";
     std::size_t start = line.find_first_not_of(WhiteSpace);
     std::size_t end = line.find_last_not_of(WhiteSpace);
-    return start == end ? std::string() : line.substr(start, end - start + 1);
+    return (start == end && start == std::string::npos) ? std::string() : line.substr(start, end - start + 1);
 }
 
 enum class operation_type: uint8_t
 {
   label = 1,
   op = 2,
+  annotation = 3,
 };
 
 // Start defining regexs required for parsing aie2asm
@@ -158,6 +159,7 @@ class section_directive: public directive
 {
   bool is_test_section(const std::string& str) {return !str.substr(0,9).compare(".ctrltext"); }
   bool is_data_section(const std::string& str) {return !str.substr(0,9).compare(".ctrldata"); }
+  bool is_annotation_section(const std::string& str) {return !str.substr(0,10).compare("annotation"); }
 public:
   section_directive() {}
   void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm);
@@ -173,6 +175,7 @@ class asm_data
   uint32_t m_linenumber;
   std::string m_line;
   std::string m_file;
+  int m_annotation_index = -1;
 
 public:
   asm_data() = default;
@@ -199,10 +202,13 @@ public:
   HEADER_ACCESS_GET_SET(pageid_type, pagenum);
   HEADER_ACCESS_GET_SET(uint32_t, linenumber);
   HEADER_ACCESS_GET_SET(std::string, file);
+  HEADER_ACCESS_GET_SET(std::string, line);
   bool isLabel() { return m_optype == operation_type::label; }
   bool isOpcode() { return m_optype == operation_type::op; }
+  bool isAnnotation() { return m_optype == operation_type::annotation; }
   std::shared_ptr<operation> get_operation() { return m_op; }
-
+  int get_annotation_index() { return m_annotation_index; }
+  void set_annotation_index(int annotation_index) { m_annotation_index = annotation_index; }
 };
 
 class section_asmdata
@@ -233,6 +239,25 @@ public:
   HEADER_ACCESS_GET_SET(offset_type, base);
 
   const std::vector<char>& get_content() const { return m_content; }
+};
+
+class annotation_type
+{
+  std::string m_id;
+  std::string m_name;
+  std::string m_description;
+
+  public:
+  annotation_type(std::string id, std::string name, std::string description)
+    : m_id(std::move(id)), m_name(std::move(name)), m_description(std::move(description)) { /*std::cout << m_id << " " << m_name << " " << m_description << "|\n";*/ }
+
+  annotation_type(const annotation_type& rhs) = default;
+  annotation_type& operator=(const annotation_type& rhs) = default;
+  annotation_type(annotation_type &&s) = default;
+
+  std::string get_id() const { return m_id; }
+  std::string get_name() const { return m_name; }
+  std::string get_description() const { return m_description; }
 };
 
 class col_data
@@ -277,6 +302,8 @@ class asm_parser: public std::enable_shared_from_this<asm_parser>
   std::string m_current_label = "default";
   int m_current_col = -1;
   const std::vector<std::string>& m_include_list;
+  bool annotation_state = false;
+  std::vector<annotation_type> m_annotation_list;
 
 public:
   asm_parser(const std::vector<char>& data, const std::vector<std::string>& include_list):m_data(data), m_include_list(include_list)
@@ -290,6 +317,16 @@ public:
   void pop_data_state() { isdatastack.pop();}
 
   bool get_data_state() const { return isdatastack.top();}
+
+  void set_annotation_state() { annotation_state = true; }
+
+  void reset_annotation_state() { annotation_state = false; }
+
+  bool get_annotation_state() { return annotation_state; }
+
+  void insert_annotation(int annotation_index);
+
+  std::vector<annotation_type> get_annotations() { return std::move(m_annotation_list); }
 
   const std::vector<std::string>& get_include_list() const { return m_include_list; }
 

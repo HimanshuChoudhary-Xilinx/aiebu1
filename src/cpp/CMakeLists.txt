@@ -76,6 +76,7 @@ set_target_properties(aiebu_library_objects PROPERTIES
 target_sources(aiebu_library_objects
   PRIVATE
   encoder/aie2ps/aie2ps_encoder.cpp
+  encoder/aie2ps/report.cpp
   preprocessor/aie2ps/aie2ps_preprocessor_input.cpp
   preprocessor/asm/pager.cpp
   )
