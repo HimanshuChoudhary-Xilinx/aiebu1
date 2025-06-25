@@ -41,15 +41,13 @@ public:
   std::shared_ptr<preprocessed_output>
   process_internal(std::shared_ptr<asm_preprocessor_input> tinput)
   {
-    auto toutput = std::make_shared<aie2ps_preprocessed_output>();
     //auto keys = tinput->get_keys();
     std::shared_ptr<asm_parser> parser(new asm_parser(tinput->get_data(), tinput->get_include_paths()));
     parser->parse_lines();
     auto collist = parser->get_col_list();
     isa i;
     m_isa = i.get_isamap();
-    toutput->set_numcore(parser->get_numcore());
-    toutput->set_nummem(parser->get_nummem());
+    auto toutput = std::make_shared<aie2ps_preprocessed_output>(parser->get_partition_info());
 
     for (auto col: collist)
     {

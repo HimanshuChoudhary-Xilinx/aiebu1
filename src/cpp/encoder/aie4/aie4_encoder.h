@@ -44,10 +44,10 @@ public:
     datawriter->write_word_at(offset, (((patch >> 32) & 0x1FFFFFF) | (bd0 & 0xFE000000)));  // NOLINT
   }
 
-  void check_partition_info(const partition_info source, partition_info& dest) override
+  void check_partition_info(std::shared_ptr<const partition_info> source, std::shared_ptr<const partition_info> dest) override
   {
-    if(dest.get_numcore() != source.get_numcore() || dest.get_nummem() != source.get_nummem())
-      throw error(error::error_code::invalid_asm, "Partition (core, mem) (" + std::to_string(dest.get_numcore()) + ", " + std::to_string(dest.get_numcore()) + ") != (" + std::to_string(source.get_nummem()) + ", " + std::to_string(source.get_nummem()) + ")\n");
+    if(dest->get_numcore() != source->get_numcore() || dest->get_nummem() != source->get_nummem())
+      throw error(error::error_code::invalid_asm, "Partition (core, mem) (" + std::to_string(dest->get_numcore()) + ", " + std::to_string(dest->get_numcore()) + ") != (" + std::to_string(source->get_nummem()) + ", " + std::to_string(source->get_nummem()) + ")\n");
   }
 
 };

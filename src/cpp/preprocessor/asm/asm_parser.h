@@ -263,13 +263,14 @@ class asm_parser: public std::enable_shared_from_this<asm_parser>
   std::string m_current_label = "default";
   int m_current_col = -1;
   const std::vector<std::string>& m_include_list;
-  partition_info m_partition;
+  std::shared_ptr<partition_info> m_partition;
 
 public:
-  asm_parser(const std::vector<char>& data, const std::vector<std::string>& include_list):m_data(data), m_include_list(include_list), m_partition(DEFAULT_COLUMN,0)
+  asm_parser(const std::vector<char>& data, const std::vector<std::string>& include_list):m_data(data), m_include_list(include_list)//, m_partition(DEFAULT_COLUMN,0)
   {
     set_data_state(false);
     m_current_col = -1;
+    m_partition = std::make_shared<partition_info>(DEFAULT_COLUMN, 0);
   }
 
   void set_data_state(bool state) { isdatastack.push(state); }
@@ -306,17 +307,13 @@ public:
 
   col_data& get_col_asmdata(uint32_t colnum);
 
-  uint32_t get_numcore() const { return m_partition.get_numcore(); }
+  std::shared_ptr<const partition_info> get_partition_info() const { return std::const_pointer_cast<const partition_info>(m_partition); }
 
-  uint32_t get_numcolumn() const { return m_partition.get_numcolumn(); }
+  void set_numcolumn(uint32_t val) { m_partition->set_numcolumn(val); }
 
-  uint32_t get_nummem() const { return m_partition.get_nummem(); }
+  void set_numcore(uint32_t val) { m_partition->set_numcore(val); }
 
-  void set_numcolumn(uint32_t val) { m_partition.set_numcolumn(val); }
-
-  void set_numcore(uint32_t val) { m_partition.set_numcore(val); }
-
-  void set_nummem(uint32_t val) { m_partition.set_nummem(val); }
+  void set_nummem(uint32_t val) { m_partition->set_nummem(val); }
 
   void parse_lines();
 

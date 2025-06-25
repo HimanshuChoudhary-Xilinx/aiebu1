@@ -47,10 +47,10 @@ public:
 
   std::vector<std::shared_ptr<writer>> get_writers() { return twriter; }
 
-  virtual void check_partition_info(const partition_info source, partition_info& dest)
+  virtual void check_partition_info(std::shared_ptr<const partition_info> source, std::shared_ptr<const partition_info> dest)
   {
-    if(dest.get_numcolumn() != source.get_numcolumn())
-      throw error(error::error_code::invalid_asm, "Partition column " + std::to_string(dest.get_numcolumn()) + " != " + std::to_string(source.get_numcolumn()) + "\n");
+    if(dest->get_numcolumn() != source->get_numcolumn())
+      throw error(error::error_code::invalid_asm, "Partition column " + std::to_string(dest->get_numcolumn()) + " != " + std::to_string(source->get_numcolumn()) + "\n");
   }
 };
 
@@ -63,18 +63,17 @@ public:
   std::vector<std::shared_ptr<writer>>
   process(std::shared_ptr<preprocessed_output> input) override
   {
-    auto output_writer = std::make_shared<config_writer>();
-    twriter.push_back(output_writer);
     auto tinput = std::static_pointer_cast<asm_config_preprocessed_output<input_tamplete>>(input);
+    // lets get partition info for first instance and compare this with other instances
+    auto pinfo_first_instance = tinput->get_kernel_map().begin()->second.begin()->second->get_partition_info();
+    auto output_writer = std::make_shared<config_writer>(pinfo_first_instance);
+    twriter.push_back(output_writer);
 
     for (auto& [kernel, instances] : tinput->get_kernel_map()) {
       for(auto& [iname, instance] : instances)
       {
         T encoder_object;
-        static partition_info partition = {instance->get_numcore(), instance->get_nummem()};
-        encoder_object.check_partition_info(instance->get_partition_info(), partition);
-        output_writer->set_numcore(instance->get_numcore());
-        output_writer->set_nummem(instance->get_numcore());
+        encoder_object.check_partition_info(instance->get_partition_info(), output_writer->get_partition_info());
         output_writer->add_kernel_map(kernel, iname, encoder_object.process(instance));
       }
     }

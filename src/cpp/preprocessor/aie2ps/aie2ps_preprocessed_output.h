@@ -23,24 +23,12 @@ class aie2ps_preprocessed_output : public preprocessed_output
   };
   std::map<uint32_t, std::shared_ptr<coldata>> m_coldata;
   std::vector<symbol> m_sym;
-  partition_info m_partition;
+  std::shared_ptr<const partition_info> m_partition;
 public:
 
-  aie2ps_preprocessed_output() {}
+  aie2ps_preprocessed_output(std::shared_ptr<const partition_info> partition): m_partition(partition) {}
 
-  const partition_info& get_partition_info() const { return m_partition; }
-
-  uint32_t get_numcore() const { return m_partition.get_numcore(); }
-
-  uint32_t get_numcolumn() const { return m_partition.get_numcolumn(); }
-
-  uint32_t get_nummem() const { return m_partition.get_nummem(); }
-
-  void set_numcolumn(uint32_t val) { m_partition.set_numcolumn(val); }
-
-  void set_numcore(uint32_t val) { m_partition.set_numcore(val); }
-
-  void set_nummem(uint32_t val) { m_partition.set_nummem(val); }
+  std::shared_ptr<const partition_info> get_partition_info() const { return m_partition; }
 
   void set_coldata(const uint32_t col, const std::vector<page> &pages, std::map<std::string, std::shared_ptr<scratchpad_info>> &scratchpad, std::map<std::string, uint32_t>& labelpageindex, uint32_t control_packet_index)
   {

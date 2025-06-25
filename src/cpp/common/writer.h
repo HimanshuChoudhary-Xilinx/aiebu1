@@ -111,10 +111,13 @@ public:
 
 class config_writer: public writer
 {
+  // map<kernel, map<instance, vector<section_writer object having control code pages and symbol info>>
   std::map<std::string, std::map<std::string, std::vector<std::shared_ptr<writer>>>> m_output;
-  partition_info m_partition;
+  std::shared_ptr<const partition_info> m_partition;
 
 public:
+  config_writer(std::shared_ptr<const partition_info> partition): m_partition(partition) {}
+
   const std::map<std::string, std::map<std::string,  std::vector<std::shared_ptr<writer>>>>&
   get_kernel_map() const { return m_output; }
 
@@ -122,17 +125,7 @@ public:
     m_output[kernel][instance] = std::move(val);
   }
 
-  uint32_t get_numcore() const { return m_partition.get_numcore(); }
-
-  uint32_t get_numcolumn() const { return m_partition.get_numcolumn(); }
-
-  uint32_t get_nummem() const { return m_partition.get_nummem(); }
-
-  void set_numcolumn(uint32_t val) { m_partition.set_numcolumn(val); }
-
-  void set_numcore(uint32_t val) { m_partition.set_numcore(val); }
-
-  void set_nummem(uint32_t val) { m_partition.set_nummem(val); }
+  std::shared_ptr<const partition_info> get_partition_info() const { return m_partition; }
 };
 
 }
