@@ -36,35 +36,44 @@ aiebu_assembler(buffer_type type,
                 const std::vector<std::string>& libpaths,
                 const std::map<uint32_t, std::vector<char> >& ctrlpkt) : m_type(type)
 {
+  if (buffer1.empty()) {
+    throw error(error::error_code::invalid_input, "Buffer1 is empty.");
+  }
   if (type == buffer_type::blob_instr_dpu)
   {
     aiebu::assembler a(assembler::elf_type::aie2_dpu_blob);
     elf_data = a.process(buffer1, libs, libpaths, patch_json, buffer2);
+    m_output_type = aiebu::aiebu_assembler::buffer_type::elf_aie2;
   }
   else if (type == buffer_type::blob_instr_transaction)
   {
     aiebu::assembler a(assembler::elf_type::aie2_transaction_blob);
     elf_data = a.process(buffer1, libs, libpaths, patch_json, buffer2, ctrlpkt);
+    m_output_type = aiebu::aiebu_assembler::buffer_type::elf_aie2;
   }
   else if (type == buffer_type::asm_aie2)
   {
     aiebu::assembler a(assembler::elf_type::aie2_asm);
     elf_data = a.process(buffer1, libs, libpaths, patch_json, buffer2, ctrlpkt);
+    m_output_type = aiebu::aiebu_assembler::buffer_type::elf_aie2;
   }
   else if (type == buffer_type::asm_aie2ps)
   {
     aiebu::assembler a(assembler::elf_type::aie2ps_asm);
     elf_data = a.process(buffer1, libs, libpaths, patch_json);
+    m_output_type = aiebu::aiebu_assembler::buffer_type::elf_aie2ps;
   }
   else if (type == buffer_type::config)
   {
     aiebu::assembler a(assembler::elf_type::config);
     elf_data = a.process(buffer1, libs, libpaths, patch_json, buffer2);
+    m_output_type = aiebu::aiebu_assembler::buffer_type::elf_aie2;
   }
   else if (type == buffer_type::asm_aie4)
   {
     aiebu::assembler a(assembler::elf_type::aie4_asm);
     elf_data = a.process(buffer1, libs, libpaths, patch_json);
+    m_output_type = aiebu::aiebu_assembler::buffer_type::elf_aie2ps;
   }
   else if (type == buffer_type::aie2ps_config)
   {
@@ -93,17 +102,21 @@ void
 aiebu_assembler::
 get_report(std::ostream &stream) const
 {
-    reporter rep(m_type, elf_data);
-    rep.elf_summary(stream);
-    rep.ctrlcode_summary(stream);
+  if (!stream) {
+    throw error(error::error_code::invalid_input,
+                "The given stream is not writable or has failed.");
+  }
+  reporter rep(m_output_type, elf_data);
+  rep.elf_summary(stream);
+  rep.ctrlcode_summary(stream);
 }
 
 void
 aiebu_assembler::
 disassemble(const std::filesystem::path &root) const
 {
-    reporter rep(m_type, elf_data);
-    rep.disassemble(root, true);
+  reporter rep(m_output_type, elf_data);
+  rep.disassemble(root, true);
 }
 }
 
@@ -122,16 +135,28 @@ aiebu_assembler_get_elf(enum aiebu_assembler_buffer_type type,
                         size_t pm_ctrlpkt_size)
 {
   int ret = 0;
-  if (buffer2 == NULL && buffer2_size != 0)
+  if (buffer2 == nullptr && buffer2_size != 0)
   {
     std::cout << "ERROR: Invalid buffer2 size" << std::endl;
-    return -(static_cast<int>(aiebu::error::error_code::internal_error));
+    return -(static_cast<int>(aiebu::error::error_code::invalid_input));
   }
 
-  if (patch_json == NULL && patch_json_size !=0)
+  if (patch_json == nullptr && patch_json_size !=0)
   {
     std::cout << "ERROR: Invalid patch json size" << std::endl;
-    return -(static_cast<int>(aiebu::error::error_code::internal_error));
+    return -(static_cast<int>(aiebu::error::error_code::invalid_input));
+  }
+
+  if (buffer1 == nullptr)
+  {
+    std::cout << "ERROR: Invalid input, buffer1 is NULL" << std::endl;
+    return -(static_cast<int>(aiebu::error::error_code::invalid_input));
+  }
+
+  if (buffer1_size == 0)
+  {
+    std::cout << "ERROR: Invalid buffer1 size" << std::endl;
+    return -(static_cast<int>(aiebu::error::error_code::invalid_input));
   }
 
   try
