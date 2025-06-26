@@ -7,6 +7,7 @@
 #include "asm/page.h"
 #include "symbol.h"
 #include "preprocessed_output.h"
+#include <utility>
 
 namespace aiebu {
 
@@ -28,7 +29,7 @@ class aie2ps_preprocessed_output : public preprocessed_output
   std::shared_ptr<const partition_info> m_partition;
 public:
 
-  aie2ps_preprocessed_output(std::shared_ptr<const partition_info> partition): m_partition(partition) {}
+  explicit aie2ps_preprocessed_output(std::shared_ptr<const partition_info> partition): m_partition(std::move(partition)) {}
 
   std::shared_ptr<const partition_info> get_partition_info() const { return m_partition; }
 

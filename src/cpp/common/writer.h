@@ -6,6 +6,7 @@
 
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
 #include <unordered_map>
 #include "symbol.h"
@@ -116,7 +117,7 @@ class config_writer: public writer
   std::shared_ptr<const partition_info> m_partition;
 
 public:
-  config_writer(std::shared_ptr<const partition_info> partition): m_partition(partition) {}
+  explicit config_writer(std::shared_ptr<const partition_info> partition): m_partition(std::move(partition)) {}
 
   const std::map<std::string, std::map<std::string,  std::vector<std::shared_ptr<writer>>>>&
   get_kernel_map() const { return m_output; }

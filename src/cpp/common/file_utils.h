@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (C) 2025, Advanced Micro Devices, Inc. All rights reserved.
 
-#ifndef AIEBU_COMMOM_FILE_UTILS_H_
-#define AIEBU_COMMOM_FILE_UTILS_H_
+#ifndef AIEBU_COMMON_FILE_UTILS_H_
+#define AIEBU_COMMON_FILE_UTILS_H_
 
 #include <iostream>
 #include <filesystem>
@@ -99,4 +99,4 @@ inline std::string get_parent_directory(const std::string& relativePath) {
 
 }
 
-#endif // AIEBU_COMMOM_FILE_UTILS_H_
+#endif // AIEBU_COMMON_FILE_UTILS_H_

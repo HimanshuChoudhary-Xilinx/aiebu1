@@ -293,7 +293,7 @@ class asm_parser: public std::enable_shared_from_this<asm_parser>
   std::shared_ptr<partition_info> m_partition;
 
 public:
-  asm_parser(const std::vector<char>& data, const std::vector<std::string>& include_list):m_data(data), m_include_list(include_list)//, m_partition(DEFAULT_COLUMN,0)
+  asm_parser(const std::vector<char>& data, const std::vector<std::string>& include_list):m_data(data), m_include_list(include_list)
   {
     set_data_state(false);
     m_current_col = -1;
