@@ -135,6 +135,7 @@ class asm_config_parser: public target
   std::string output_elffile;
   std::vector<char> json_buffer;
   std::vector<std::string> libpaths;
+  std::vector<std::string> flags;
   void parser(const sub_cmd_options &options);
   public:
   asm_config_parser(const std::string& exename, const std::string& name, const std::string& description)

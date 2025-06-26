@@ -410,6 +410,7 @@ asm_config_parser::parser(const sub_cmd_options &options)
     all_options.add_options()
             ("o,outputelf", "ELF output file name", cxxopts::value<decltype(output_elffile)>())
             ("j,json", "control packet Patching json file", cxxopts::value<decltype(json_file)>())
+            ("f,flag", "flags", cxxopts::value<decltype(flags)>())
             ("h,help", "show help message and exit", cxxopts::value<bool>()->default_value("false"))
     ;
 
@@ -430,6 +431,9 @@ asm_config_parser::parser(const sub_cmd_options &options)
 
     if (result.count("json"))
       json_file = result["json"].as<decltype(json_file)>();
+
+    if (result.count("flag"))
+      flags = result["flag"].as<decltype(flags)>();
   }
   catch (const cxxopts::exceptions::exception& e) {
     std::cout << all_options.help({"", "Target config Options"});
@@ -449,7 +453,7 @@ target_aie2ps_config::assemble(const sub_cmd_options &options)
 {
   parser(options);
   try {
-    aiebu::aiebu_assembler as(aiebu::aiebu_assembler::buffer_type::aie2ps_config, {}, {}, libpaths, json_buffer);
+    aiebu::aiebu_assembler as(aiebu::aiebu_assembler::buffer_type::aie2ps_config, {}, flags, libpaths, json_buffer);
     write_elf(as, output_elffile);
   }
   catch (aiebu::error &ex) {
@@ -464,7 +468,7 @@ target_aie4_config::assemble(const sub_cmd_options &options)
 {
  parser(options);
  try {
-    aiebu::aiebu_assembler as(aiebu::aiebu_assembler::buffer_type::aie4_config, {}, {}, libpaths, json_buffer);
+    aiebu::aiebu_assembler as(aiebu::aiebu_assembler::buffer_type::aie4_config, {}, flags, libpaths, json_buffer);
     write_elf(as, output_elffile);
   }
   catch (aiebu::error &ex) {
