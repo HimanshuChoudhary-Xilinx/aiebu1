@@ -31,7 +31,9 @@ public:
     aie2ps_asm,
     aie2_asm,
     config,
-    aie4_asm
+    aie4_asm,
+    aie2ps_config,
+    aie4_config
   };
 
   explicit assembler(const elf_type type);

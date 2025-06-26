@@ -18,7 +18,7 @@ namespace aiebu {
 class aie2ps_encoder : public encoder
 {
   std::shared_ptr<std::map<std::string, std::shared_ptr<isa_op>>> m_isa;
-  std::vector<writer> twriter;
+  std::vector<std::shared_ptr<writer>> twriter;
   asm_report m_report;
   Debug m_debug;
 public:
@@ -27,15 +27,15 @@ public:
     m_isa = i.get_isamap();
   }
 
-  virtual std::vector<writer>
+  virtual std::vector<std::shared_ptr<writer>>
   process(std::shared_ptr<preprocessed_output> input) override;
-  std::string get_TextSectionName(uint32_t colnum, pageid_type pagenum) {return ".ctrltext." + std::to_string(colnum) + "." + std::to_string(pagenum); }
-  std::string get_DataSectionName(uint32_t colnum, pageid_type pagenum) {return ".ctrldata." + std::to_string(colnum) + "." + std::to_string(pagenum); }
-  std::string get_PadSectionName(uint32_t colnum) {return ".pad." + std::to_string(colnum); }
+  virtual std::string get_TextSectionName(uint32_t colnum, pageid_type pagenum) {return ".ctrltext." + std::to_string(colnum) + "." + std::to_string(pagenum); }
+  virtual std::string get_DataSectionName(uint32_t colnum, pageid_type pagenum) {return ".ctrldata." + std::to_string(colnum) + "." + std::to_string(pagenum); }
+  virtual std::string get_PadSectionName(uint32_t colnum) {return ".pad." + std::to_string(colnum); }
   std::string page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>& scratchpad, std::map<std::string, uint32_t>& labelpageindex, uint32_t control_packet_index);
-  virtual void patch57(const writer& textwriter, writer& datawriter, offset_type offset, uint64_t patch);
-  void fill_scratchpad(writer& padwriter,const std::map<std::string, std::shared_ptr<scratchpad_info>>& scratchpads);
-  void fill_control_packet_symbols(writer& padwriter,const uint32_t col, const std::string& controlpacket_padname, std::vector<symbol>& syms, const std::map<std::string, std::shared_ptr<scratchpad_info>>& scratchpads);
+  virtual void patch57(const std::shared_ptr<section_writer> textwriter, std::shared_ptr<section_writer> datawriter, offset_type offset, uint64_t patch);
+  void fill_scratchpad(std::shared_ptr<section_writer> padwriter,const std::map<std::string, std::shared_ptr<scratchpad_info>>& scratchpads);
+  void fill_control_packet_symbols(std::shared_ptr<section_writer> padwriter,const uint32_t col, const std::string& controlpacket_padname, std::vector<symbol>& syms, const std::map<std::string, std::shared_ptr<scratchpad_info>>& scratchpads);
   std::string findKey(const std::map<std::string, std::vector<std::string>>& myMap, const std::string& value);
 
   virtual std::shared_ptr<assembler_state>
@@ -47,7 +47,41 @@ public:
   {
     return std::make_shared<assembler_state_aie2ps>(isa, data, scratchpad, labelpageindex, control_packet_index, makeunique);
   }
+
+  std::vector<std::shared_ptr<writer>> get_writers() { return twriter; }
+
+  virtual void check_partition_info(std::shared_ptr<const partition_info> source, std::shared_ptr<const partition_info> dest)
+  {
+    if(dest->get_numcolumn() != source->get_numcolumn())
+      throw error(error::error_code::invalid_asm, "Partition column " + std::to_string(dest->get_numcolumn()) + " != " + std::to_string(source->get_numcolumn()) + "\n");
+  }
 };
 
+//asm_config_preprocessor<aie2ps_config_encoder, aie2ps_preprocessed_output>
+template <typename T, typename input_tamplete>
+class asm_config_encoder : public encoder
+{
+  std::vector<std::shared_ptr<writer>> twriter;
+public:
+  std::vector<std::shared_ptr<writer>>
+  process(std::shared_ptr<preprocessed_output> input) override
+  {
+    auto tinput = std::static_pointer_cast<asm_config_preprocessed_output<input_tamplete>>(input);
+    // lets get partition info for first instance and compare this with other instances
+    auto pinfo_first_instance = tinput->get_kernel_map().begin()->second.begin()->second->get_partition_info();
+    auto output_writer = std::make_shared<config_writer>(pinfo_first_instance);
+    twriter.push_back(output_writer);
+
+    for (auto& [kernel, instances] : tinput->get_kernel_map()) {
+      for(auto& [iname, instance] : instances)
+      {
+        T encoder_object;
+        encoder_object.check_partition_info(instance->get_partition_info(), output_writer->get_partition_info());
+        output_writer->add_kernel_map(kernel, iname, encoder_object.process(instance));
+      }
+    }
+    return twriter;
+  }
+};
 }
 #endif //_AIEBU_ENCODER_AIE2PS_ENCODER_H_

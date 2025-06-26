@@ -129,6 +129,32 @@ class target_aie4: public target
   explicit target_aie4(const std::string& name): target(name, "aie4", "aie4 asm assembler") {}
 };
 
+class asm_config_parser: public target
+{
+  protected: // NOLINT
+  std::string output_elffile;
+  std::vector<char> json_buffer;
+  std::vector<std::string> libpaths;
+  std::vector<std::string> flags;
+  void parser(const sub_cmd_options &options);
+  public:
+  asm_config_parser(const std::string& exename, const std::string& name, const std::string& description)
+    : target(exename, name, description) {}
+};
+
+class target_aie2ps_config: public asm_config_parser
+{
+  public:
+  void assemble(const sub_cmd_options &_options) override;
+  explicit target_aie2ps_config(const std::string& name): asm_config_parser(name, "aie2ps_config", "generate aie2ps config elf") {}
+};
+
+class target_aie4_config: public asm_config_parser
+{
+  public:
+  void assemble(const sub_cmd_options &_options) override;
+  explicit target_aie4_config(const std::string& name): asm_config_parser(name, "aie4_config", "generate aie4 config elf") {}
+};
 } //namespace aiebu::utilities
 
 #endif // AIEBU_UTILITIES_TARGET_H_

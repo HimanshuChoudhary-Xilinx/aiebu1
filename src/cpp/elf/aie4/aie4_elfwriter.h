@@ -15,5 +15,11 @@ public:
   { }
 };
 
+class aie4_config_elf_writer: public aie2ps_config_elf_writer
+{
+public:
+  aie4_config_elf_writer(): aie2ps_config_elf_writer()
+  { }
+};
 }
 #endif //AIEBU_ELF_AIE4_ELF_WRITER_H_

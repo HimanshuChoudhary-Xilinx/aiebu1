@@ -32,16 +32,22 @@ public:
   }
 
   void
-  patch57(const writer& textwriter, writer& datawriter, offset_type offset, uint64_t patch) override
+  patch57(const std::shared_ptr<section_writer> textwriter, std::shared_ptr<section_writer> datawriter, offset_type offset, uint64_t patch) override
   {
-    offset = offset - textwriter.tell();
-    uint64_t bd0 = datawriter.read_word(offset);
-    uint64_t bd1 = datawriter.read_word(offset + 1*4);             // NOLINT
+    offset = offset - textwriter->tell();
+    uint64_t bd0 = datawriter->read_word(offset);
+    uint64_t bd1 = datawriter->read_word(offset + 1*4);             // NOLINT
 
     uint64_t arg = (bd1 & 0xFFFFFFFF) + ((bd0 & 0x1FFFFFF) << 32); // NOLINT
     patch = arg + patch;
-    datawriter.write_word_at(offset + 1*4, patch & 0xFFFFFFFF);    // NOLINT
-    datawriter.write_word_at(offset, (((patch >> 32) & 0x1FFFFFF) | (bd0 & 0xFE000000)));  // NOLINT
+    datawriter->write_word_at(offset + 1*4, patch & 0xFFFFFFFF);    // NOLINT
+    datawriter->write_word_at(offset, (((patch >> 32) & 0x1FFFFFF) | (bd0 & 0xFE000000)));  // NOLINT
+  }
+
+  void check_partition_info(std::shared_ptr<const partition_info> source, std::shared_ptr<const partition_info> dest) override
+  {
+    if(dest->get_numcore() != source->get_numcore() || dest->get_nummem() != source->get_nummem())
+      throw error(error::error_code::invalid_asm, "Partition (core, mem) (" + std::to_string(dest->get_numcore()) + ", " + std::to_string(dest->get_numcore()) + ") != (" + std::to_string(source->get_nummem()) + ", " + std::to_string(source->get_nummem()) + ")\n");
   }
 
 };

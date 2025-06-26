@@ -26,6 +26,8 @@ class aiebu_assembler
       asm_aie2,
       asm_aie4,
       config,
+      aie2ps_config,
+      aie4_config,
       elf_aie2,
       elf_aie2ps,
       pdi_aie2,

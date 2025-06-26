@@ -9,7 +9,8 @@ namespace aiebu {
 class preprocessed_output
 {
 public:
-  preprocessed_output() {}
+  preprocessed_output() = default;
+  virtual ~preprocessed_output() = default;
 };
 
 }

@@ -10,7 +10,7 @@ namespace aiebu {
 
 void
 aie2ps_encoder::
-fill_scratchpad(writer& padwriter, const std::map<std::string, std::shared_ptr<scratchpad_info>>& scratchpads)
+fill_scratchpad(std::shared_ptr<section_writer> padwriter, const std::map<std::string, std::shared_ptr<scratchpad_info>>& scratchpads)
 {
   for (auto& pad : scratchpads)
   {
@@ -19,16 +19,16 @@ fill_scratchpad(writer& padwriter, const std::map<std::string, std::shared_ptr<s
     {
       assert((void("Pad content size and size doesnt match\n"), content.size() == pad.second->get_size()));
       for (auto& val : content)
-        padwriter.write_byte(val);
+        padwriter->write_byte(val);
     } else
       for (auto i = 0ul; i < pad.second->get_size(); ++i)
-        padwriter.write_byte(0x00);
+        padwriter->write_byte(0x00);
   }
 }
 
 void
 aie2ps_encoder::
-fill_control_packet_symbols(writer& padwriter,const uint32_t col,const std::string& controlpacket_padname,
+fill_control_packet_symbols(std::shared_ptr<section_writer> padwriter,const uint32_t col,const std::string& controlpacket_padname,
                             std::vector<symbol>& syms,
                             const std::map<std::string, std::shared_ptr<scratchpad_info>>& scratchpads)
 {
@@ -46,11 +46,11 @@ fill_control_packet_symbols(writer& padwriter,const uint32_t col,const std::stri
       continue;
     sym.set_section_name(get_PadSectionName(col));
     sym.set_pos(sym.get_pos() + pad->get_offset());
-    padwriter.add_symbol(sym);
+    padwriter->add_symbol(sym);
   }
 }
 
-std::vector<writer>
+std::vector<std::shared_ptr<writer>>
 aie2ps_encoder::
 process(std::shared_ptr<preprocessed_output> input)
 {
@@ -76,7 +76,7 @@ process(std::shared_ptr<preprocessed_output> input)
     if (!coldata.second->m_scratchpad.size())
       continue;
 
-    writer padwriter(get_PadSectionName(colnum), code_section::data);
+    auto padwriter = std::make_shared<section_writer>(get_PadSectionName(colnum), code_section::data);
     fill_scratchpad(padwriter, coldata.second->m_scratchpad);
     fill_control_packet_symbols(padwriter, colnum, controlpacket_padname, totalsyms, coldata.second->m_scratchpad);
 
@@ -96,11 +96,11 @@ process(std::shared_ptr<preprocessed_output> input)
 
   // Optional binary dump if debug flag is active
   if (tinput->get_debug()) {
-    writer dumpwriter(".dump", code_section::data);
+    auto dumpwriter = std::make_shared<section_writer>(".dump", code_section::data);
     std::string dbg_str = dbg_json.dump(); // no indent for compact output
     for (char c : dbg_str)
-      dumpwriter.write_byte(c);
-    twriter.push_back(std::move(dumpwriter));
+      dumpwriter->write_byte(c);
+    twriter.push_back(dumpwriter);
   }
   return twriter;
 }
@@ -150,14 +150,14 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
   all.insert(all.end(), lpage.m_data.begin(), lpage.m_data.end());
   std::shared_ptr<assembler_state> page_state = create_assembler_state(m_isa, all, scratchpad, labelpageindex, control_packet_index, false);
 
-  writer textwriter(get_TextSectionName(colnum, pagenum), code_section::text);
-  writer datawriter(get_DataSectionName(colnum, pagenum), code_section::data);
+  auto textwriter = std::make_shared<section_writer>(get_TextSectionName(colnum, pagenum), code_section::text);
+  auto datawriter = std::make_shared<section_writer>(get_DataSectionName(colnum, pagenum), code_section::data);
 
   for (auto byte : page_header)
-    textwriter.write_byte(byte);
+    textwriter->write_byte(byte);
 
   // encode text section
-  offset_type offset = textwriter.tell();
+  offset_type offset = textwriter->tell();
   std::vector<symbol> tsym;
   std::string fid;
   for (auto text : lpage.m_text)
@@ -166,21 +166,21 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
     std::string name = text->get_operation()->get_name();
     offset_type pc_low, pc_high;
     if (name == "start_job" || name == "start_job_deferred") {
-      pc_low = pagenum * PAGE_SIZE + textwriter.tell();
+      pc_low = pagenum * PAGE_SIZE + textwriter->tell();
       pc_high = pc_low + page_state->m_jobmap[page_state->gen_job_name(false, text)]->get_size() - 1;
       fid = m_debug.add_function(text->get_file(), name + "_" + page_state->gen_job_name(false, text), pc_high, pc_low, colnum, pagenum);
     }
-    pc_low = pagenum * PAGE_SIZE + textwriter.tell();
+    pc_low = pagenum * PAGE_SIZE + textwriter->tell();
     pc_high = pc_low + (*m_isa)[name]->serializer(text->get_operation()->get_args())->size(*page_state) - 1;
     m_debug.add_textline(fid, text->get_linenumber(), pc_high, pc_low, text->get_line(), text->get_annotation_index());
 
     if (text->isOpcode())
     {
-      page_state->set_pos(textwriter.tell() - offset);
+      page_state->set_pos(textwriter->tell() - offset);
       std::vector<uint8_t> ret = (*m_isa)[name]->serializer(text->get_operation()->get_args())
                                                ->serialize(page_state, tsym, colnum, pagenum);
       for (uint8_t byte : ret) {
-        textwriter.write_byte(byte);
+        textwriter->write_byte(byte);
       }
     } else 
       throw error(error::error_code::internal_error, "Invalid operation: " + name + " in TEXT section !!!");
@@ -190,7 +190,7 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
   // encode data section
   for (auto data : lpage.m_data)
   {
-    page_state->set_pos(datawriter.tell() + textwriter.tell() - offset);
+    page_state->set_pos(datawriter->tell() + textwriter->tell() - offset);
     std::string name = data->get_operation()->get_name();
     if (!name.compare("eof"))
       continue;
@@ -199,13 +199,13 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
       // TODO assert
     } else if (data->isOpcode())
     {
-      offset_type pc_low = pagenum * PAGE_SIZE + textwriter.tell() + datawriter.tell();
+      offset_type pc_low = pagenum * PAGE_SIZE + textwriter->tell() + datawriter->tell();
       offset_type pc_high = pc_low + (*m_isa)[name]->serializer(data->get_operation()->get_args())->size(*page_state) - 1;
       m_debug.add_dataline(fid, data->get_linenumber(), pc_high, pc_low, data->get_line(), data->get_annotation_index());
       std::vector<uint8_t> ret = (*m_isa)[name]->serializer(data->get_operation()->get_args())
                                                ->serialize(page_state, dsym, colnum, pagenum);
       for (auto byte : ret) {
-        datawriter.write_byte(byte);
+        datawriter->write_byte(byte);
       }
     } else 
       throw error(error::error_code::internal_error, "Invalid operation: " + name + " in DATA section !!!");
@@ -221,13 +221,13 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
     }
   }
 
-  datawriter.padding(PAGE_SIZE-textwriter.tell());
+  datawriter->padding(PAGE_SIZE-textwriter->tell());
 
-  textwriter.add_symbols(tsym);
-  datawriter.add_symbols(dsym);
+  textwriter->add_symbols(tsym);
+  datawriter->add_symbols(dsym);
   twriter.push_back(textwriter);
   twriter.push_back(datawriter);
-  m_report.addpage(lpage, page_state, textwriter.tell(), datawriter.tell());
+  m_report.addpage(lpage, page_state, textwriter->tell(), datawriter->tell());
 
   return page_state->m_controlpacket_padname;
   // TODO add size and generate report
@@ -235,18 +235,18 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
 
 void
 aie2ps_encoder::
-patch57(const writer& textwriter, writer& datawriter, offset_type offset, uint64_t patch)
+patch57(const std::shared_ptr<section_writer> textwriter, std::shared_ptr<section_writer> datawriter, offset_type offset, uint64_t patch)
 {
-  offset = offset - textwriter.tell();
-  uint64_t bd1 = datawriter.read_word(offset + 1*4);
-  uint64_t bd2 = datawriter.read_word(offset + 2*4);
-  uint64_t bd8 = datawriter.read_word(offset + 8*4);
+  offset = offset - textwriter->tell();
+  uint64_t bd1 = datawriter->read_word(offset + 1*4); // NOLINT
+  uint64_t bd2 = datawriter->read_word(offset + 2*4); // NOLINT
+  uint64_t bd8 = datawriter->read_word(offset + 8*4); // NOLINT
 
   uint64_t arg = ((bd8 & 0x1FF) << 48) + ((bd2 & 0xFFFF) << 32) + (bd1 & 0xFFFFFFFF); // NOLINT
   patch = arg + patch;
-  datawriter.write_word_at(offset + 1*4, patch & 0xFFFFFFFF);
-  datawriter.write_word_at(offset + 2*4, ((patch >> 32) & 0xFFFF) | (bd2 & 0xFFFF0000));
-  datawriter.write_word_at(offset + 8*4, ((patch >> 48) & 0x1FF) | (bd8 & 0xFFFFFE00));
+  datawriter->write_word_at(offset + 1*4, patch & 0xFFFFFFFF); // NOLINT
+  datawriter->write_word_at(offset + 2*4, ((patch >> 32) & 0xFFFF) | (bd2 & 0xFFFF0000)); // NOLINT
+  datawriter->write_word_at(offset + 8*4, ((patch >> 48) & 0x1FF) | (bd8 & 0xFFFFFE00));  // NOLINT
 }
 
 }

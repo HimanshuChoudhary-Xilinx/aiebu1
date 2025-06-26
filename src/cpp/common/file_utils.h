@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (C) 2025, Advanced Micro Devices, Inc. All rights reserved.
 
-#ifndef AIEBU_COMMOM_FILE_UTILS_H_
-#define AIEBU_COMMOM_FILE_UTILS_H_
+#ifndef AIEBU_COMMON_FILE_UTILS_H_
+#define AIEBU_COMMON_FILE_UTILS_H_
 
+#include <iostream>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -51,14 +52,24 @@ readfile(const std::string& filename)
   if (!file_size)
     throw error(error::error_code::invalid_asm, "filename " + filename + " is empty!!");
 
+  std::cout << "READING: " << filename <<"\n";
   std::vector<char> buffer(file_size);
   input.read(buffer.data(), static_cast<std::streamsize>(file_size));
   return buffer;
 }
 
+inline bool
+is_absolute_path(const std::string& path) {
+  std::filesystem::path p(path);
+  return p.is_absolute();
+}
+
 inline std::string
 findFilePath(const std::string& filename, const std::vector<std::string>& libpaths)
 {
+
+  if (is_absolute_path(filename))
+    return filename;
   for (const auto &dir : libpaths ) {
     auto ret = std::filesystem::exists(dir + "/" + filename);
     if (ret) {
@@ -68,12 +79,24 @@ findFilePath(const std::string& filename, const std::vector<std::string>& libpat
   throw error(error::error_code::internal_error, filename + " file not found!!\n");
 }
 
+inline std::vector<char>
+readfile(const std::string& file, const std::vector<std::string>& paths)
+{
+  std::string fullpath = findFilePath(file, paths);
+  return readfile(fullpath);
+}
+
 aiebu_assembler::buffer_type
 identify_buffer_type(const std::vector<char> &buffer);
 
 aiebu_assembler::buffer_type
 identify_control_packet(const char* buffer, uint64_t size);
 
+inline std::string get_parent_directory(const std::string& relativePath) {
+  std::filesystem::path absolutePath = std::filesystem::absolute(relativePath);  // Convert relative to absolute
+  return absolutePath.parent_path().string();  // Return the parent directory
 }
 
-#endif // AIEBU_COMMOM_FILE_UTILS_H_
+}
+
+#endif // AIEBU_COMMON_FILE_UTILS_H_
