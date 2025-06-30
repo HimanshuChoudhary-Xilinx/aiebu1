@@ -36,9 +36,9 @@ aiebu_assembler(buffer_type type,
                 const std::vector<std::string>& libpaths,
                 const std::map<uint32_t, std::vector<char> >& ctrlpkt) : m_type(type)
 {
-  if (buffer1.empty()) {
-    throw error(error::error_code::invalid_input, "Buffer1 is empty.");
-  }
+  //if (buffer1.empty()) {
+  //  throw error(error::error_code::invalid_input, "Buffer1 is empty.");
+  //}
   if (type == buffer_type::blob_instr_dpu)
   {
     aiebu::assembler a(assembler::elf_type::aie2_dpu_blob);

@@ -399,7 +399,7 @@ target_aie4::assemble(const sub_cmd_options &_options)
   }
 }
 
-void
+bool
 aiebu::utilities::
 asm_config_parser::parser(const sub_cmd_options &options)
 {
@@ -421,7 +421,7 @@ asm_config_parser::parser(const sub_cmd_options &options)
 
     if (result.count("help")) {
       std::cout << all_options.help({"", "Target config Options"});
-      return;
+      return false;
     }
 
     if (result.count("outputelf"))
@@ -445,13 +445,17 @@ asm_config_parser::parser(const sub_cmd_options &options)
     readfile(json_file, json_buffer);
     libpaths.push_back(get_parent_directory(json_file));
   }
+
+  return true;
 }
 
 void
 aiebu::utilities::
 target_aie2ps_config::assemble(const sub_cmd_options &options)
 {
-  parser(options);
+  if (!parser(options))
+    return;
+
   try {
     aiebu::aiebu_assembler as(aiebu::aiebu_assembler::buffer_type::aie2ps_config, {}, flags, libpaths, json_buffer);
     write_elf(as, output_elffile);
@@ -466,7 +470,9 @@ void
 aiebu::utilities::
 target_aie4_config::assemble(const sub_cmd_options &options)
 {
- parser(options);
+ if (!parser(options))
+    return;
+
  try {
     aiebu::aiebu_assembler as(aiebu::aiebu_assembler::buffer_type::aie4_config, {}, flags, libpaths, json_buffer);
     write_elf(as, output_elffile);
