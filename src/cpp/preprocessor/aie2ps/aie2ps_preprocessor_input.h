@@ -27,6 +27,7 @@ protected:
   std::vector<std::string> m_libpaths;
   std::vector<std::string> m_flags;
   uint32_t m_control_packet_index = 0xFFFFFFFF;
+  uint32_t m_control_packet_offset_correction = 8;
   enum class offset_type {
     CONTROL_PACKET,
     COALESED_BUFFER
