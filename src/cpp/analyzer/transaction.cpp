@@ -475,11 +475,11 @@ ss_ops_ << op_format << "XAIE_IO_MASKPOLL_BUSY " << "@0x" << std::hex << mp_head
         ss_ops_ << op_format << "XAIE_IO_CUSTOM_OP_DDR_PATCH ";
         const char *curr = (const char *)ptr;
         curr += sizeof(*hdr);
-        auto op = (const patch_op_t *)curr;
+        auto op = (const patch_op_opt_t *)curr;
         auto reg_off = op->regaddr;
         auto arg_idx = op->argidx;
         auto addr_offset = op->argplus;
-        ss_ops_ << "@0x" << std::hex << reg_off << std::dec << ", #" << arg_idx
+        ss_ops_ << "@0x" << std::hex << reg_off << std::dec << ", #" << (int)arg_idx
                 << std::hex << ", +0x" << addr_offset << std::endl;
         return size;
     }

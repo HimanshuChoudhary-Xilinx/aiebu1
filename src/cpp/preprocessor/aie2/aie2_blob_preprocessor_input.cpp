@@ -685,7 +685,7 @@ add_preemption_code(uint32_t col)
           auto hdr = reinterpret_cast<const XAie_CustomOpHdr_opt *>(ptr);
           if (loadsequence && pm_exist)
             throw error(error::error_code::invalid_asm, "Patch opcode found in PM Load Sequence!!!");
-          auto op = reinterpret_cast<const patch_op_t *>(ptr + sizeof(*hdr));
+          auto op = reinterpret_cast<const patch_op_opt_t *>(ptr + sizeof(*hdr));
           uint64_t reg = op->regaddr & 0xFFFFFFF0; // regaddr point either to 1st word or 2nd word of BD
           auto it = blockWriteRegOffsetMap.find(reg);
           if ( it == blockWriteRegOffsetMap.end()) {

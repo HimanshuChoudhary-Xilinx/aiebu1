@@ -131,13 +131,15 @@ int MEM_Tile_Save_Context(XAie_DevInst* dev, uint32_t num_elems, uint8_t col, ui
     gen_XAie_check(rc);
 
     // patch BD address
-    patch_op_t patch_instr = {};
     uint64_t tile_offset = _XAie_GetTileAddr(dev, UINT8_C(0), col);
-    patch_instr.regaddr = XAIEGBL_MEM_DMABD0ADDB + tile_offset + chan_id * 0x20;
-    patch_instr.argplus = dst_addr_offset; //argplus
+    u64 argidx = OUT_BUFFER_KERNARG_IDX;
+    u64 regaddr = XAIEGBL_MEM_DMABD0ADDB + tile_offset + chan_id * 0x20;
+    u64 argplus = dst_addr_offset; //argplus
 
     // Create patch operation that will set actual address to use at runtime
-    rc = XAie_AddCustomTxnOp(dev, XAIE_IO_CUSTOM_OP_DDR_PATCH, &patch_instr, sizeof(patch_instr));
+    // for patch opcode 0.1 we use XAie_AddCustomTxnOp while XAie_Txn_DdrAddressPatch
+    // is a dedicated API that supports both TXN spec version 0.1 and 1.0
+    rc = XAie_Txn_DdrAddressPatch(dev, regaddr, argidx, argplus);
     gen_XAie_check(rc);
 
     /* Push Bd numbers to aie dma channel queues and enable the channels */
@@ -237,14 +239,15 @@ int MEM_Tile_Restore_Context(XAie_DevInst* dev, uint32_t num_elems, uint8_t col,
     gen_XAie_check(rc);
 
     // patch BD
-    patch_op_t patch_instr = {};
     uint64_t tile_offset = _XAie_GetTileAddr(dev, UINT8_C(0), col);
-    patch_instr.regaddr = XAIEGBL_MEM_DMABD0ADDB + tile_offset + chan_id * 0x20;
-    patch_instr.argidx = IN_BUFFER_KERNARG_IDX;//argidx points to out_bo
-    patch_instr.argplus = src_addr_offset; //argplus
+    u64 regaddr = XAIEGBL_MEM_DMABD0ADDB + tile_offset + chan_id * 0x20;
+    u64 argidx = IN_BUFFER_KERNARG_IDX;//argidx points to out_bo
+    u64 argplus = src_addr_offset; //argplus
 
     // Create patch operation that will set actual address to use at runtime
-    rc = XAie_AddCustomTxnOp(dev, XAIE_IO_CUSTOM_OP_DDR_PATCH, &patch_instr, sizeof(patch_instr));
+    // for patch opcode 0.1 we use XAie_AddCustomTxnOp while XAie_Txn_DdrAddressPatch
+    // is a dedicated API that supports both TXN spec version 0.1 and 1.0
+    rc = XAie_Txn_DdrAddressPatch(dev, regaddr, argidx, argplus);
     gen_XAie_check(rc);
 
     /* Push Bd numbers to aie dma channel queues and enable the channels */
@@ -327,13 +330,16 @@ int MEM_Tile_Save_Context_Col0_PHX(XAie_DevInst* dev, uint32_t num_elems, uint8_
     gen_XAie_check(RC);
 
     // patch BD address
-    patch_op_t patch_instr = {};
     uint64_t tile_offset = _XAie_GetTileAddr(dev, UINT8_C(0), col + 1); // SHIM in col 1 is doing the DMA
-    patch_instr.regaddr = XAIEGBL_MEM_DMABD1ADDB + tile_offset; // taking BD 1 again
-    patch_instr.argidx = OUT_BUFFER_KERNARG_IDX; //argidx points to out_bo
-    patch_instr.argplus = DEFAULT_UNPATCHED_SAVE_ADDR; //argplus
+    u64 regaddr = XAIEGBL_MEM_DMABD1ADDB + tile_offset; // taking BD 1 again
+    u64 argidx = OUT_BUFFER_KERNARG_IDX; //argidx points to out_bo
+    u64 argplus = DEFAULT_UNPATCHED_SAVE_ADDR; //argplus
 
-    XAie_AddCustomTxnOp(dev, XAIE_IO_CUSTOM_OP_DDR_PATCH, &patch_instr, sizeof(patch_instr)); // Create patch operation that will set actual address to use at runtime
+    // Create patch operation that will set actual address to use at runtime
+    // for patch opcode 0.1 we use XAie_AddCustomTxnOp while XAie_Txn_DdrAddressPatch
+    // is a dedicated API that supports both TXN spec version 0.1 and 1.0
+    RC = XAie_Txn_DdrAddressPatch(dev, regaddr, argidx, argplus);
+    gen_XAie_check(RC);
 
     /* Push Bd numbers to aie dma channel queues and enable the channels */
     RC = XAie_DmaChannelSetStartQueue(dev, Tile_M, 0, DMA_MM2S, 0, 2, 0); // Execute this BD twice. 256 * 2 = 512 KB
@@ -406,13 +412,16 @@ int MEM_Tile_Restore_Context_Col0_PHX(XAie_DevInst* dev, uint32_t num_elems, uin
     gen_XAie_check(RC);
 
     // patch BD address
-    patch_op_t patch_instr = {};
     uint64_t tile_offset = _XAie_GetTileAddr(dev, UINT8_C(0), col + 1); // SHIM tile in col 1 is doing the DMA
-    patch_instr.regaddr = XAIEGBL_MEM_DMABD1ADDB + tile_offset; // taking BD 1 again
-    patch_instr.argidx = IN_BUFFER_KERNARG_IDX; //argidx points to inp_bo
-    patch_instr.argplus = DEFAULT_UNPATCHED_RESTORE_ADDR; //argplus
+    u64 regaddr = XAIEGBL_MEM_DMABD1ADDB + tile_offset; // taking BD 1 again
+    u64 argidx = IN_BUFFER_KERNARG_IDX; //argidx points to inp_bo
+    u64 argplus = DEFAULT_UNPATCHED_RESTORE_ADDR; //argplus
 
-    XAie_AddCustomTxnOp(dev, XAIE_IO_CUSTOM_OP_DDR_PATCH, &patch_instr, sizeof(patch_instr)); // Create patch operation that will set actual address to use at runtime
+    // Create patch operation that will set actual address to use at runtime
+    // for patch opcode 0.1 we use XAie_AddCustomTxnOp while XAie_Txn_DdrAddressPatch
+    // is a dedicated API that supports both TXN spec version 0.1 and 1.0
+    RC = XAie_Txn_DdrAddressPatch(dev, regaddr, argidx, argplus);
+    gen_XAie_check(RC);
 
     /* Push Bd numbers to aie dma channel queues and enable the channels */
     RC = XAie_DmaChannelPushBdToQueue(dev, Tile_S_E, 1U, DMA_MM2S, 1U); // BD 1
