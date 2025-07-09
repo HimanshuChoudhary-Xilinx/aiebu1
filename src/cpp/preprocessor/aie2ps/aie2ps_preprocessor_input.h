@@ -114,16 +114,12 @@ public:
       auto tname = pic.get<std::string>("id");
       auto ccode_file = findFilePath(pic.get<std::string>("ctrl_code_file"), paths);
       auto ccode = readfile(ccode_file);
-      //std::cout << "TXN_ctrl_code_file id:" << pic.get<std::string>("id") << std::endl;
-      //std::cout << "TXN_ctrl_code_file:" << pic.get<std::string>("TXN_ctrl_code_file") << std::endl;
 
       std::vector<char> jdata;
       if (!pic.get<std::string>("patch_info_file", "").empty())
         jdata = readfile(pic.get<std::string>("patch_info_file"), paths);
 
-      std::vector<std::string> asmpath;
-      asmpath.emplace_back(get_parent_directory(ccode_file));
-      add_preprocessor_input(kernel, tname, ccode, jdata, flags, asmpath);
+      add_preprocessor_input(kernel, tname, ccode, jdata, flags, paths);
     }
   }
 
