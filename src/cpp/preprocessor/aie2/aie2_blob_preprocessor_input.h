@@ -371,18 +371,18 @@ public:
     m_data_common[dname] = std::move(val);
   }
 
-  const std::vector<uint32_t> get_pm_id_list() const { return pm_id_list; }
+  const std::vector<uint32_t>& get_pm_id_list() const { return pm_id_list; }
 
   void add_pm_id(uint32_t val) { pm_id_list.push_back(val); }
 
-  const std::vector<std::string> get_pdi_id_list() const { return pdi_id_list; }
+  const std::vector<std::string>& get_pdi_id_list() const { return pdi_id_list; }
 
   void add_pdi_id(std::string val) { pdi_id_list.emplace_back(std::move(val)); }
 };
 
 class aie2_config_preprocessor_input : public aie2_blob_transaction_preprocessor_input
 {
-  const std::string pm_ctrlpkt_type = "pmctrlpkt";
+  static constexpr const char* pm_ctrlpkt_type = "pmctrlpkt";
   std::map<std::string, instance_input> kernel_map;
 protected:
   void readconfigjson(std::istream& patch_json);
