@@ -2,6 +2,7 @@
 // Copyright (C) 2024-2025, Advanced Micro Devices, Inc. All rights reserved.
 
 #include <filesystem>
+#include "file_utils.h"
 #include "aie2_blob_preprocessor_input.h"
 #include "xaiengine.h"
 
@@ -953,7 +954,7 @@ add_preemption_code(uint32_t col)
 
   void
   aie2_config_preprocessor_input::
-  add_pdi(const std::string& kernel, const boost::property_tree::ptree& pdis)
+  add_pdi(const std::string& kernel, const boost::property_tree::ptree& pdis, const std::vector<std::string>& paths)
   {
     for (const auto& [unused, pdi] : pdis)
     {
@@ -961,10 +962,10 @@ add_preemption_code(uint32_t col)
       auto type = pdi.get_optional<std::string>("type");
       if (type && !type.get().compare(pm_ctrlpkt_type))
       {
-        kernel_map[kernel].add_common_data(get_pmctrlpkt_name(id), readfile(pdi.get<std::string>("PDI_file")));
+        kernel_map[kernel].add_common_data(get_pmctrlpkt_name(id), readfile(pdi.get<std::string>("PDI_file"), paths));
         kernel_map[kernel].add_pm_id(id);
       } else {
-        kernel_map[kernel].add_common_data(get_pdi_name(id), readfile(pdi.get<std::string>("PDI_file")));
+        kernel_map[kernel].add_common_data(get_pdi_name(id), readfile(pdi.get<std::string>("PDI_file"), paths));
         kernel_map[kernel].add_pdi_id(get_pdi_name(id));
       }
     }
@@ -972,20 +973,20 @@ add_preemption_code(uint32_t col)
 
   void
   aie2_config_preprocessor_input::
-  add_instance(const std::string& kernel, const boost::property_tree::ptree& pinstance)
+  add_instance(const std::string& kernel, const boost::property_tree::ptree& pinstance, const std::vector<std::string>& paths)
   {
     for (const auto& [unused, pic] : pinstance)
     {
       std::string tname = pic.get<std::string>("id");
       //m_data[tname] = std::move(readfile(pic.get<std::string>("TXN_ctrl_code_file")));
-      auto txn_code = readfile(pic.get<std::string>("TXN_ctrl_code_file"));
+      auto txn_code = readfile(pic.get<std::string>("TXN_ctrl_code_file"), paths);
       std::vector<char> ctrl_pkt_code;
       if (!pic.get<std::string>("ctrl_packet_file", "").empty())
-        ctrl_pkt_code = readfile(pic.get<std::string>("ctrl_packet_file"));
+        ctrl_pkt_code = readfile(pic.get<std::string>("ctrl_packet_file"), paths);
 
       std::vector<char> jdata;
       if (!pic.get<std::string>("patch_info_file", "").empty())
-        jdata = readfile(pic.get<std::string>("patch_info_file"));
+        jdata = readfile(pic.get<std::string>("patch_info_file"), paths);
 
       auto instance = std::make_shared<aie2_blob_transaction_preprocessor_input>();
       kernel_map[kernel].add_instance(tname, instance);
@@ -995,7 +996,7 @@ add_preemption_code(uint32_t col)
 
   void
   aie2_config_preprocessor_input::
-  readconfigjson(std::istream& patch_json)
+  readconfigjson(std::istream& patch_json, const std::vector<std::string>& paths)
   {
     boost::property_tree::ptree pt;
     boost::property_tree::read_json(patch_json, pt);
@@ -1023,7 +1024,7 @@ add_preemption_code(uint32_t col)
       const auto& pt_pdis = ctrlcode.get_child_optional("PDIs");
       if (pt_pdis) {
         const auto& pdis = pt_pdis.get();
-        add_pdi(mangled_name, pdis);
+        add_pdi(mangled_name, pdis, paths);
       } else {
         std::cout << "PDIs not found\n";
       }
@@ -1031,7 +1032,7 @@ add_preemption_code(uint32_t col)
       const auto& pt_instance = ctrlcode.get_child_optional("instance");
       if (pt_instance) {
         const auto& pinstance = pt_instance.get();
-        add_instance(mangled_name, pinstance);
+        add_instance(mangled_name, pinstance, paths);
       } else {
         std::cout << "instance not found\n";
       }

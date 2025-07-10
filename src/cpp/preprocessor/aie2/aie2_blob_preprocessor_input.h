@@ -385,9 +385,9 @@ class aie2_config_preprocessor_input : public aie2_blob_transaction_preprocessor
   static constexpr const char* pm_ctrlpkt_type = "pmctrlpkt";
   std::map<std::string, instance_input> kernel_map;
 protected:
-  void readconfigjson(std::istream& patch_json);
-  void add_pdi(const std::string& kernel, const boost::property_tree::ptree& pinstance);
-  void add_instance(const std::string& kernel, const boost::property_tree::ptree& pinstance);
+  void readconfigjson(std::istream& patch_json, const std::vector<std::string>& paths);
+  void add_pdi(const std::string& kernel, const boost::property_tree::ptree& pinstance, const std::vector<std::string>& paths);
+  void add_instance(const std::string& kernel, const boost::property_tree::ptree& pinstance,const std::vector<std::string>& paths);
 
   std::string get_pdi_name(uint32_t pdi_id)
   {
@@ -403,7 +403,7 @@ public:
                 const std::vector<char>& patch_json,
                 const std::vector<char>& /*control_packet*/,
                 const std::vector<std::string>& /*libs*/,
-                const std::vector<std::string>& /*libpaths*/,
+                const std::vector<std::string>& libpaths,
                 const std::map<uint32_t, std::vector<char> >& /*ctrlpkt*/) override
   {
     arg_offset = 0;
@@ -411,7 +411,7 @@ public:
     {
       vector_streambuf vsb(patch_json);
       std::istream elf_stream(&vsb);
-      readconfigjson(elf_stream);
+      readconfigjson(elf_stream, libpaths);
     }
   }
 
