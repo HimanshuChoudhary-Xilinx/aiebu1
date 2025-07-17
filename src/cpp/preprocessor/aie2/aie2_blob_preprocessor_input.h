@@ -142,6 +142,7 @@ public:
                        const std::vector<uint32_t>& pmid_list,
                        const std::vector<std::string>& pdi_list)
   {
+    arg_offset = 0;
     m_data[".ctrltext"] = mc_code;
 
     if(control_packet.size())
