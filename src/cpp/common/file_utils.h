@@ -52,7 +52,6 @@ readfile(const std::string& filename)
   if (!file_size)
     throw error(error::error_code::invalid_asm, "filename " + filename + " is empty!!");
 
-  std::cout << "READING: " << filename <<"\n";
   std::vector<char> buffer(file_size);
   input.read(buffer.data(), static_cast<std::streamsize>(file_size));
   return buffer;
@@ -88,6 +87,9 @@ readfile(const std::string& file, const std::vector<std::string>& paths)
 
 aiebu_assembler::buffer_type
 identify_buffer_type(const std::vector<char> &buffer);
+
+aiebu_assembler::buffer_type
+identify_elf_type(const std::vector<char>& buffer);
 
 aiebu_assembler::buffer_type
 identify_control_packet(const char* buffer, uint64_t size);

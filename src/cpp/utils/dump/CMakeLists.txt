@@ -17,6 +17,11 @@ target_include_directories(aiebu_dump_objects
   ${AIEBU_SOURCE_DIR}/src/cpp/cxxopts/include
   ${AIEBU_SOURCE_DIR}/src/cpp
   ${AIEBU_SOURCE_DIR}/src/cpp/ELFIO
+  ${AIEBU_SOURCE_DIR}/src/cpp/disassembler
+  ${AIEBU_SOURCE_DIR}/src/cpp/common
+  ${AIEBU_SOURCE_DIR}/src/cpp/ops
+  ${AIEBU_SOURCE_DIR}/src/cpp/preprocessor
+  ${AIEBU_SOURCE_DIR}/
   ${Boost_INCLUDE_DIRS}
   )
 
@@ -25,7 +30,6 @@ target_link_libraries(aiebu-dump PRIVATE aiebu_static)
 
 if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
   target_link_libraries(aiebu-dump PRIVATE pthread)
-
   # Upstreaming does not allow statically linked executables.  AIEBU_UPSTREAM is
   # set by projects that are built for upstreaming and includes AIEBU as a
   # submodule
