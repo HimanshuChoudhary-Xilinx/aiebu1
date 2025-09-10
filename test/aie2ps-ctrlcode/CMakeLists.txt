@@ -24,42 +24,55 @@ foreach(tfile ${tfiles})
     COMMAND aiebu-asm  -t aie2ps -c "${tfile}" -o "${samplecppelf}"
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
-  if (AIEBU_PYTHON STREQUAL "ON")
-    add_test(NAME ${sample}
-      COMMAND "${AIEBU_SOURCE_DIR}/src/python/aiebu/control_asm_disasm.py" --disable_dump_map "${tfile}" -o "${sampleelf}"
-      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-
-    add_test(NAME ${sample}_elftolegacy
-      COMMAND "${AIEBU_SOURCE_DIR}/src/python/aiebu/elf_to_legacy.py" "-o" "${sampleouttxt}" "-i" "${sampleelf}"
-      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-
-    add_test(NAME ${sample}_elftolegacy_cpp
-      COMMAND "${AIEBU_SOURCE_DIR}/src/python/aiebu/elf_to_legacy.py" "-o" "${samplecppouttxt}" "-i" "${samplecppelf}"
-      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-
-    add_test(NAME "${sample}_compare"
-      COMMAND ${CMAKE_COMMAND} -E compare_files "${sampleouttxt}" "${CMAKE_CURRENT_SOURCE_DIR}/${sampletxt}"
-      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-
-    add_test(NAME "${sample}_compare_cpp"
-      COMMAND ${CMAKE_COMMAND} -E compare_files "${samplecppouttxt}" "${CMAKE_CURRENT_SOURCE_DIR}/${sampletxt}"
-      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-
-    add_test(NAME "${sample}_readelf"
-      COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/run-readelf.sh" "${sampleelf}" "${sampleelftext}"
-      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-
-    add_test(NAME "${sample}_compareelf"
-      COMMAND ${CMAKE_COMMAND} -E compare_files "${sampleelftext}" "${CMAKE_CURRENT_SOURCE_DIR}/${samplegold}"
-      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-
-    add_test(NAME "${sample}_disassemble"
-      COMMAND "${AIEBU_SOURCE_DIR}/src/python/aiebu/control_asm_disasm.py" "-d" "${sampleelf}" "-o" "${sampledisasm}"
-      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-
-    set_tests_properties(${sample} "${sample}_elftolegacy" "${sample}_disassemble" PROPERTIES ENVIRONMENT
-      "PYTHONPATH=${AIEBU_SOURCE_DIR}")
+  if (NOT (AIEBU_PYTHON STREQUAL "ON"))
+    continue()
   endif()
+  if (NOT (${CMAKE_SYSTEM_NAME} STREQUAL "Linux"))
+    continue()
+  endif()
+
+  add_test(NAME ${sample}
+    COMMAND "${AIEBU_SOURCE_DIR}/src/python/aiebu/control_asm_disasm.py" --disable_dump_map "${tfile}" -o "${sampleelf}"
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+  add_test(NAME ${sample}_elftolegacy
+    COMMAND "${AIEBU_SOURCE_DIR}/src/python/aiebu/elf_to_legacy.py" "-o" "${sampleouttxt}" "-i" "${sampleelf}"
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+  add_test(NAME ${sample}_elftolegacy_cpp
+    COMMAND "${AIEBU_SOURCE_DIR}/src/python/aiebu/elf_to_legacy.py" "-o" "${samplecppouttxt}" "-i" "${samplecppelf}"
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+  add_test(NAME "${sample}_compare"
+    COMMAND ${CMAKE_COMMAND} -E compare_files "${sampleouttxt}" "${CMAKE_CURRENT_SOURCE_DIR}/${sampletxt}"
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+  add_test(NAME "${sample}_compare_cpp"
+    COMMAND ${CMAKE_COMMAND} -E compare_files "${samplecppouttxt}" "${CMAKE_CURRENT_SOURCE_DIR}/${sampletxt}"
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+  add_test(NAME "${sample}_readelf"
+    COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/run-readelf.sh" "${sampleelf}" "${sampleelftext}"
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+  add_test(NAME "${sample}_compareelf"
+    COMMAND ${CMAKE_COMMAND} -E compare_files "${sampleelftext}" "${CMAKE_CURRENT_SOURCE_DIR}/${samplegold}"
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+  add_test(NAME "${sample}_disassemble"
+    COMMAND "${AIEBU_SOURCE_DIR}/src/python/aiebu/control_asm_disasm.py" "-d" "${sampleelf}" "-o" "${sampledisasm}"
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+  set_tests_properties(${sample} "${sample}_elftolegacy" "${sample}_disassemble" PROPERTIES ENVIRONMENT
+    "PYTHONPATH=${AIEBU_SOURCE_DIR}")
+
+  set_tests_properties("${sample}_elftolegacy" PROPERTIES DEPENDS "${sample}")
+  set_tests_properties("${sample}_elftolegacy_cpp" PROPERTIES DEPENDS "${sample}_cpp")
+  set_tests_properties("${sample}_compare" PROPERTIES DEPENDS "${sample}_elftolegacy")
+  set_tests_properties("${sample}_compare_cpp" PROPERTIES DEPENDS "${sample}_elftolegacy_cpp")
+  set_tests_properties("${sample}_readelf" PROPERTIES DEPENDS "${sample}")
+  set_tests_properties("${sample}_compareelf" PROPERTIES DEPENDS "${sample}_readelf")
+  set_tests_properties("${sample}_disassemble" PROPERTIES DEPENDS "${sample}")
 endforeach()
 
 # MD5 name-based uuid generation was corrected to be
