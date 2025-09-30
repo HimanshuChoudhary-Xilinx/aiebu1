@@ -89,30 +89,24 @@ set(AIEBU_GEN_DIR                   ${AIEBU_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}/
 
 # If this repository is used as a submodule, the parent repository may
 # set the following variables in CMake to make aiebu point to the
-# parents copy of ELFIO and/or AIE-RT. e.g, XRT parent repository can
-# set the following in its CMake for aiebu to inherit it:
-# set(AIEBU_AIE_RT_BIN_DIR ${XRT_BINARY_DIR})
-# set(AIEBU_ELFIO_SRC_DIR"${XRT_SOURCE_DIR}/src/runtime_src/core/common/elf")
-
-# These variables may be defined by the parent project as it may also
-# include AIE-RT and or ELFIO as a submodule AIEBU_AIE_RT_BIN_DIR,
-# AIEBU_AIE_RT_HEADER_DIR and AIEBU_ELFIO_SRC_DIR
-if (NOT (DEFINED AIEBU_AIE_RT_BIN_DIR))
-  set(AIEBU_AIE_RT_BIN_DIR ${AIEBU_BINARY_DIR})
+# parents copy of ELFIO and/or AIE-RT. For example, XRT parent
+# repository can set the following in its CMake for aiebu to inherit
+# it:
+# set(AIEBU_AIE-RT_SRC_DIR ${XRT_SOURCE_DIR}/src/runtime_src/aie-rt)
+# set(AIEBU_ELFIO_SRC_DIR ${XRT_SOURCE_DIR}/src/runtime_src/core/common/elf)
+if (NOT DEFINED AIEBU_AIE-RT_SRC_DIR)
+  set(AIEBU_AIE-RT_SRC_DIR ${AIEBU_SOURCE_DIR}/lib/aie-rt)
 endif()
+message("-- AIEBU is using aie-rt from ${AIEBU_AIE-RT_SRC_DIR}")
 
-if (NOT (DEFINED AIEBU_AIE_RT_HEADER_DIR))
-  set(AIEBU_AIE_RT_HEADER_DIR "${AIEBU_BINARY_DIR}/lib/aie-rt/driver/driver-src/include")
-endif()
+# At configuration tine aie-rt installs header in binary dir
+# AIEBU needs aie-rt header include dir
+set(AIEBU_AIE-RT_HEADER_DIR ${AIEBU_BINARY_DIR}/lib/aie-rt/driver/driver-src/include)
 
-message("-- Using aie-rt headers from ${AIEBU_AIE_RT_HEADER_DIR}")
-message("-- Using aie-rt build from ${AIEBU_AIE_RT_BIN_DIR}")
-
-if (NOT (DEFINED AIEBU_ELFIO_SRC_DIR))
+if (NOT DEFINED AIEBU_ELFIO_SRC_DIR)
   set(AIEBU_ELFIO_SRC_DIR "${AIEBU_SOURCE_DIR}/src/cpp/ELFIO")
 endif()
-
-message("-- Using ELFIO from ${AIEBU_ELFIO_SRC_DIR}")
+message("-- AIEBU is using ELFIO from ${AIEBU_ELFIO_SRC_DIR}")
 ################################################################
 # Global compile options
 ################################################################
