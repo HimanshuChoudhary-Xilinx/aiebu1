@@ -6,6 +6,7 @@
 
 #include "aiebu/aiebu_error.h"
 #include <sstream>
+#include <boost/property_tree/json_parser.hpp>
 
 #include <elfio/elfio.hpp>
 #include <elfio/elfio_section.hpp>
@@ -42,12 +43,17 @@ private:
   ELFIO::elfio &m_elf;
   // m_bin is a private copy of a working ELF object used by
   // upgrade_legacy_elf_assign_adddress() which is std::move'd back into
-  // client's ELF object, m_elf.
-  // Please note that m_bin object's life cycle should really be limited
-  // to upgrade_legacy_elf_assign_adddress(). However, when m_nbin goes out
-  // of scope it leads to failures inside ELFIO. The bug seems to be in
-  // std::move of ELFIO header object which should be debugged separately.
+  // client's ELF object m_elf.
+  // Please note that m_bin object's life cycle should really have beeen
+  // limited to scope of upgrade_legacy_elf_assign_adddress() but it here
+  // it has class scope life cycle. This is because of as yet unresolved
+  // bug where when m_nbin was going out of scope after std::move in
+  // upgrade_legacy_elf_assign_adddress(), [m_elf = std::move(m_bin)]
+  // failures where seen inside ELFIO
+  // when using m_elf. The bug seems to be in std::move of ELFIO header
+  // object -- from m_nbin to m_elf -- which should be debugged separately.
   ELFIO::elfio m_nbin;
+  boost::property_tree::ptree m_spec;
   bool m_debug;
 
 private:
@@ -172,19 +178,24 @@ private:
     }
   }
 
+  void pretransform()
+  {
+    if (!is_legacy_elf_with_unset_address())
+      return;
 
-public:
-  explicit passmanager(ELFIO::elfio &elf, bool debug) : m_elf(elf), m_debug(debug) {}
-
-  void run_transforms() {
-    if (is_legacy_elf_with_unset_address()) {
-      upgrade_legacy_elf_assign_adddress();
-    }
-
+    upgrade_legacy_elf_assign_adddress();
     std::ostringstream nullstream;
     if (!m_elf.save(nullstream))
       throw error(error::error_code::internal_error, "ELF layout generation failed\n");
     nullstream.str("");
+  }
+
+public:
+  explicit passmanager(ELFIO::elfio &elf, const boost::property_tree::ptree &spec,
+                       bool debug = false) : m_elf(elf), m_spec(std::move(spec)), m_debug(debug) {}
+
+  void run_transforms() {
+    pretransform();
     // Currently we are running a precaned sequence of transforms.
     for (auto &section : m_elf.sections) {
       if (section->get_type() != ELFIO::SHT_PROGBITS)
@@ -194,6 +205,7 @@ public:
       run_transforms(section.get());
     }
 
+    std::ostringstream nullstream;
     if (!m_elf.save(nullstream))
       throw error(error::error_code::internal_error, "ELF layout generation failed\n");
 
