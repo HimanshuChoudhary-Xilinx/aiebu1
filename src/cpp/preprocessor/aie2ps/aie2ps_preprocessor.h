@@ -18,6 +18,7 @@ namespace aiebu {
 class aie2ps_preprocessor: public preprocessor
 {
   const std::string disable_dump_map = "disabledump";
+  const std::string full_dump_map = "fulldump";
   std::shared_ptr<std::map<std::string, std::shared_ptr<isa_op>>> m_isa;
 public:
   aie2ps_preprocessor() {}
@@ -55,7 +56,9 @@ public:
     for (const auto& flag: flags)
     {
       if (flag == disable_dump_map)
-        toutput->set_debug(false);
+        toutput->set_debug(asm_dump_flag::disable);
+      else if (flag == full_dump_map)
+        toutput->set_debug(asm_dump_flag::full);
       else if (flag.find(prefix) == 0)
         optimize = std::stoi(flag.substr(prefix.size()));
       else

@@ -56,6 +56,7 @@ process(std::shared_ptr<preprocessed_output> input)
   uint32_t optimizatiom_level = tinput->get_optimization_level();
   auto& ctrlpkt = tinput->get_ctrlpkt();
   auto& ctrlpkt_id_map = tinput->get_ctrlpkt_id_map();
+  m_dump_flag = tinput->get_debug();
 
   // for each colnum encode each page
   for (auto coldata: totalcoldata) {
@@ -89,8 +90,8 @@ process(std::shared_ptr<preprocessed_output> input)
   file << dbg_json.dump(4);  // pretty print with 4-space indent
   file.close();
 
-  // Optional binary dump if debug flag is active
-  if (tinput->get_debug()) {
+  // Optional binary dump if debug flag is not disabled.
+  if (m_dump_flag != asm_dump_flag::disable) {
     auto dumpwriter = std::make_shared<section_writer>(".dump", code_section::data);
     std::string dbg_str = dbg_json.dump(); // no indent for compact output
     for (char c : dbg_str)
@@ -160,6 +161,7 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
     std::string name = text->get_operation()->get_name();
     offset_type pc_low, pc_high;
 
+    // Text section dump is default generated
     if (name == "start_job" || name == "start_job_deferred") {
       pc_low = pagenum * PAGE_SIZE + textwriter->tell();
       pc_high = pc_low + page_state->m_jobmap[page_state->gen_job_name(false, text)]->get_size() - 1;
@@ -194,9 +196,12 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
       // TODO assert
     } else if (data->isOpcode())
     {
-      offset_type pc_low = pagenum * PAGE_SIZE + textwriter->tell() + datawriter->tell();
-      offset_type pc_high = pc_low + (*m_isa)[name]->serializer(data->get_operation()->get_args())->size(*page_state) - 1;
-      m_debug.add_dataline(fid, data->get_linenumber(), pc_high, pc_low, data->get_line(), data->get_annotation_index());
+      // data section dump is only generated in case of full dump.
+      if (m_dump_flag == asm_dump_flag::full) {
+        offset_type pc_low = pagenum * PAGE_SIZE + textwriter->tell() + datawriter->tell();
+        offset_type pc_high = pc_low + (*m_isa)[name]->serializer(data->get_operation()->get_args())->size(*page_state) - 1;
+        m_debug.add_dataline(fid, data->get_linenumber(), pc_high, pc_low, data->get_line(), data->get_annotation_index());
+      }
       std::vector<uint8_t> ret = (*m_isa)[name]->serializer(data->get_operation()->get_args())
                                                ->serialize(page_state, dsym, colnum, pagenum);
       for (auto byte : ret) {

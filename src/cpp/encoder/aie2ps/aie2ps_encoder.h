@@ -21,6 +21,7 @@ class aie2ps_encoder : public encoder
   std::vector<std::shared_ptr<writer>> twriter;
   asm_report m_report;
   Debug m_debug;
+  asm_dump_flag m_dump_flag;
 public:
   aie2ps_encoder() {     
     isa i;

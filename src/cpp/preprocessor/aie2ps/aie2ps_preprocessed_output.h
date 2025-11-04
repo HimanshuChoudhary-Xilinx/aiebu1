@@ -25,7 +25,7 @@ class aie2ps_preprocessed_output : public preprocessed_output
   std::map<uint32_t, std::shared_ptr<coldata>> m_coldata;
   std::vector<symbol> m_sym;
   std::vector<annotation_type> m_annotation_list;
-  bool isdebug = true;
+  asm_dump_flag isdebug = asm_dump_flag::text;
   uint32_t m_optimization_level = 0;
   std::shared_ptr<const partition_info> m_partition;
   std::map<std::string, std::vector<char>> m_ctrlpkt;
@@ -63,12 +63,12 @@ public:
 
   std::vector<annotation_type> get_annotations() { return std::move(m_annotation_list); }
 
-  void set_debug(bool flag)
+  void set_debug(asm_dump_flag flag)
   {
     isdebug = flag;
   }
 
-  bool get_debug() const
+  asm_dump_flag get_debug() const
   {
     return isdebug;
   }

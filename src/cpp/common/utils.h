@@ -38,6 +38,12 @@ constexpr opcode_type align = 0xA5;
 
 namespace aiebu {
 
+enum class asm_dump_flag {
+  text,     //Only text section dump information is generated and dumped in .dump section & debug_map.json
+  disable,  //Only text section dump information is generated but dumped in debug_map.json only
+  full      //Both text & data section dump information is generated and dumped in .dump section & debug_map.json
+};
+
 #define HEADER_ACCESS_GET_SET( TYPE, FNAME )  \
     TYPE get_##FNAME() const                  \
     {                                         \
