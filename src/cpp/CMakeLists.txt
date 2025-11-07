@@ -2,7 +2,7 @@
 # Copyright (C) 2024-2025, Advanced Micro Devices, Inc. All rights reserved.
 
 # In arm compiler we dont have static libs so not building utility
-if (AIEBU_NATIVE_BUILD)
+if (AIEBU_NATIVE_BUILD OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL ARM64)
   add_subdirectory(utils)
 endif()
 

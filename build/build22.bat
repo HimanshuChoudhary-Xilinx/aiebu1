@@ -48,6 +48,9 @@ IF DEFINED MSVC_PARALLEL_JOBS ( SET LOCAL_MSVC_PARALLEL_JOBS=%MSVC_PARALLEL_JOBS
     set AIEBU_BUILD="python"
     set CMAKEFLAGS=%CMAKEFLAGS% -DAIEBU_PYTHON=ON
   ) else (
+  if [%1] == [-arm64] (
+    set CMAKEFLAGS=%CMAKEFLAGS% -A ARM64 -T host=x64 -DCMAKE_TOOLCHAIN_FILE=%BUILDDIR%/../cmake/arm64.cmake
+  ) else (
   if [%1] == [-pkg] (
     set CREATE_PACKAGE=1
   ) else (
@@ -56,7 +59,7 @@ IF DEFINED MSVC_PARALLEL_JOBS ( SET LOCAL_MSVC_PARALLEL_JOBS=%MSVC_PARALLEL_JOBS
   ) else (
     echo Unknown option: %1
     goto Help
-  ))))))))))
+  )))))))))))
   shift
   goto parseArgs
 
