@@ -158,7 +158,7 @@ get_grp_id_if_group_elf(const std::string& name) const
   }
 
   try {
-    if (tokens.size() <= group_elf_token)
+    if (tokens.size() == group_elf_token)
       return tokens[group_elf_token -1];
   }
   catch (const std::exception&) {
