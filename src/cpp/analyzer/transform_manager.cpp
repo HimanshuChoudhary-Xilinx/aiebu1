@@ -138,6 +138,35 @@ get_column_and_page(const std::string& name) const
   }
 }
 
+std::string
+transform_manager::
+get_grp_id_if_group_elf(const std::string& name) const
+{
+  // section name can be
+  // .ctrltext.<col>.<page> or .ctrldata.<col>.<page>
+  // .ctrltext.<col>.<page>.<id> or .ctrldata.<col>.<page>.<id> - newer Elfs
+
+  // Max expected tokens: prefix, col, page, id
+  constexpr size_t group_elf_token = 4;
+
+  std::vector<std::string> tokens;
+  std::stringstream ss(name);
+  std::string token;
+  while (std::getline(ss, token, '.')) {
+    if (!token.empty())
+      tokens.emplace_back(std::move(token));
+  }
+
+  try {
+    if (tokens.size() <= group_elf_token)
+      return tokens[group_elf_token -1];
+  }
+  catch (const std::exception&) {
+    throw std::runtime_error("Invalid section name passed to parse col or page index\n");
+  }
+  return "";
+}
+
 uint64_t
 transform_manager::
 read57(const uint32_t* bd_data_ptr) const
@@ -214,10 +243,12 @@ ctrlpkt_write57_aie4(uint32_t* bd_data_ptr, uint64_t bd_offset)
 
 uint64_t
 transform_manager::
-get_controlcode_bd_offset(uint32_t col, uint32_t page, uint32_t offset, symbol::patch_schema schema)
+get_controlcode_bd_offset(const std::string& section_name, uint32_t offset, symbol::patch_schema schema)
 {
-  auto ctrltext = m_elfio.sections[get_ctrltext_section_name(col, page)];
-  auto ctrldata = m_elfio.sections[get_ctrldata_section_name(col, page)];
+  auto [col, page] = get_column_and_page(section_name);
+  auto id = get_grp_id_if_group_elf(section_name);
+  auto ctrltext = m_elfio.sections[get_ctrltext_section_name(col, page, id)];
+  auto ctrldata = m_elfio.sections[get_ctrldata_section_name(col, page, id)];
   if (!ctrltext || !ctrldata)
     throw error(error::error_code::internal_error, "ctrltext or ctrldata section for col:"
                 + std::to_string(col) + " page:" + std::to_string(page) + " not found\n");
@@ -243,10 +274,12 @@ get_controlcode_bd_offset(uint32_t col, uint32_t page, uint32_t offset, symbol::
 
 void
 transform_manager::
-set_controlcode_bd_offset(uint32_t col, uint32_t page, uint32_t offset, uint64_t bd_offset, symbol::patch_schema schema)
+set_controlcode_bd_offset(const std::string& section_name, uint32_t offset, uint64_t bd_offset, symbol::patch_schema schema)
 {
-  auto ctrltext = m_elfio.sections[get_ctrltext_section_name(col, page)];
-  auto ctrldata = m_elfio.sections[get_ctrldata_section_name(col, page)];
+  auto [col, page] = get_column_and_page(section_name);
+  auto id = get_grp_id_if_group_elf(section_name);
+  auto ctrltext = m_elfio.sections[get_ctrltext_section_name(col, page, id)];
+  auto ctrldata = m_elfio.sections[get_ctrldata_section_name(col, page, id)];
   if (!ctrltext || !ctrldata)
     throw error(error::error_code::internal_error, "ctrltext or ctrldata section for col:"
                 + std::to_string(col) + " page:" + std::to_string(page) + " not found\n");
@@ -274,7 +307,7 @@ set_controlcode_bd_offset(uint32_t col, uint32_t page, uint32_t offset, uint64_t
 
 uint64_t
 transform_manager::
-get_ctrlpkt_bd_offset(std::string& section_name, uint32_t offset, symbol::patch_schema schema)
+get_ctrlpkt_bd_offset(const std::string& section_name, uint32_t offset, symbol::patch_schema schema)
 {
   auto ctrlpkt = m_elfio.sections[section_name];
   if (!ctrlpkt)
@@ -296,7 +329,7 @@ get_ctrlpkt_bd_offset(std::string& section_name, uint32_t offset, symbol::patch_
 
 void
 transform_manager::
-set_ctrlpkt_bd_offset(std::string& section_name, uint32_t offset, uint64_t bd_offset, symbol::patch_schema schema)
+set_ctrlpkt_bd_offset(const std::string& section_name, uint32_t offset, uint64_t bd_offset, symbol::patch_schema schema)
 {
   auto ctrlpkt = m_elfio.sections[section_name];
   if (!ctrlpkt)
@@ -350,7 +383,7 @@ extract_rela_sections() {
       throw error(error::error_code::internal_error, "Invalid section index " + std::to_string(sym->st_shndx));
 
     auto patch_sec_name = patch_sec->get_name();
-    auto [col, page] = get_column_and_page(patch_sec_name);
+    //auto [col, page] = get_column_and_page(patch_sec_name);
     auto offset = rela->r_offset;
 
     // skip in case of control-code
@@ -363,7 +396,7 @@ extract_rela_sections() {
 
     // bd can be read from ctrlcode or ctrlpkt section
     if (is_text_or_data_section_name(patch_sec_name))
-      bd_offset = get_controlcode_bd_offset(col, page, offset, schema);
+      bd_offset = get_controlcode_bd_offset(patch_sec_name, offset, schema);
     else if (is_ctrlpkt_section_name(patch_sec_name))
       bd_offset = get_ctrlpkt_bd_offset(patch_sec_name, offset, schema);
     else
@@ -416,7 +449,7 @@ update_rela_sections(const std::vector<arginfo>& entries) {
       throw error(error::error_code::internal_error, "Invalid section index " + std::to_string(sym->st_shndx));
 
     auto patch_sec_name = patch_sec->get_name();
-    auto [col, page] = get_column_and_page(patch_sec_name);
+    //auto [col, page] = get_column_and_page(patch_sec_name);
     auto offset = rela->r_offset;
 
     // in case of control-code-idx or .ctrlpkt-idx, we dont modify
@@ -461,7 +494,7 @@ update_rela_sections(const std::vector<arginfo>& entries) {
     // patching can be done to ctrlcode or ctrlpkt section
     auto schema = static_cast<symbol::patch_schema>(type);
     if (is_text_or_data_section_name(patch_sec_name))
-      set_controlcode_bd_offset(col, page, offset, entries[num].bd_offset, schema);
+      set_controlcode_bd_offset(patch_sec_name, offset, entries[num].bd_offset, schema);
     else if (is_ctrlpkt_section_name(patch_sec_name))
       set_ctrlpkt_bd_offset(patch_sec_name, offset, entries[num].bd_offset, schema);
     else
@@ -478,7 +511,7 @@ update_rela_sections(const std::vector<arginfo>& entries) {
   // Save modified ELF
   std::stringstream stream;
   stream << std::noskipws;
-  m_elfio.save( stream );
+  m_elfio.save(stream);
   std::vector<char> v;
   std::copy(std::istream_iterator<char>(stream),
             std::istream_iterator<char>( ),

@@ -47,19 +47,26 @@ class transform_manager {
   void ctrlpkt_write57(uint32_t* bd_data_ptr, uint64_t bd_offset);
   uint64_t ctrlpkt_read57_aie4(const uint32_t* bd_data_ptr) const;
   void ctrlpkt_write57_aie4(uint32_t* bd_data_ptr, uint64_t bd_offset);
-  uint64_t get_controlcode_bd_offset(uint32_t col, uint32_t page, uint32_t offset, symbol::patch_schema schema);
-  void set_controlcode_bd_offset(uint32_t col, uint32_t page, uint32_t offset, uint64_t bd_offset, symbol::patch_schema schema);
-  uint64_t get_ctrlpkt_bd_offset(std::string& section_name, uint32_t offset, symbol::patch_schema schema);
-  void set_ctrlpkt_bd_offset(std::string& section_name, uint32_t offset, uint64_t bd_offset, symbol::patch_schema schema);
+  uint64_t get_controlcode_bd_offset(const std::string& section_name, uint32_t offset, symbol::patch_schema schema);
+  void set_controlcode_bd_offset(const std::string& section_name, uint32_t offset, uint64_t bd_offset, symbol::patch_schema schema);
+  uint64_t get_ctrlpkt_bd_offset(const std::string& section_name, uint32_t offset, symbol::patch_schema schema);
+  void set_ctrlpkt_bd_offset(const std::string& section_name, uint32_t offset, uint64_t bd_offset, symbol::patch_schema schema);
+  std::string get_grp_id_if_group_elf(const std::string& name) const;
 
-  static std::string get_ctrltext_section_name(uint32_t col, uint32_t page)
+  static std::string get_ctrltext_section_name(uint32_t col, uint32_t page, const std::string& id)
   {
-    return ".ctrltext." + std::to_string(col) + "." + std::to_string(page);
+    if (id.empty())
+      return ".ctrltext." + std::to_string(col) + "." + std::to_string(page);
+    else
+      return ".ctrltext." + std::to_string(col) + "." + std::to_string(page) + "." + id;
   }
 
-  static std::string get_ctrldata_section_name(uint32_t col, uint32_t page)
+  static std::string get_ctrldata_section_name(uint32_t col, uint32_t page, const std::string& id)
   {
-    return ".ctrldata." + std::to_string(col) + "." + std::to_string(page);
+    if (id.empty())
+      return ".ctrldata." + std::to_string(col) + "." + std::to_string(page);
+    else
+      return ".ctrldata." + std::to_string(col) + "." + std::to_string(page) + "." + id;
   }
 
   static bool is_text_section(const std::string& section_name)
