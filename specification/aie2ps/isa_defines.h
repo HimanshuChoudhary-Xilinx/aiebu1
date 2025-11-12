@@ -14,6 +14,7 @@
 static unsigned int control_op_start_job(const uint8_t *_pc, uint16_t job_id, uint16_t size);
 static unsigned int control_op_start_job_deferred(const uint8_t *_pc, uint16_t job_id, uint16_t size);
 static unsigned int control_op_launch_job(const uint8_t *_pc, uint16_t job_id);
+static unsigned int control_op_start_cond_job_preempt(const uint8_t *_pc, uint16_t job_id, uint16_t size);
 static unsigned int control_op_uc_dma_write_des(const uint8_t *_pc, uint8_t wait_handle_reg, uint16_t descriptor_ptr);
 static unsigned int control_op_wait_uc_dma(const uint8_t *_pc, uint8_t wait_handle_reg);
 static unsigned int control_op_mask_write_32(const uint8_t *_pc, uint32_t address, uint32_t mask, uint32_t value);
@@ -69,6 +70,15 @@ static inline unsigned int control_dispatch_launch_job(const uint8_t *pc)
   return control_op_launch_job(
     pc,
     /* job_id (const) */ *(uint16_t *)(&pc[2])
+  );
+}
+
+static inline unsigned int control_dispatch_start_cond_job_preempt(const uint8_t *pc)
+{
+  return control_op_start_cond_job_preempt(
+    pc,
+    /* job_id (const) */ *(uint16_t *)(&pc[2]),
+    /* size (jobsize) */ *(uint16_t *)(&pc[4])
   );
 }
 

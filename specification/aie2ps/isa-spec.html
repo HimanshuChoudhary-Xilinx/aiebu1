@@ -104,6 +104,7 @@
 <li><a href="#start_job-0x00">START_JOB (0x00)</a></li>
 <li><a href="#start_job_deferred-0x17">START_JOB_DEFERRED (0x17)</a></li>
 <li><a href="#launch_job-0x18">LAUNCH_JOB (0x18)</a></li>
+<li><a href="#start_cond_job_preempt-0x1f">START_COND_JOB_PREEMPT (0x1f)</a></li>
 <li><a href="#uc_dma_write_des-0x01">UC_DMA_WRITE_DES (0x01)</a></li>
 <li><a href="#wait_uc_dma-0x02">WAIT_UC_DMA (0x02)</a></li>
 <li><a href="#mask_write_32-0x03">MASK_WRITE_32 (0x03)</a></li>
@@ -601,6 +602,35 @@ This operation might only be called once per job. Launching the same job multipl
 times is undefined behavior.
 The newly launched job will be first scheduled for the next scheduling cycle and
 the current job will continue to run until encountering a blocking operation.</p>
+<h2 id="start_cond_job_preempt-0x1f">START_COND_JOB_PREEMPT (0x1f)</h2>
+<p>Indicates a new job which can be conditionally started according to preemption.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">0x1f</th>
+<th>-</th>
+<th>job_id</th>
+<th>size</th>
+<th>-</th>
+<th style="text-align: right;">instruction size</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">opcode (8b)</td>
+<td>pad (8b)</td>
+<td>const (16b)</td>
+<td>jobsize (16b)</td>
+<td>pad (16b)</td>
+<td style="text-align: right;">8B</td>
+</tr>
+</tbody>
+</table>
+<p>Indicates the start of a new job and creates a new entry in the job table,
+if preemption flag has been set. The flag is cleared when preemption is
+checked, and is set if preemption happens.
+The job size is auto-calculated and inserted by the assembler and not supplied
+explicitly by the user.</p>
 <h2 id="uc_dma_write_des-0x01">UC_DMA_WRITE_DES (0x01)</h2>
 <p>Enqueues a DM2MM uC-DMA transfer and returns a wait handle for it.</p>
 <table>

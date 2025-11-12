@@ -53,7 +53,7 @@ process(bool makeunique)
       m_labellist.emplace_back(clabelname);
     } else if (data->isOpcode()){
       std::string name = data->get_operation()->get_name();
-      if (!name.compare("start_job") || !name.compare("start_job_deferred"))
+      if (!name.compare("start_job") || !name.compare("start_job_deferred") || !name.compare("start_cond_job_preempt"))
       {
         clabelname.clear();
         cjob_id = gen_job_name(makeunique, data);
