@@ -138,7 +138,7 @@ void asm_writer::write_operation(const std::string& name,
 {
   for_all_streams(m_streams, [&](std::ostream* s) {
     if (current_label == label) {
-      if (!(name == "start_job" || name == "end_job" || name == "eof")) {
+      if (!(name == "start_job" || name == "end_job" || name == "eof" || name == "start_cond_job_preempt")) {
         (*s) << "    ";
       }
     }

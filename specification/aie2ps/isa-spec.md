@@ -228,6 +228,21 @@ The newly launched job will be first scheduled for the next scheduling cycle and
 the current job will continue to run until encountering a blocking operation.
 
 
+## START_COND_JOB_PREEMPT (0x1f)
+
+Indicates a new job which can be conditionally started according to preemption.
+
+| 0x1f | - | job_id | size | - | instruction size |
+| :-: | - | - | - | - | -: |
+| opcode (8b) | pad (8b) | const (16b) | jobsize (16b) | pad (16b) | 8B |
+
+Indicates the start of a new job and creates a new entry in the job table,
+if preemption flag has been set. The flag is cleared when preemption is
+checked, and is set if preemption happens.
+The job size is auto-calculated and inserted by the assembler and not supplied
+explicitly by the user.
+
+
 ## UC_DMA_WRITE_DES (0x01)
 
 Enqueues a DM2MM uC-DMA transfer and returns a wait handle for it.

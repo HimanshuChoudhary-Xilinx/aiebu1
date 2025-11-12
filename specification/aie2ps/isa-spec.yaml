@@ -97,6 +97,25 @@ operations:
       times is undefined behavior.
       The newly launched job will be first scheduled for the next scheduling cycle and
       the current job will continue to run until encountering a blocking operation.
+  - mnemonic: START_COND_JOB_PREEMPT
+    opcode: 0x1F
+    regular: False
+    arguments:
+      - name: job_id
+        type: const
+        width: 16
+      - name: size
+        type: jobsize
+        width: 16
+      - type: pad
+        width: 16
+    brief: Indicates a new job which can be conditionally started according to preemption.
+    description: |
+      Indicates the start of a new job and creates a new entry in the job table,
+      if preemption flag has been set. The flag is cleared when preemption is
+      checked, and is set if preemption happens.
+      The job size is auto-calculated and inserted by the assembler and not supplied
+      explicitly by the user.
   - mnemonic: UC_DMA_WRITE_DES
     opcode: 0x01
     regular: True

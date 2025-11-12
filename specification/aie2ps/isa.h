@@ -13,6 +13,7 @@ namespace aiebu {
 constexpr int OPCODE_START_JOB = 0;
 constexpr int OPCODE_START_JOB_DEFERRED = 23;
 constexpr int OPCODE_LAUNCH_JOB = 24;
+constexpr int OPCODE_START_COND_JOB_PREEMPT = 31;
 constexpr int OPCODE_UC_DMA_WRITE_DES = 1;
 constexpr int OPCODE_WAIT_UC_DMA = 2;
 constexpr int OPCODE_MASK_WRITE_32 = 3;
@@ -67,6 +68,10 @@ public:
 
     (*m_isa)["launch_job"] = std::make_shared<isa_op>("launch_job", OPCODE_LAUNCH_JOB, std::vector<opArg>{
      opArg("job_id", opArg::optype::CONST, BIT_WIDTH_16),
+    });
+
+    (*m_isa)["start_cond_job_preempt"] = std::make_shared<isa_op>("start_cond_job_preempt", OPCODE_START_COND_JOB_PREEMPT, std::vector<opArg>{
+     opArg("job_id", opArg::optype::CONST, BIT_WIDTH_16), opArg("size", opArg::optype::JOBSIZE, BIT_WIDTH_16), opArg("_pad", opArg::optype::PAD, BIT_WIDTH_16),
     });
 
     (*m_isa)["uc_dma_write_des"] = std::make_shared<isa_op>("uc_dma_write_des", OPCODE_UC_DMA_WRITE_DES, std::vector<opArg>{
@@ -320,6 +325,10 @@ public:
 
     m_isa_disasm.emplace(OPCODE_SAVE_REGISTER, isa_op_disasm("save_register", OPCODE_SAVE_REGISTER, std::vector<opArg>{
       opArg("_pad", opArg::optype::PAD, BIT_WIDTH_16), opArg("address", opArg::optype::CONST, BIT_WIDTH_32), opArg("unq_id", opArg::optype::CONST, BIT_WIDTH_32),
+    }));
+
+    m_isa_disasm.emplace(OPCODE_START_COND_JOB_PREEMPT, isa_op_disasm("start_cond_job_preempt", OPCODE_START_COND_JOB_PREEMPT, std::vector<opArg>{
+      opArg("job_id", opArg::optype::CONST, BIT_WIDTH_16), opArg("size", opArg::optype::JOBSIZE, BIT_WIDTH_16), opArg("_pad", opArg::optype::PAD, BIT_WIDTH_16),
     }));
 
     m_isa_disasm.emplace(OPCODE_EOF, isa_op_disasm("eof", OPCODE_EOF, std::vector<opArg>{

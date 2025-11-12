@@ -162,7 +162,7 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
     offset_type pc_low, pc_high;
 
     // Text section dump is default generated
-    if (name == "start_job" || name == "start_job_deferred") {
+    if (name == "start_job" || name == "start_job_deferred" || name == "start_cond_job_preempt") {
       pc_low = pagenum * PAGE_SIZE + textwriter->tell();
       pc_high = pc_low + page_state->m_jobmap[page_state->gen_job_name(false, text)]->get_size() - 1;
       fid = m_debug.add_function(text->get_file(), name + "_" + page_state->gen_job_name(false, text), pc_high, pc_low, colnum, pagenum);
