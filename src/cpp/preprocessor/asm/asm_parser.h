@@ -9,7 +9,7 @@
 
 #include <map>
 #include <memory>
-#include <regex>
+#include <boost/regex.hpp>
 #include <stack>
 #include <sstream>
 #include <string>
@@ -71,7 +71,7 @@ public:
   std::shared_ptr<asm_parser> m_parserptr;
 public:
   directive() {}
-  virtual void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm) = 0;
+  virtual void operate(std::shared_ptr<asm_parser> parserptr, const boost::smatch& sm) = 0;
   virtual ~directive() = default;
 };
 
@@ -79,7 +79,7 @@ class attach_to_group_directive: public directive
 {
 public:
   attach_to_group_directive() = default;
-  void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm) override;
+  void operate(std::shared_ptr<asm_parser> parserptr, const boost::smatch& sm) override;
   ~attach_to_group_directive() override = default;
 };
 
@@ -89,7 +89,7 @@ class include_directive: public directive
   bool read_include_file(std::string filename);
 public:
   include_directive() = default;
-  void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm) override;
+  void operate(std::shared_ptr<asm_parser> parserptr, const boost::smatch& sm) override;
   ~include_directive() override = default;
 };
 
@@ -97,7 +97,7 @@ class end_of_label_directive: public directive
 {
 public:
   end_of_label_directive() = default;
-  void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm) override;
+  void operate(std::shared_ptr<asm_parser> parserptr, const boost::smatch& sm) override;
   ~end_of_label_directive() override = default;
 };
 
@@ -123,7 +123,7 @@ public:
   }
   void add_scratchpad(std::string& name, std::string& str);
   pad_directive() = default;
-  void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm) override;
+  void operate(std::shared_ptr<asm_parser> parserptr, const boost::smatch& sm) override;
   ~pad_directive() override = default;
 };
 
@@ -134,7 +134,7 @@ class section_directive: public directive
   bool is_annotation_section(const std::string& str) {return !str.substr(0,10).compare("annotation"); }
 public:
   section_directive() = default;
-  void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm) override;
+  void operate(std::shared_ptr<asm_parser> parserptr, const boost::smatch& sm) override;
   ~section_directive() override = default;
 };
 
@@ -142,7 +142,7 @@ class partition_directive: public directive
 {
 public:
   partition_directive() = default;
-  void operate(std::shared_ptr<asm_parser> parserptr, const std::smatch& sm) override;
+  void operate(std::shared_ptr<asm_parser> parserptr, const boost::smatch& sm) override;
   ~partition_directive() override = default;
   partition_directive(const partition_directive&) = default;
   partition_directive& operator=(const partition_directive&) = default;
@@ -377,9 +377,9 @@ public:
 
   bool operate_directive(const std::string& line)
   {
-    std::smatch sm;
-    const static std::regex DIRCETIVE_REGEX("^([.a-zA-Z0-9_]+)(?:\\s+(.+)+)?$");
-    std::regex_match(line, sm, DIRCETIVE_REGEX);
+    boost::smatch sm;
+    const static boost::regex DIRCETIVE_REGEX("^([.a-zA-Z0-9_]+)(?:\\s+(.+)+)?$");
+    boost::regex_match(line, sm, DIRCETIVE_REGEX);
     if (sm.size() == 0)
       return false;
 

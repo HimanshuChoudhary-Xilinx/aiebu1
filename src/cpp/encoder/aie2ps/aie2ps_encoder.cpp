@@ -79,7 +79,11 @@ process(std::shared_ptr<preprocessed_output> input)
     }
   }
 
-  // Report
+
+
+  // Optional binary dump if debug flag is not disabled.
+  if (m_dump_flag != asm_dump_flag::disable) {
+    // Report
   m_report.summary(std::cout);
 
   // Debug JSON serialization
@@ -89,9 +93,6 @@ process(std::shared_ptr<preprocessed_output> input)
   std::ofstream file("debug_map.json");
   file << dbg_json.dump(4);  // pretty print with 4-space indent
   file.close();
-
-  // Optional binary dump if debug flag is not disabled.
-  if (m_dump_flag != asm_dump_flag::disable) {
     auto dumpwriter = std::make_shared<section_writer>(".dump", code_section::data);
     std::string dbg_str = dbg_json.dump(); // no indent for compact output
     for (char c : dbg_str)

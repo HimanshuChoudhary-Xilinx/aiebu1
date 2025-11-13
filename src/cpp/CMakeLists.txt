@@ -99,10 +99,11 @@ add_library(aiebu_static STATIC
   )
 
 if (MSVC)
-  target_link_libraries(aiebu_static advapi32)
+  target_link_libraries(aiebu_static advapi32 ${Boost_LIBRARIES})
 else()
   # On linux use xrt_coreutil.a
   set_target_properties(aiebu_static PROPERTIES OUTPUT_NAME "aiebu")
+  target_link_libraries(aiebu_static ${Boost_LIBRARIES})
 endif()
 
 install (TARGETS aiebu_static
