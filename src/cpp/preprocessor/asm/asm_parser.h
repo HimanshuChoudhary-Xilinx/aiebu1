@@ -378,9 +378,8 @@ public:
   bool operate_directive(const std::string& line)
   {
     boost::smatch sm;
-    const static boost::regex DIRCETIVE_REGEX("^([.a-zA-Z0-9_]+)(?:\\s+(.+)+)?$");
-    boost::regex_match(line, sm, DIRCETIVE_REGEX);
-    if (sm.size() == 0)
+    const static boost::regex DIRCETIVE_REGEX("^([.a-zA-Z0-9_]+)(?:\\s+(.+))?$");
+    if (!boost::regex_match(line, sm, DIRCETIVE_REGEX))
       return false;
 
     if (directive_list.count(sm[1].str()) == 0)

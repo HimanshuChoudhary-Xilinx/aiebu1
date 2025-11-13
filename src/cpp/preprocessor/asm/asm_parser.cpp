@@ -113,16 +113,15 @@ void
 asm_parser::
 parse_lines(const std::vector<char>& data, std::string& file)
 {
-  //parse asm code
-  const static boost::regex COMMENT_REGEX("^;(.*)$");
+  //parse asm code - optimized with fast prefix checks
   const static boost::regex LABEL_REGEX("^([a-zA-Z0-9_]+):$");
-  const static boost::regex OP_REGEX("^([.a-zA-Z0-9_]+)(?:\\s+(.+)+)?$");
-  const static boost::regex DIRCETIVE_REGEX(".^([a-zA-Z0-9_]+)(?:\\s+(.+)+)?$");
+  const static boost::regex OP_REGEX("^([.a-zA-Z0-9_]+)(?:\\s+(.+))?$");
 
   std::string str(data.begin(), data.end());
   std::istringstream isstr(str);
   std::string line;
   uint32_t linenumber = 0;
+  boost::smatch sm;  // Reuse smatch object across iterations
 
   while (std::getline(isstr, line)) {
     ++linenumber;
@@ -130,42 +129,41 @@ parse_lines(const std::vector<char>& data, std::string& file)
     if(line.empty())
       continue;
 
-    if (boost::regex_match(line, COMMENT_REGEX))
+    // Fast check for comments - avoid regex for common case
+    if (line[0] == ';')
       continue;
 
-    boost::smatch sm;
-
-    // Check for Directive
-    //boost::regex_match(line, sm, DIRCETIVE_REGEX);
-    if (operate_directive(line))
-    {
-      if (!get_annotation_state())
-        continue;
-      std::string aline, id_line, name_line, description_line;
-      // there are 3 lines for annotation data (id,name,description)
-      for (int count = 0 ; count < 3 ; ++count)   // NOLINT
+    // Check for Directive (starts with .) - only check regex if prefix matches
+    if (line[0] == '.') {
+      if (operate_directive(line))
       {
-        std::getline(isstr, aline);
-        aline = trim(aline);
-        if (!aline.substr(0,3).compare("id:"))                 // NOLINT
-          id_line = trim(aline.substr(aline.find(":") + 1));   // NOLINT
-        else if (!aline.substr(0,5).compare("name:"))          // NOLINT
-          name_line = trim(aline.substr(aline.find(":") + 1)); // NOLINT
-        else if (!aline.substr(0,12).compare("description:"))  // NOLINT
-          description_line = trim(aline.substr(aline.find(":") + 1)); // NOLINT
-        else
-          throw error(error::error_code::internal_error, "Unknown annotation field " + aline + "!!!");
+        if (!get_annotation_state())
+          continue;
+        std::string aline, id_line, name_line, description_line;
+        // there are 3 lines for annotation data (id,name,description)
+        for (int count = 0 ; count < 3 ; ++count)   // NOLINT
+        {
+          std::getline(isstr, aline);
+          aline = trim(aline);
+          if (!aline.substr(0,3).compare("id:"))                 // NOLINT
+            id_line = trim(aline.substr(aline.find(":") + 1));   // NOLINT
+          else if (!aline.substr(0,5).compare("name:"))          // NOLINT
+            name_line = trim(aline.substr(aline.find(":") + 1)); // NOLINT
+          else if (!aline.substr(0,12).compare("description:"))  // NOLINT
+            description_line = trim(aline.substr(aline.find(":") + 1)); // NOLINT
+          else
+            throw error(error::error_code::internal_error, "Unknown annotation field " + aline + "!!!");
+        }
+        m_annotation_list.emplace_back(id_line, name_line, description_line);
+        insert_annotation(m_annotation_list.size() - 1);
+        reset_annotation_state();
+        linenumber+=3;
+        continue;
       }
-      m_annotation_list.emplace_back(id_line, name_line, description_line);
-      insert_annotation(m_annotation_list.size() - 1);
-      reset_annotation_state();
-      linenumber+=3;
-      continue;
     }
 
-    // check for label
-    //boost::regex_match(line, sm, LABEL_REGEX);
-    if (boost::regex_match(line, sm, LABEL_REGEX))
+    // check for label - fast check for ':' at end before regex
+    if (line.back() == ':' && boost::regex_match(line, sm, LABEL_REGEX))
     {
       if (!get_data_state())
         m_current_label = m_current_label + ":" + sm[1].str();
@@ -173,9 +171,10 @@ parse_lines(const std::vector<char>& data, std::string& file)
         insert_col_asmdata(std::make_shared<asm_data>(std::make_shared<operation>(sm[1].str(), ""),
                                                       operation_type::label, code_section::unknown, 0,
                                                       (uint32_t)-1, linenumber, line, file));
+      continue;  // Early exit after processing label
     }
+
     // check for operation
-    //boost::regex_match(line, sm, OP_REGEX);
     if (boost::regex_match(line, sm, OP_REGEX))
     {
       insert_col_asmdata(std::make_shared<asm_data>(std::make_shared<operation>(sm[1].str(), sm[2].str()),
@@ -229,8 +228,8 @@ operate(std::shared_ptr<asm_parser> parserptr, const boost::smatch& sm)
   m_parserptr = parserptr;
   static const boost::regex pattern(R"(\.partition\s+(\d+)(column|core:(\d+)mem))");
   boost::smatch match;
-  std::cout << "PARTITION:" << sm[0].str() << "\n";
-  std::string line = sm[0].str();
+  const std::string& line = sm[0].str();
+  std::cout << "PARTITION:" << line << "\n";
   if (boost::regex_match(line, match, pattern)) {
     if (match[2] == "column") {
       std::cout << "Column count: " << match[1] << std::endl;
