@@ -79,9 +79,6 @@ process(std::shared_ptr<preprocessed_output> input)
     }
   }
 
-
-
-
   // Debug JSON serialization
   json dbg_json = m_debug.to_json();
 
