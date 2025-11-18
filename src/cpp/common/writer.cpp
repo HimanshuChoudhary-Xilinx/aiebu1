@@ -27,6 +27,35 @@ write_word(uint32_t word)
   write_byte((word >> FORTH_BYTE_SHIFT) & BYTE_MASK);
 }
 
+// Bulk write methods
+void
+section_writer::
+write_bytes(const std::vector<uint8_t>& bytes)
+{
+  m_data.insert(m_data.end(), bytes.begin(), bytes.end());
+}
+
+void
+section_writer::
+write_bytes(const std::vector<char>& bytes)
+{
+  m_data.insert(m_data.end(), bytes.begin(), bytes.end());
+}
+
+void
+section_writer::
+write_bytes(const char* bytes, size_t count)
+{
+  m_data.insert(m_data.end(), bytes, bytes + count);
+}
+
+void
+section_writer::
+reserve(size_t capacity)
+{
+  m_data.reserve(capacity);
+}
+
 offset_type
 section_writer::
 tell() const
@@ -66,8 +95,9 @@ padding(offset_type pagesize)
   if (datasize > pagesize)
     throw error(error::error_code::internal_error, "page content more the pagesize !!!");
   auto padsize = pagesize - datasize;
-  for( auto i=0U; i<padsize; ++i)
-    write_byte(0x00);
+  if (padsize > 0) {
+    m_data.insert(m_data.end(), padsize, 0x00);
+  }
 }
 
 asm_writer::asm_writer(std::ostream& stream)

@@ -47,6 +47,15 @@ public:
 
   virtual void write_word(uint32_t word);
 
+  // Bulk write methods for better performance
+  virtual void write_bytes(const std::vector<uint8_t>& bytes);
+
+  virtual void write_bytes(const std::vector<char>& bytes);
+
+  virtual void write_bytes(const char* bytes, size_t count);
+
+  virtual void reserve(size_t capacity);
+
   virtual uint32_t read_word(offset_type offset) const;
 
   virtual void write_word_at(offset_type offset, uint32_t word);
