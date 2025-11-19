@@ -95,7 +95,7 @@ process(std::shared_ptr<preprocessed_output> input)
   if (m_dump_flag != asm_dump_flag::disable) {
     auto dumpwriter = std::make_shared<section_writer>(".dump", code_section::data);
     std::string dbg_str = dbg_json.dump(); // no indent for compact output
-    dumpwriter->write_bytes(dbg_str.c_str(), dbg_str.size());
+    dumpwriter->write_bytes(dbg_str);
     twriter.push_back(dumpwriter);
   }
   return twriter;

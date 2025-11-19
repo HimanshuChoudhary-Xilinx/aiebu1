@@ -48,11 +48,11 @@ public:
   virtual void write_word(uint32_t word);
 
   // Bulk write methods for better performance
-  virtual void write_bytes(const std::vector<uint8_t>& bytes);
-
-  virtual void write_bytes(const std::vector<char>& bytes);
-
-  virtual void write_bytes(const char* bytes, size_t count);
+  template <typename T> void
+  write_bytes(const T &bytes)
+  {
+    m_data.insert(m_data.end(), bytes.begin(), bytes.end());
+  }
 
   virtual void reserve(size_t capacity);
 

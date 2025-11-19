@@ -27,27 +27,6 @@ write_word(uint32_t word)
   write_byte((word >> FORTH_BYTE_SHIFT) & BYTE_MASK);
 }
 
-// Bulk write methods
-void
-section_writer::
-write_bytes(const std::vector<uint8_t>& bytes)
-{
-  m_data.insert(m_data.end(), bytes.begin(), bytes.end());
-}
-
-void
-section_writer::
-write_bytes(const std::vector<char>& bytes)
-{
-  m_data.insert(m_data.end(), bytes.begin(), bytes.end());
-}
-
-void
-section_writer::
-write_bytes(const char* bytes, size_t count)
-{
-  m_data.insert(m_data.end(), bytes, bytes + count);
-}
 
 void
 section_writer::
