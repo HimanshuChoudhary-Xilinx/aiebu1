@@ -52,7 +52,7 @@ load_elf(const std::vector<char>& elf_data)
 
 uint32_t
 transform_manager::
-size(const isa_op_disasm op) const
+size(const isa_op_disasm& op) const
 {
   uint32_t total_width = 2; // 1 opcode + 1 pad
   for (const auto& arg : op.get_args())
@@ -67,23 +67,26 @@ modify_apply_offset_57(char* text_section_data, size_t text_section_size, uint32
 {
   for (size_t offset = ELF_SECTION_HEADER_SIZE; offset < text_section_size;) {
     uint8_t opcode = *reinterpret_cast<const uint8_t*>(text_section_data + offset);
-    auto op_it = isa_op_map->find(opcode);
-    if (op_it == isa_op_map->end())
-      throw error(error::error_code::invalid_asm, "Unknown Opcode:" + std::to_string(opcode) + " at position " + std::to_string(offset) + "\n");
+
     if (opcode == ALIGN_OPCODE) {
       ++offset;
       continue;
     }
 
+    auto op_it = isa_op_map->find(opcode);
+    if (op_it == isa_op_map->end())
+      throw error(error::error_code::invalid_asm, "Unknown Opcode:" + std::to_string(opcode) + " at position " + std::to_string(offset) + "\n");
+
     if (opcode == OPCODE_APPLY_OFFSET_57) {
       auto code = reinterpret_cast<apply_offset_57*>(text_section_data + offset);
       auto key = get_key(code->table_ptr, section_idx);
       // if key found means its kernel arg else its .ctrlpkt-idx or control-code-idx
-      if (xrt_idx_lookup.find(key) != xrt_idx_lookup.end())
-        code->offset = (uint16_t)xrt_idx_lookup[key] * Num_32bit_Register; // its register offset
+      auto lookup_it = xrt_idx_lookup.find(key);
+      if (lookup_it != xrt_idx_lookup.end())
+        code->offset = static_cast<uint16_t>(lookup_it->second * Num_32bit_Register); // its register offset
     }
-    auto consumed = size(op_it->second);
-    offset += consumed;
+
+    offset += size(op_it->second);
   }
 }
 
@@ -93,13 +96,11 @@ process_sections() {
   ELFIO::Elf_Half num = 0;
   for (const auto& section_ptr : m_elfio.sections) {
     const ELFIO::section* section = section_ptr.get();
-    const std::string section_name = section->get_name();
-    if (section->get_type() != ELFIO::SHT_PROGBITS) {
-      ++num;
-      continue;
-    }
-    if (is_text_section(section_name))
+    const auto& section_name = section->get_name();
+
+    if (is_text_section(section_name) && section->get_type() == ELFIO::SHT_PROGBITS)
       modify_apply_offset_57(const_cast<char *>(section->get_data()), section->get_size(), num);
+
     ++num;
   }
 }
@@ -192,17 +193,17 @@ void
 transform_manager::
 write57(uint32_t* bd_data_ptr, uint64_t bd_offset)
 {
-  bd_data_ptr[1] = (uint32_t)(bd_offset & 0xFFFFFFFF);                           // NOLINT
-  bd_data_ptr[2] = (bd_data_ptr[2] & 0xFFFF0000) | ((bd_offset >> 32) & 0xFFFF); // NOLINT
-  bd_data_ptr[8] = (bd_data_ptr[8] & 0xFFFFFE00) | ((bd_offset >> 48) & 0x1FF);  // NOLINT
+  bd_data_ptr[1] = static_cast<uint32_t>(bd_offset & 0xFFFFFFFF);                           // NOLINT
+  bd_data_ptr[2] = static_cast<uint32_t>((bd_data_ptr[2] & 0xFFFF0000) | ((bd_offset >> 32) & 0xFFFF)); // NOLINT
+  bd_data_ptr[8] = static_cast<uint32_t>((bd_data_ptr[8] & 0xFFFFFE00) | ((bd_offset >> 48) & 0x1FF));  // NOLINT
 }
 
 void
 transform_manager::
 write57_aie4(uint32_t* bd_data_ptr, uint64_t bd_offset)
 {
-  bd_data_ptr[1] = (uint32_t)(bd_offset & 0xFFFFFFFF);                           // NOLINT
-  bd_data_ptr[0] = (bd_data_ptr[0] & 0xFE000000) | ((bd_offset >> 32) & 0x1FFFFFF);// NOLINT
+  bd_data_ptr[1] = static_cast<uint32_t>(bd_offset & 0xFFFFFFFF);                           // NOLINT
+  bd_data_ptr[0] = static_cast<uint32_t>((bd_data_ptr[0] & 0xFE000000) | ((bd_offset >> 32) & 0x1FFFFFF));// NOLINT
 }
 
 uint64_t
@@ -220,8 +221,8 @@ void
 transform_manager::
 ctrlpkt_write57(uint32_t* bd_data_ptr, uint64_t bd_offset)
 {
-  bd_data_ptr[2] = (uint32_t)(bd_offset & 0xFFFFFFFC);                           // NOLINT
-  bd_data_ptr[3] = (bd_data_ptr[3] & 0xFFFF0000) | (bd_offset >> 32);            // NOLINT
+  bd_data_ptr[2] = static_cast<uint32_t>(bd_offset & 0xFFFFFFFC);                           // NOLINT
+  bd_data_ptr[3] = static_cast<uint32_t>((bd_data_ptr[3] & 0xFFFF0000) | (bd_offset >> 32));            // NOLINT
 }
 
 uint64_t
@@ -237,8 +238,8 @@ void
 transform_manager::
 ctrlpkt_write57_aie4(uint32_t* bd_data_ptr, uint64_t bd_offset)
 {
-  bd_data_ptr[2] = (uint32_t)(bd_offset & 0xFFFFFFFF);                                  // NOLINT
-  bd_data_ptr[1] = (bd_data_ptr[1] & 0xFE000000) | ((bd_offset >> 32) & 0x1FFFFFF);     // NOLINT
+  bd_data_ptr[2] = static_cast<uint32_t>(bd_offset & 0xFFFFFFFF);                                  // NOLINT
+  bd_data_ptr[1] = static_cast<uint32_t>((bd_data_ptr[1] & 0xFE000000) | ((bd_offset >> 32) & 0x1FFFFFF));     // NOLINT
 }
 
 uint64_t
@@ -260,16 +261,16 @@ get_controlcode_bd_offset(const std::string& section_name, uint32_t offset, symb
   offset -= ctrltext->get_size();
   offset += ELF_SECTION_HEADER_SIZE;
 
+  const auto* bd_data_ptr = reinterpret_cast<const uint32_t*>(ctrldata->get_data() + offset);
+
   switch(schema) {
   case symbol::patch_schema::shim_dma_57:
-    return read57(reinterpret_cast<const uint32_t*>(ctrldata->get_data() + offset));
+    return read57(bd_data_ptr);
   case symbol::patch_schema::shim_dma_57_aie4:
-    return read57_aie4(reinterpret_cast<const uint32_t*>(ctrldata->get_data() + offset));
+    return read57_aie4(bd_data_ptr);
   default:
     throw error(error::error_code::internal_error, "Invalid schema found\n");
   }
-
-  return 0;
 }
 
 void
@@ -293,12 +294,14 @@ set_controlcode_bd_offset(const std::string& section_name, uint32_t offset, uint
     throw error(error::error_code::internal_error, "ctrltext size lesser than offset:"
                 + std::to_string(offset) + "\n");
 
+  auto* bd_data_ptr = reinterpret_cast<uint32_t*>(const_cast<char*>(ctrldata->get_data()) + offset);
+
   switch(schema) {
   case symbol::patch_schema::shim_dma_57:
-    write57(reinterpret_cast<uint32_t*>(const_cast<char*>(ctrldata->get_data()) + offset), bd_offset);
+    write57(bd_data_ptr, bd_offset);
     break;
   case symbol::patch_schema::shim_dma_57_aie4:
-    write57_aie4(reinterpret_cast<uint32_t*>(const_cast<char*>(ctrldata->get_data()) + offset), bd_offset);
+    write57_aie4(bd_data_ptr, bd_offset);
     break;
   default:
     throw error(error::error_code::internal_error, "Invalid schema found\n");
@@ -316,15 +319,17 @@ get_ctrlpkt_bd_offset(const std::string& section_name, uint32_t offset, symbol::
     throw error(error::error_code::internal_error, "ctrlpkt size lesser than offset:"
                 + std::to_string(offset) + "\n");
 
+
+  const auto* bd_data_ptr = reinterpret_cast<const uint32_t*>(ctrlpkt->get_data() + offset);
+
   switch(schema) {
   case symbol::patch_schema::control_packet_57:
-    return ctrlpkt_read57(reinterpret_cast<const uint32_t*>(ctrlpkt->get_data() + offset));
+    return ctrlpkt_read57(bd_data_ptr);
   case symbol::patch_schema::control_packet_57_aie4:
-    return ctrlpkt_read57_aie4(reinterpret_cast<const uint32_t*>(ctrlpkt->get_data() + offset));
+    return ctrlpkt_read57_aie4(bd_data_ptr);
   default:
     throw error(error::error_code::internal_error, "Invalid schema found\n");
   }
-  return 0;
 }
 
 void
@@ -338,12 +343,14 @@ set_ctrlpkt_bd_offset(const std::string& section_name, uint32_t offset, uint64_t
     throw error(error::error_code::internal_error, "ctrlpkt size lesser than offset:"
                 + std::to_string(offset) + "\n");
 
+  auto* bd_data_ptr = reinterpret_cast<uint32_t*>(const_cast<char*>(ctrlpkt->get_data()) + offset);
+
   switch(schema) {
   case symbol::patch_schema::control_packet_57:
-    ctrlpkt_write57(reinterpret_cast<uint32_t*>(const_cast<char*>(ctrlpkt->get_data()) + offset), bd_offset);
+    ctrlpkt_write57(bd_data_ptr, bd_offset);
     break;
   case symbol::patch_schema::control_packet_57_aie4:
-    ctrlpkt_write57_aie4(reinterpret_cast<uint32_t*>(const_cast<char*>(ctrlpkt->get_data()) + offset), bd_offset);
+    ctrlpkt_write57_aie4(bd_data_ptr, bd_offset);
     break;
   default:
     throw error(error::error_code::internal_error, "Invalid schema found\n");
@@ -352,55 +359,60 @@ set_ctrlpkt_bd_offset(const std::string& section_name, uint32_t offset, uint64_t
 
 std::vector<arginfo>
 transform_manager::
-extract_rela_sections() {
-  std::vector<arginfo> entries;
-
+extract_rela_sections()
+{
   auto dynsym = m_elfio.sections[".dynsym"];
   auto dynstr = m_elfio.sections[".dynstr"];
   auto dynsec = m_elfio.sections[".rela.dyn"];
 
   if (!dynsym || !dynstr || !dynsec)
-    return entries;
+    return {};
+
+  const auto dynsym_size = dynsym->get_size();
+  const auto dynstr_size = dynstr->get_size();
+  const auto rela_count = dynsec->get_size() / sizeof(ELFIO::Elf32_Rela);
+
+  std::vector<arginfo> entries;
 
   auto begin = reinterpret_cast<const ELFIO::Elf32_Rela*>(dynsec->get_data());
-  auto end = begin + dynsec->get_size() / sizeof(const ELFIO::Elf32_Rela);
+  auto end = begin + rela_count;
+
   for (auto rela = begin; rela != end; ++rela) {
     auto symidx = ELFIO::get_sym_and_type<ELFIO::Elf32_Rela>::get_r_sym(rela->r_info);
     auto type = ELFIO::get_sym_and_type<ELFIO::Elf32_Rela>::get_r_type(rela->r_info);
 
     auto dynsym_offset = symidx * sizeof(ELFIO::Elf32_Sym);
-    if (dynsym_offset >= dynsym->get_size())
+    if (dynsym_offset >= dynsym_size)
       throw error(error::error_code::internal_error, "Invalid symbol index " + std::to_string(symidx));
     auto sym = reinterpret_cast<const ELFIO::Elf32_Sym*>(dynsym->get_data() + dynsym_offset);
 
     auto dynstr_offset = sym->st_name;
-    if (dynstr_offset >= dynstr->get_size())
+    if (dynstr_offset >= dynstr_size)
       throw error(error::error_code::internal_error, "Invalid symbol name offset " + std::to_string(dynstr_offset));
     auto symname = dynstr->get_data() + dynstr_offset;
+
+    // skip in case of control-code or ctrlpkt patches
+    if (is_ctrlpkt_patch_name(symname) || is_controlcode_patch_name(symname))
+      continue;
 
     auto patch_sec = m_elfio.sections[sym->st_shndx];
     if (!patch_sec)
       throw error(error::error_code::internal_error, "Invalid section index " + std::to_string(sym->st_shndx));
 
     auto patch_sec_name = patch_sec->get_name();
-    //auto [col, page] = get_column_and_page(patch_sec_name);
     auto offset = rela->r_offset;
-
-    // skip in case of control-code
-    // skip for ctrlpkt
-    if (is_ctrlpkt_patch_name(symname) || is_controlcode_patch_name(symname))
-      continue;
     auto xrt_id = to_uinteger<uint32_t>(symname);
-    uint64_t bd_offset = 0;
     auto schema = static_cast<symbol::patch_schema>(type);
 
     // bd can be read from ctrlcode or ctrlpkt section
+    uint64_t bd_offset = 0;
     if (is_text_or_data_section_name(patch_sec_name))
       bd_offset = get_controlcode_bd_offset(patch_sec_name, offset, schema);
     else if (is_ctrlpkt_section_name(patch_sec_name))
       bd_offset = get_ctrlpkt_bd_offset(patch_sec_name, offset, schema);
     else
       throw error(error::error_code::internal_error, "Invalid section name " + patch_sec_name);
+
     entries.push_back({xrt_id, bd_offset + rela->r_addend});
   }
 
@@ -418,28 +430,35 @@ update_rela_sections(const std::vector<arginfo>& entries) {
   if (!dynsym || !dynstr || !dynsec)
     return {};
 
-  // Copy and modify string table, first character is numm
+  const auto dynsym_size = dynsym->get_size();
+  const auto dynstr_size = dynstr->get_size();
+  const auto rela_count = dynsec->get_size() / sizeof(ELFIO::Elf32_Rela);
+
+  // Copy and modify string table, first character is null
   std::string strtab_data(1, '\0');
-  std::vector<char> dynsym_copy(dynsym->get_data(), dynsym->get_data() + dynsym->get_size());
+  std::vector<char> dynsym_copy(dynsym->get_data(), dynsym->get_data() + dynsym_size);
+
   std::map<std::string, std::string> name_map;
   //hash to have same .dynsym to multiple .rela.dyn
   std::map<std::string, ELFIO::Elf_Word> hash;
-  int num = 0;
+  size_t num = 0;
 
   auto begin = reinterpret_cast<ELFIO::Elf32_Rela*>(const_cast<char*>(dynsec->get_data()));
-  auto end = begin + dynsec->get_size() / sizeof(const ELFIO::Elf32_Rela);
+  auto end = begin + rela_count;
+
   for (auto rela = begin; rela != end; ++rela) {
     auto symidx = ELFIO::get_sym_and_type<ELFIO::Elf32_Rela>::get_r_sym(rela->r_info);
     auto type = ELFIO::get_sym_and_type<ELFIO::Elf32_Rela>::get_r_type(rela->r_info);
 
     auto dynsym_offset = symidx * sizeof(ELFIO::Elf32_Sym);
-    if (dynsym_offset >= dynsym->get_size())
+    if (dynsym_offset >= dynsym_size)
       throw error(error::error_code::internal_error, "Invalid symbol index " + std::to_string(symidx));
+
     auto sym = reinterpret_cast<ELFIO::Elf32_Sym*>(const_cast<char*>(dynsym->get_data()) + dynsym_offset);
     auto sym_new = reinterpret_cast<ELFIO::Elf32_Sym*>(dynsym_copy.data() + dynsym_offset);
 
     auto dynstr_offset = sym->st_name;
-    if (dynstr_offset >= dynstr->get_size())
+    if (dynstr_offset >= dynstr_size)
       throw error(error::error_code::internal_error, "Invalid symbol name offset " + std::to_string(dynstr_offset));
     auto symname = dynstr->get_data() + dynstr_offset;
 
@@ -448,43 +467,42 @@ update_rela_sections(const std::vector<arginfo>& entries) {
     if (!patch_sec)
       throw error(error::error_code::internal_error, "Invalid section index " + std::to_string(sym->st_shndx));
 
-    auto patch_sec_name = patch_sec->get_name();
-    //auto [col, page] = get_column_and_page(patch_sec_name);
+    const auto& patch_sec_name = patch_sec->get_name();
     auto offset = rela->r_offset;
 
     // in case of control-code-idx or .ctrlpkt-idx, we dont modify
-    std::string name = std::to_string(entries[num].xrt_idx);
-    if (is_ctrlpkt_patch_name(symname) || is_controlcode_patch_name(symname))
-      name = symname;
-
-    std::string key = patch_sec_name + "_" + name + "_" +
-                      std::to_string(sym->st_size);
-    ELFIO::Elf_Word new_offset = strtab_data.size();
-
-    //verify all instance if that xrt_id are modified
-    if (name_map.find(symname) != name_map.end()) {
-      if (name_map[symname] != name)
+    const bool is_special_patch = is_ctrlpkt_patch_name(symname) || is_controlcode_patch_name(symname);
+    std::string name = is_special_patch ? symname : std::to_string(entries[num].xrt_idx);
+    
+    // Verify all instances of that xrt_id are modified consistently
+    auto name_it = name_map.find(symname);
+    if (name_it != name_map.end()) {
+      if (name_it->second != name)
         throw error(error::error_code::invalid_input, "Invalid input xrt_id:" + std::string(symname) + " modified only at few places");
-    } else
+    } else {
       name_map[symname] = name;
+    }
 
-    auto it = hash.find(key);
-    if (it == hash.end())
-    {
-      // Update symbol name offset
-      strtab_data += (name + '\0');
+    // Check if we already have this key in hash
+    ELFIO::Elf_Word new_offset;
+    std::string key = patch_sec_name + "_" + name + "_" + std::to_string(sym->st_size);
+    auto hash_it = hash.find(key);
+    if (hash_it == hash.end()) {
+      new_offset = strtab_data.size();
+      strtab_data.append(name).push_back('\0');
       hash[key] = new_offset;
-    } else
-      new_offset = hash[key];
+    } else {
+      new_offset = hash_it->second;
+    }
 
     sym_new->st_name = new_offset;
 
     // skip patching for symbol control-code-idx, as it doesnt change
     // skip patching for symbol .ctrlpkt-idx, as it doesnt change
-    if (is_ctrlpkt_patch_name(symname) || is_controlcode_patch_name(symname))
+    if (is_special_patch == true)
       continue;
 
-    // Create lookup table to map xrt-id during modifing apply-offset-57 opcode
+    // Create lookup table to map xrt-id during modifying apply-offset-57 opcode
     auto lookup_key = get_key(offset, sym->st_shndx);
     if (xrt_idx_lookup.find(lookup_key) != xrt_idx_lookup.end())
       throw error(error::error_code::internal_error, "lookup_key (" + lookup_key + ") already found\n");
@@ -502,7 +520,8 @@ update_rela_sections(const std::vector<arginfo>& entries) {
     rela->r_addend = 0;
     ++num;
   }
-  //Replace old symstr with new
+
+  // Replace old symstr with new
   dynstr->set_data(strtab_data);
   dynsym->set_data(dynsym_copy.data(), dynsym_copy.size());
 
@@ -512,11 +531,8 @@ update_rela_sections(const std::vector<arginfo>& entries) {
   std::stringstream stream;
   stream << std::noskipws;
   m_elfio.save(stream);
-  std::vector<char> v;
-  std::copy(std::istream_iterator<char>(stream),
-            std::istream_iterator<char>( ),
-            std::back_inserter(v));
-  return v;
+
+  return std::vector<char>(std::istream_iterator<char>(stream), std::istream_iterator<char>());
 }
 } // End of Namespace aiebu
 

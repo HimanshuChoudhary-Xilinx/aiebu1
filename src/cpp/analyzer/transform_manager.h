@@ -5,6 +5,7 @@
 #define AIEBU_TRANSFORM_MANAGER_H_
 
 #include <cstdint>
+#include <unordered_map>
 
 #include <elfio/elfio.hpp>
 #include "specification/aie2ps/isa.h"
@@ -25,17 +26,17 @@ class transform_manager {
   static constexpr uint8_t Num_32bit_Register = 2;
 
   ELFIO::elfio m_elfio;
-  std::map<std::string, uint32_t> xrt_idx_lookup;
+  std::unordered_map<std::string, uint32_t> xrt_idx_lookup;  // Optimized: use unordered_map for O(1) lookup
   const std::map<uint8_t, isa_op_disasm>* isa_op_map;
   isa_disassembler m_isa_disassembler;
 
-  std::string get_key(uint32_t offset, uint32_t section_idx)
+  std::string get_key(uint32_t offset, uint32_t section_idx) const
   {
     // Lookup key as offset and section idx combination will be always unique
     return std::to_string(offset) + "_" + std::to_string(section_idx);
   }
 
-  uint32_t size(const isa_op_disasm op) const;
+  uint32_t size(const isa_op_disasm& op) const;  // Pass by const reference
   void modify_apply_offset_57(char* text_section_data, size_t text_section_size, uint32_t section_idx);
   void process_sections();
   std::pair<uint32_t, uint32_t> get_column_and_page(const std::string& name) const;
@@ -71,27 +72,34 @@ class transform_manager {
 
   static bool is_text_section(const std::string& section_name)
   {
-    return !section_name.substr(0,CTRLTEXT_STRING_LENGTH).compare(".ctrltext");
+    return section_name.size() >= CTRLTEXT_STRING_LENGTH &&
+           section_name.compare(0, CTRLTEXT_STRING_LENGTH, ".ctrltext") == 0;
   }
 
   static bool is_text_or_data_section_name(const std::string& str)
   {
-    return !str.substr(0,CTRLTEXT_STRING_LENGTH).compare(".ctrltext") || !str.substr(0,CTRLDATA_STRING_LENGTH).compare(".ctrldata");
+    return (str.size() >= CTRLTEXT_STRING_LENGTH &&
+            str.compare(0, CTRLTEXT_STRING_LENGTH, ".ctrltext") == 0) ||
+           (str.size() >= CTRLDATA_STRING_LENGTH &&
+            str.compare(0, CTRLDATA_STRING_LENGTH, ".ctrldata") == 0);
   }
 
   static bool is_ctrlpkt_section_name(const std::string& str)
   {
-    return !str.substr(0,CTRLPKT_STRING_LENGTH).compare(".ctrlpkt");
+    return str.size() >= CTRLPKT_STRING_LENGTH &&
+           str.compare(0, CTRLPKT_STRING_LENGTH, ".ctrlpkt") == 0;
   }
 
   static bool is_ctrlpkt_patch_name(const std::string& str)
   {
-    return !str.substr(0,CTRLPKT_STRING_LENGTH).compare(".ctrlpkt");
+    return str.size() >= CTRLPKT_STRING_LENGTH &&
+           str.compare(0, CTRLPKT_STRING_LENGTH, ".ctrlpkt") == 0;
   }
 
   static bool is_controlcode_patch_name(const std::string& str)
   {
-    return !str.substr(0,CTRLCODE_STRING_LENGTH).compare("control-code");
+    return str.size() >= CTRLCODE_STRING_LENGTH &&
+           str.compare(0, CTRLCODE_STRING_LENGTH, "control-code") == 0;
   }
 
 public:

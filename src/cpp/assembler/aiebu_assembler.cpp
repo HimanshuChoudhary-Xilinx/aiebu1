@@ -160,14 +160,14 @@ void
 aiebu_assembler::
 flush_argtbl(const argtbl& arg_table)
 {
-  auto table = arg_table.dump();
+  const auto& table = arg_table.dump();
   if (table.size() != arginfo_tbl.size())
-    throw error(error::error_code::invalid_input, "table size:" + std::to_string(table.size())
-                + " != input table size:" + std::to_string(arginfo_tbl.size()));
+    throw error(error::error_code::invalid_input,
+                "Table size mismatch: got " + std::to_string(table.size())
+                + ", expected " + std::to_string(arginfo_tbl.size()));
 
   transform_manager trans(elf_data);
   elf_data = trans.update_rela_sections(table);
-
 }
 
 aiebu_assembler::
