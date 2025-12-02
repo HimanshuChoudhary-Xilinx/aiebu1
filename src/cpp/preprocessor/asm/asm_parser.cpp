@@ -165,9 +165,10 @@ parse_lines(const std::vector<char>& data, std::string& file)
     // check for label - fast check for ':' at end before regex
     if (line.back() == ':' && regex_match(line, sm, LABEL_REGEX))
     {
-      if (!get_data_state())
+      if (!get_data_state()) {
         m_current_label = m_current_label + ":" + sm[1].str();
-      else
+        set_data_state(false);
+      } else
         insert_col_asmdata(std::make_shared<asm_data>(std::make_shared<operation>(sm[1].str(), ""),
                                                       operation_type::label, code_section::unknown, 0,
                                                       (uint32_t)-1, linenumber, line, file));
@@ -306,6 +307,7 @@ operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm)
   std::vector<std::string> args = splitoption(sm[2].str().c_str(), ',');
   if (label.compare(args[0]))
     throw error(error::error_code::internal_error, "endl label missmatch (" + label + " != " + args[0] + ")\n");
+  m_parserptr->pop_data_state();
 }
 
 void
