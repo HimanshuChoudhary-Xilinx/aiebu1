@@ -123,7 +123,7 @@ disassemble(const std::filesystem::path &root) const
 class aiebu_assembler::argtbl_impl
 {
   std::vector<arginfo>& m_tbl;
-  const std::string m_name;
+  std::string m_name;
 
   public:
     explicit argtbl_impl(std::vector<arginfo>& in_tbl, std::string name)

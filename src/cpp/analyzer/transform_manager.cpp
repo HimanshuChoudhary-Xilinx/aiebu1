@@ -551,7 +551,7 @@ get_filtered_section_indices(const std::string& kernel_instance_filter)
 
   for (size_t i = 0; i < sym_count; ++i) {
     auto sym = reinterpret_cast<const ELFIO::Elf32_Sym*>(symtab->get_data() + i * sizeof(ELFIO::Elf32_Sym));
-    auto sym_type = (sym->st_info & 0xf);
+    unsigned char sym_type = ELF_ST_TYPE(sym->st_info);
 
     if (sym_type == ELFIO::STT_FUNC && sym->st_name < strtab_size) {
       const char* sym_name = strtab->get_data() + sym->st_name;
@@ -590,7 +590,7 @@ get_filtered_section_indices(const std::string& kernel_instance_filter)
 
   for (size_t i = 0; i < sym_count; ++i) {
     auto sym = reinterpret_cast<const ELFIO::Elf32_Sym*>(symtab->get_data() + i * sizeof(ELFIO::Elf32_Sym));
-    auto sym_type = (sym->st_info & 0xf);
+    unsigned char sym_type = ELF_ST_TYPE(sym->st_info);
 
     if (sym_type == ELFIO::STT_OBJECT && sym->st_name < strtab_size) {
       const char* sym_name = strtab->get_data() + sym->st_name;
