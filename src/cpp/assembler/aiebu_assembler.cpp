@@ -123,15 +123,22 @@ disassemble(const std::filesystem::path &root) const
 class aiebu_assembler::argtbl_impl
 {
   std::vector<arginfo>& m_tbl;
+  const std::string m_name;
 
   public:
-    explicit argtbl_impl(std::vector<arginfo>& in_tbl)
-      : m_tbl(in_tbl) { }
+    explicit argtbl_impl(std::vector<arginfo>& in_tbl, std::string name)
+      : m_tbl(in_tbl), m_name(std::move(name)) { }
 
     std::vector<arginfo>&
     dump() const
     {
       return m_tbl;
+    }
+
+    const std::string&
+    get_name() const
+    {
+      return m_name;
     }
 };
 
@@ -147,13 +154,20 @@ dump() const
   return handle->dump();
 }
 
+const std::string&
+aiebu_assembler::argtbl::
+get_name() const
+{
+  return handle->get_name();
+}
+
 aiebu_assembler::argtbl
 aiebu_assembler::
-get_argtbl()
+get_argtbl(const std::string& name)
 {
   transform_manager trans(elf_data);
-  arginfo_tbl = trans.extract_rela_sections();
-  return argtbl{std::make_shared<argtbl_impl>(arginfo_tbl)};
+  arginfo_tbl = trans.extract_rela_sections(name);
+  return argtbl{std::make_shared<argtbl_impl>(arginfo_tbl, name)};
 }
 
 void
@@ -166,8 +180,9 @@ flush_argtbl(const argtbl& arg_table)
                 "Table size mismatch: got " + std::to_string(table.size())
                 + ", expected " + std::to_string(arginfo_tbl.size()));
 
+  const auto& name = arg_table.get_name();
   transform_manager trans(elf_data);
-  elf_data = trans.update_rela_sections(table);
+  elf_data = trans.update_rela_sections(table, name);
 }
 
 aiebu_assembler::

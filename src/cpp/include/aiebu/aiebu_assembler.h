@@ -181,7 +181,7 @@ class aiebu_assembler
          * xrt_idx transform.
          */
         std::vector<arginfo>& dump() const;
-
+        const std::string& get_name() const;
     };
     /*
      * Get an argtbl object from aiebu_assembler. In this function
@@ -190,7 +190,7 @@ class aiebu_assembler
      * which can be used to dump the reference of the table and modify
      * the table in place.
      */
-    argtbl get_argtbl();
+    argtbl get_argtbl(const std::string& name = "");
 
     /*
      * Flush the argtbl object to aiebu_assembler. In this function,

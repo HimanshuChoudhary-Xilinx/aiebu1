@@ -101,6 +101,22 @@ class transform_manager {
   std::string get_grp_id_if_group_elf(const std::string& name) const;
 
   /**
+   * @brief Get filtered section indices for a kernel::instance filter
+   * @param kernel_instance_filter: Filter in format "kernel::instance" (e.g., "DPU::dpu")
+   * @return Set of section indices that belong to the specified kernel::instance
+   *
+   * This method:
+   * 1. Parses filter string to extract kernel and instance names
+   * 2. Finds FUNC symbols matching kernel name (e.g., _Z3DPUPcPc -> "DPU")
+   * 3. Finds OBJECT symbols matching instance name (e.g., "dpu")
+   * 4. Traverses all sections to find group sections where sh_info points to instance
+   * 5. Extracts member section indices from group data
+   *
+   * @throws error if filter format is invalid, kernel/instance not found, or required sections missing
+   */
+  std::set<ELFIO::Elf_Half> get_filtered_section_indices(const std::string& kernel_instance_filter);
+
+  /**
    * @brief Generate control text section name
    * @param col Column index
    * @param page Page index
@@ -211,27 +227,39 @@ public:
 
   /**
    * @brief Extract argument information from relocation sections
+   * @param kernel_instance_filter:  filter in format "kernel::instance" (e.g., "DPU::dpu")
+   *                                 If empty, extracts all relocations.
+   *                                 Kernel name is matched from FUNC symbols (_Z3DPUPcPc -> "DPU")
+   *                                 Instance name is matched from OBJECT symbols, then traverses all
+   *                                 sections to find group sections where sh_info points to instance,
+   *                                 extracts member sections from group data for filtering
    * @return Vector of arginfo containing XRT indices and BD offsets
    *
    * This method parses .rela.dyn, .dynsym, and .dynstr sections to extract
    * buffer descriptor offsets for kernel arguments, excluding control-code
-   * and ctrlpkt special patches.
+   * and ctrlpkt special patches. When filtering, traverses all sections to find
+   * group sections (SHT_GROUP) whose sh_info field references the instance symbol.
    */
-  std::vector<arginfo> extract_rela_sections();
+  std::vector<arginfo> extract_rela_sections(const std::string& kernel_instance_filter);
 
   /**
    * @brief Update ELF with new argument information
    * @param entries: Vector of arginfo with updated XRT indices and BD offsets
+   * @param kernel_instance_filter:  filter in format "kernel::instance" (e.g., "DPU::dpu")
+   *                                 If empty, updates all relocations.
+   *                                 If specified, only updates relocations for the matching kernel::instance
    * @return Modified ELF binary as vector of chars
    *
    * This method:
-   * 1. Updates symbol names in .dynsym with new XRT indices
-   * 2. Patches BD offsets in control code and control packet sections
-   * 3. Updates apply_offset_57 opcodes with xrt_id
-   * 4. Rebuilds .dynstr with new symbol names
-   * 5. Returns the modified ELF binary
+   * 1. Optionally filters relocations to specific kernel::instance (same logic as extract_rela_sections)
+   * 2. Updates symbol names in .dynsym with new XRT indices
+   * 3. Patches BD offsets in control code and control packet sections
+   * 4. Updates apply_offset_57 opcodes with xrt_id
+   * 5. Rebuilds .dynstr with new symbol names
+   * 6. Returns the modified ELF binary
    */
-  std::vector<char> update_rela_sections(const std::vector<arginfo>& entries);
+  std::vector<char> update_rela_sections(const std::vector<arginfo>& entries,
+                                         const std::string& kernel_instance_filter);
 };
 
 }
