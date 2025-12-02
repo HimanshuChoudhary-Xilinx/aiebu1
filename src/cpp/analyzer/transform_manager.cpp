@@ -517,6 +517,40 @@ set_ctrlpkt_bd_offset(const std::string& section_name, uint32_t offset, uint64_t
 }
 
 /**
+ * @brief Extract kernel name from C++ mangled symbol
+ * @param symbol_name: Mangled symbol name (e.g., "_Z3DPUPcPc")
+ * @return Kernel name if found, empty string otherwise
+ */
+std::string
+transform_manager::
+extract_kernel_name_from_mangled(const std::string& symbol_name) const
+{
+  // Check for C++ mangled name: _Z<length><name>...
+  if (symbol_name.size() <= 3 || symbol_name[0] != '_' || symbol_name[1] != 'Z' || !std::isdigit(symbol_name[2]))
+    return "";
+
+  // Parse the length prefix
+  size_t length_start = 2;
+  size_t length_end = length_start;
+  while (length_end < symbol_name.size() && std::isdigit(symbol_name[length_end])) {
+    length_end++;
+  }
+
+  if (length_end == length_start)
+    return "";
+
+  // Extract and validate the identifier
+  size_t name_length = std::stoul(symbol_name.substr(length_start, length_end - length_start));
+  size_t name_start = length_end;
+  size_t name_end = name_start + name_length;
+
+  if (name_end > symbol_name.size())
+    return "";
+
+  return symbol_name.substr(name_start, name_length);
+}
+
+/**
  * @brief Get filtered section indices for a kernel::instance filter
  * @param kernel_instance_filter: Filter in format "kernel::instance" (e.g., "DPU::dpu")
  * @return Set of section indices that belong to the specified kernel::instance
@@ -547,64 +581,51 @@ get_filtered_section_indices(const std::string& kernel_instance_filter)
   const auto sym_count = symtab_size / sizeof(ELFIO::Elf32_Sym);
 
   // Pass 1: Find FUNC symbols matching the kernel name
-  std::set<ELFIO::Elf_Word> kernel_symbol_indices;
+  ELFIO::Elf_Word kernel_symbol_index = 0;
 
   for (size_t i = 0; i < sym_count; ++i) {
     auto sym = reinterpret_cast<const ELFIO::Elf32_Sym*>(symtab->get_data() + i * sizeof(ELFIO::Elf32_Sym));
     unsigned char sym_type = ELF_ST_TYPE(sym->st_info);
 
-    if (sym_type == ELFIO::STT_FUNC && sym->st_name < strtab_size) {
-      const char* sym_name = strtab->get_data() + sym->st_name;
-      std::string symbol_name(sym_name);
+    // Skip non-function symbols or invalid names
+    if (sym_type != ELFIO::STT_FUNC || sym->st_name >= strtab_size)
+      continue;
 
-      // Check for C++ mangled name: _Z<length><name>...
-      if (symbol_name.size() > 3 && symbol_name[0] == '_' && symbol_name[1] == 'Z' && std::isdigit(symbol_name[2])) {
-        size_t length_start = 2;
-        size_t length_end = length_start;
-        while (length_end < symbol_name.size() && std::isdigit(symbol_name[length_end])) {
-          length_end++;
-        }
+    const char* sym_name = strtab->get_data() + sym->st_name;
+    std::string identifier = extract_kernel_name_from_mangled(sym_name);
 
-        if (length_end > length_start) {
-          size_t name_length = std::stoul(symbol_name.substr(length_start, length_end - length_start));
-          size_t name_start = length_end;
-          size_t name_end = name_start + name_length;
-
-          if (name_end <= symbol_name.size()) {
-            std::string identifier = symbol_name.substr(name_start, name_length);
-            if (identifier == filter_kernel) {
-              kernel_symbol_indices.insert(i);
-            }
-          }
-        }
-      }
+    if (identifier == filter_kernel) {
+      kernel_symbol_index = i;
+      break;
     }
   }
 
-  if (kernel_symbol_indices.empty())
+  if (kernel_symbol_index == 0)
     throw error(error::error_code::invalid_input,
                 "Kernel '" + filter_kernel + "' not found in .symtab");
 
   // Pass 2: Find OBJECT symbols matching the instance name
-  std::set<ELFIO::Elf_Word> instance_symbol_indices;
+  ELFIO::Elf_Word instance_symbol_index = 0;
 
   for (size_t i = 0; i < sym_count; ++i) {
     auto sym = reinterpret_cast<const ELFIO::Elf32_Sym*>(symtab->get_data() + i * sizeof(ELFIO::Elf32_Sym));
     unsigned char sym_type = ELF_ST_TYPE(sym->st_info);
 
-    if (sym_type == ELFIO::STT_OBJECT && sym->st_name < strtab_size) {
-      const char* sym_name = strtab->get_data() + sym->st_name;
-      std::string symbol_name(sym_name);
+    // Skip non-object symbols or invalid names
+    if (sym_type != ELFIO::STT_OBJECT || sym->st_name >= strtab_size)
+      continue;
 
-      if (symbol_name == filter_instance) {
-        instance_symbol_indices.insert(i);
-      }
+    const char* sym_name = strtab->get_data() + sym->st_name;
+    if (std::string(sym_name) == filter_instance && sym->st_shndx == kernel_symbol_index) {
+      instance_symbol_index = i;
+      break;
     }
   }
 
-  if (instance_symbol_indices.empty())
+  if (instance_symbol_index == 0)
     throw error(error::error_code::invalid_input,
                 "Instance '" + filter_instance + "' not found for kernel '" + filter_kernel + "'");
+
 
   // Pass 3: Traverse all sections, find group sections where sh_info points to instance symbol
   std::set<ELFIO::Elf_Half> section_indices;
@@ -612,19 +633,24 @@ get_filtered_section_indices(const std::string& kernel_instance_filter)
   for (const auto& section_ptr : m_elfio.sections) {
     const ELFIO::section* section = section_ptr.get();
 
-    if (section->get_type() == ELFIO::SHT_GROUP) {
-      auto group_info = section->get_info();
+    // Skip non-group sections
+    if (section->get_type() != ELFIO::SHT_GROUP)
+      continue;
 
-      if (instance_symbol_indices.find(group_info) != instance_symbol_indices.end()) {
-        const auto group_data = reinterpret_cast<const uint32_t*>(section->get_data());
-        const auto group_size = section->get_size();
-        const auto num_entries = group_size / sizeof(uint32_t);
+    auto group_info = section->get_info();
 
-        // Skip first word (flags), read member section indices
-        for (size_t j = 1; j < num_entries; ++j) {
-          section_indices.insert(static_cast<ELFIO::Elf_Half>(group_data[j]));
-        }
-      }
+    // Skip if group doesn't belong to our instance
+    if (group_info != instance_symbol_index)
+      continue;
+
+    // Extract member section indices from group data
+    const auto group_data = reinterpret_cast<const uint32_t*>(section->get_data());
+    const auto group_size = section->get_size();
+    const auto num_entries = group_size / sizeof(uint32_t);
+
+    // Skip first word (flags), read member section indices
+    for (size_t j = 1; j < num_entries; ++j) {
+      section_indices.insert(static_cast<ELFIO::Elf_Half>(group_data[j]));
     }
   }
 
