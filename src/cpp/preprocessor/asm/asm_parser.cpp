@@ -306,7 +306,7 @@ operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm)
 
   std::vector<std::string> args = splitoption(sm[2].str().c_str(), ',');
   if (label.compare(args[0]))
-    throw error(error::error_code::internal_error, "endl label missmatch (" + label + " != " + args[0] + ")\n");
+    throw error(error::error_code::internal_error, "endl label mismatch (" + label + " != " + args[0] + ")\n");
   m_parserptr->pop_data_state();
 }
 
