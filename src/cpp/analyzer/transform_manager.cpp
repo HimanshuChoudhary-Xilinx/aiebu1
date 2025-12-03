@@ -551,9 +551,9 @@ extract_kernel_name_from_mangled(const std::string& symbol_name) const
 }
 
 /**
- * @brief Get filtered section indices for a kernel::instance filter
- * @param kernel_instance_filter: Filter in format "kernel::instance" (e.g., "DPU::dpu")
- * @return Set of section indices that belong to the specified kernel::instance
+ * @brief Get filtered section indices for a kernel:instance filter
+ * @param kernel_instance_filter: Filter in format "kernel:instance" (e.g., "DPU:dpu")
+ * @return Set of section indices that belong to the specified kernel:instance
  */
 std::set<ELFIO::Elf_Half>
 transform_manager::
@@ -563,7 +563,7 @@ get_filtered_section_indices(const std::string& kernel_instance_filter)
   size_t delimiter_pos = kernel_instance_filter.find(":");
   if (delimiter_pos == std::string::npos)
     throw error(error::error_code::invalid_input,
-                "Invalid filter format. Expected 'kernel::instance', got: " + kernel_instance_filter);
+                "Invalid filter format. Expected 'kernel:instance', got: " + kernel_instance_filter);
 
   std::string filter_kernel = kernel_instance_filter.substr(0, delimiter_pos);
   std::string filter_instance = kernel_instance_filter.substr(delimiter_pos + 1);
@@ -663,7 +663,7 @@ get_filtered_section_indices(const std::string& kernel_instance_filter)
 
 /**
  * @brief Extract argument information from ELF relocation sections
- * @param kernel_instance_filter: Optional filter in format "kernel::instance" (e.g., "DPU::dpu")
+ * @param kernel_instance_filter: Optional filter in format "kernel:instance" (e.g., "DPU:dpu")
  * @return Vector of arginfo containing XRT ID and BD offset pairs
  *
  * This function:
@@ -758,11 +758,11 @@ extract_rela_sections(const std::string& kernel_instance_filter)
 /**
  * @brief Update ELF with new argument information and regenerate binary
  * @param entries: Vector of arginfo with new XRT indices and BD offsets
- * @param kernel_instance_filter: Optional filter in format "kernel::instance" (e.g., "DPU::dpu")
+ * @param kernel_instance_filter: Optional filter in format "kernel:instance" (e.g., "DPU:dpu")
  * @return Modified ELF binary as vector of chars
  *
  * This is the main transformation function that:
- * 1. Optionally filters relocations to specific kernel::instance (uses get_filtered_section_indices)
+ * 1. Optionally filters relocations to specific kernel:instance (uses get_filtered_section_indices)
  * 2. Updates symbol names in .dynsym with new XRT indices
  * 3. Rebuilds .dynstr with new symbol names (deduplicates symbols)
  * 4. Patches BD offsets in control code and control packet sections

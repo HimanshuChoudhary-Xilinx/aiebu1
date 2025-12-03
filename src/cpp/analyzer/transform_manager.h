@@ -111,9 +111,9 @@ class transform_manager {
   std::string extract_kernel_name_from_mangled(const std::string& symbol_name) const;
 
   /**
-   * @brief Get filtered section indices for a kernel::instance filter
-   * @param kernel_instance_filter: Filter in format "kernel::instance" (e.g., "DPU::dpu")
-   * @return Set of section indices that belong to the specified kernel::instance
+   * @brief Get filtered section indices for a kernel:instance filter
+   * @param kernel_instance_filter: Filter in format "kernel:instance" (e.g., "DPU:dpu")
+   * @return Set of section indices that belong to the specified kernel:instance
    *
    * This method:
    * 1. Parses filter string to extract kernel and instance names
@@ -237,7 +237,7 @@ public:
 
   /**
    * @brief Extract argument information from relocation sections
-   * @param kernel_instance_filter:  filter in format "kernel::instance" (e.g., "DPU::dpu")
+   * @param kernel_instance_filter:  filter in format "kernel:instance" (e.g., "DPU:dpu")
    *                                 If empty, extracts all relocations.
    *                                 Kernel name is matched from FUNC symbols (_Z3DPUPcPc -> "DPU")
    *                                 Instance name is matched from OBJECT symbols, then traverses all
@@ -255,13 +255,13 @@ public:
   /**
    * @brief Update ELF with new argument information
    * @param entries: Vector of arginfo with updated XRT indices and BD offsets
-   * @param kernel_instance_filter:  filter in format "kernel::instance" (e.g., "DPU::dpu")
+   * @param kernel_instance_filter:  filter in format "kernel:instance" (e.g., "DPU::dpu")
    *                                 If empty, updates all relocations.
-   *                                 If specified, only updates relocations for the matching kernel::instance
+   *                                 If specified, only updates relocations for the matching kernel:instance
    * @return Modified ELF binary as vector of chars
    *
    * This method:
-   * 1. Optionally filters relocations to specific kernel::instance (same logic as extract_rela_sections)
+   * 1. Optionally filters relocations to specific kernel:instance (same logic as extract_rela_sections)
    * 2. Updates symbol names in .dynsym with new XRT indices
    * 3. Patches BD offsets in control code and control packet sections
    * 4. Updates apply_offset_57 opcodes with xrt_id
