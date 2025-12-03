@@ -187,6 +187,18 @@ class aiebu_assembler
          * @return const reference to the name string (e.g., "DPU:dpu")
          */
         const std::string& get_name() const;
+
+        /*
+         * Update the kernel name in the ELF and this argtbl
+         * @param name: the new kernel name (e.g., "NewKernel")
+         *
+         * This method:
+         * 1. Parses m_name (format "kernel:instance", e.g., "DPU:dpu")
+         * 2. Extracts the old kernel name ("DPU")
+         * 3. Calls update_kernel_name("DPU", "NewKernel") to update ELF
+         * 4. Updates m_name to "NewKernel:dpu" (keeps instance unchanged)
+         */
+        void set_name(const std::string& name);
     };
 
     /*

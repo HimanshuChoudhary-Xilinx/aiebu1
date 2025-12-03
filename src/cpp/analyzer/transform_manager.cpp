@@ -914,5 +914,152 @@ update_rela_sections(const std::vector<arginfo>& entries, const std::string& ker
 
   return std::vector<char>(std::istream_iterator<char>(stream), std::istream_iterator<char>());
 }
+
+/**
+ * @brief Update kernel name in ELF symbol table and string table
+ * @param orig_name: Original kernel name to find and replace (can be substring)
+ * @param new_name: New kernel name to use
+ * @return Modified ELF binary as vector of chars
+ *
+ * This function:
+ * 1. Validates ELF is OS ABI 0x46 (AIE2PS/AIE4 group) and ABI version 0x3
+ * 2. Locates the .symtab and .strtab sections
+ * 3. Searches for orig_name as a substring in .strtab entries (works for any symbol type: FUNC, OBJECT, etc.)
+ * 4. Replaces orig_name with new_name within the strings
+ * 5. For C++ mangled names (_Z<len><name>...), automatically updates the length prefix
+ * 6. Rebuilds .strtab with the updated names and recalculates all string offsets
+ * 7. Updates all symbol table entries to point to new string offsets
+ * 8. Serializes modified ELF back to binary
+ *
+ * Example: To replace "DPU" with "XCVB" in "_Z3DPUpcpcpc":
+ *   update_kernel_name("DPU", "XCVB") -> produces "_Z4XCVBpcpcpc"
+ *
+ * @throws error if ELF format is unsupported, sections are missing, or kernel name not found
+ */
+ std::vector<char>
+ transform_manager::
+ update_kernel_name(const std::string orig_name, const std::string new_name) {
+   // Validate ELF format: only support OS ABI 0x46 (elf_amd_aie2ps_group) and ABI version 0x3
+   auto os_abi = m_elfio.get_os_abi();
+   auto abi_version = m_elfio.get_abi_version();
+
+   if (os_abi != 0x46)
+     throw error(error::error_code::invalid_input,
+                 "update_kernel_name only supports OS ABI 0x46 (AIE2PS/AIE4 group), got: 0x"
+                 + ELFIO::to_hex_string(os_abi));
+
+   if (abi_version != 0x3)
+     throw error(error::error_code::invalid_input,
+                 "update_kernel_name only supports ABI version 0x3, got: 0x"
+                 + ELFIO::to_hex_string(abi_version));
+
+   // Locate required ELF sections
+   auto symtab = m_elfio.sections[".symtab"];
+   auto strtab = m_elfio.sections[".strtab"];
+
+   if (!symtab || !strtab)
+     throw error(error::error_code::internal_error, ".symtab or .strtab section not found");
+
+   const auto symtab_size = symtab->get_size();
+   const auto strtab_size = strtab->get_size();
+   const auto sym_count = symtab_size / sizeof(ELFIO::Elf32_Sym);
+
+   // Check if kernel name was found
+   bool found = false;
+
+   // Build new string table with updated kernel name
+   std::string new_strtab_data;
+   new_strtab_data.reserve(strtab_size + new_name.size());
+
+   // Map old string offsets to new string offsets
+   std::map<ELFIO::Elf_Word, ELFIO::Elf_Word> offset_map;
+
+   // Parse existing string table and build new one
+   ELFIO::Elf_Word current_offset = 0;
+   ELFIO::Elf_Word new_offset = 0;
+
+   while (current_offset < strtab_size) {
+     // Read null-terminated string at current offset
+     const char* str = strtab->get_data() + current_offset;
+     std::string current_str(str);
+
+     // Map old offset to new offset
+     offset_map[current_offset] = new_offset;
+
+     // Check if this string matches the kernel name to replace
+     bool is_match = false;
+     std::string modified_str = current_str;
+
+     // Check for C++ mangled name: _Z<length><name>...
+     if (current_str.size() > 3 && current_str[0] == '_' && current_str[1] == 'Z' && std::isdigit(current_str[2])) {
+       // Parse the length prefix
+       size_t length_start = 2;
+       size_t length_end = length_start;
+       while (length_end < current_str.size() && std::isdigit(current_str[length_end])) {
+         length_end++;
+       }
+
+       if (length_end > length_start) {
+         // Extract the length value
+         std::string length_str = current_str.substr(length_start, length_end - length_start);
+         size_t name_length = std::stoul(length_str);
+         size_t name_start = length_end;
+         size_t name_end = name_start + name_length;
+
+         // Check if the identifier matches exactly
+         if (name_end <= current_str.size()) {
+           std::string identifier = current_str.substr(name_start, name_length);
+           if (identifier == orig_name) {
+             // Exact match - replace the identifier and update the length
+             is_match = true;
+             std::string new_length = std::to_string(new_name.size());
+             modified_str = "_Z" + new_length + new_name + current_str.substr(name_end);
+           }
+         }
+       }
+     }
+
+     if (is_match) {
+       new_strtab_data.append(modified_str).push_back('\0');
+       new_offset += modified_str.size() + 1;
+       found = true;
+     } else {
+       // No match - copy as is
+       new_strtab_data.append(current_str).push_back('\0');
+       new_offset += current_str.size() + 1;
+     }
+
+     // Move to next string (past null terminator)
+     current_offset += current_str.size() + 1;
+   }
+
+   if (!found)
+     throw error(error::error_code::invalid_input, "Kernel name '" + orig_name + "' not found in symbol table");
+
+   // Create a copy of the symbol table to modify
+   std::vector<char> symtab_copy(symtab->get_data(), symtab->get_data() + symtab_size);
+
+   // Update symbol table entries with new string offsets
+   for (size_t i = 0; i < sym_count; ++i) {
+     auto sym = reinterpret_cast<ELFIO::Elf32_Sym*>(symtab_copy.data() + i * sizeof(ELFIO::Elf32_Sym));
+
+     // Update string offset if it exists in our mapping
+     auto it = offset_map.find(sym->st_name);
+     if (it != offset_map.end()) {
+       sym->st_name = it->second;
+     }
+   }
+
+   // Update the sections with new data
+   strtab->set_data(new_strtab_data);
+   symtab->set_data(symtab_copy.data(), symtab_copy.size());
+
+   // Serialize modified ELF back to binary format
+   std::stringstream stream;
+   stream << std::noskipws;
+   m_elfio.save(stream);
+
+   return std::vector<char>(std::istream_iterator<char>(stream), std::istream_iterator<char>());
+ }
 } // End of Namespace aiebu
 

@@ -270,6 +270,21 @@ public:
    */
   std::vector<char> update_rela_sections(const std::vector<arginfo>& entries,
                                          const std::string& kernel_instance_filter);
+
+  /**
+   * @brief Update kernel name in ELF .symtab and .strtab sections
+   * @param orig_name: Original kernel name to find and replace
+   * @param new_name: New kernel name to use as replacement
+   * @return Modified ELF binary as vector of chars
+   *
+   * For C++ mangled names, matches the exact identifier (e.g., "DPU" matches "_Z3DPUPcPc"
+   * but not "_Z4DPU1PcPc"). Automatically updates length prefixes (_Z3DPU -> _Z4XCVB).
+   * For non-mangled names, does exact string matching.
+   * Only supports OS ABI 0x46 and ABI version 0x3.
+   *
+   * @throws error if format unsupported, sections missing, or name not found
+   */
+   std::vector<char> update_kernel_name(const std::string orig_name, const std::string new_name);
 };
 
 }

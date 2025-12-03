@@ -123,11 +123,12 @@ disassemble(const std::filesystem::path &root) const
 class aiebu_assembler::argtbl_impl
 {
   std::vector<arginfo>& m_tbl;
+  std::vector<char>& m_elf_data;
   std::string m_name;
 
   public:
-    explicit argtbl_impl(std::vector<arginfo>& in_tbl, std::string name)
-      : m_tbl(in_tbl), m_name(std::move(name)) { }
+  explicit argtbl_impl(std::vector<arginfo>& in_tbl, std::vector<char>& in_elf_data, std::string name)
+      : m_tbl(in_tbl), m_elf_data(in_elf_data), m_name(std::move(name)) { }
 
     std::vector<arginfo>&
     dump() const
@@ -139,6 +140,26 @@ class aiebu_assembler::argtbl_impl
     get_name() const
     {
       return m_name;
+    }
+
+    void
+    set_name(const std::string& name)
+    {
+      // Parse m_name to extract kernel and instance (format: "kernel:instance")
+      size_t delimiter_pos = m_name.find(':');
+      if (delimiter_pos == std::string::npos)
+        throw error(error::error_code::invalid_input,
+                    "Invalid name format. Expected 'kernel:instance', got: " + m_name);
+
+      std::string old_kernel = m_name.substr(0, delimiter_pos);
+      std::string instance = m_name.substr(delimiter_pos + 1);
+
+      // Update kernel name in ELF
+      transform_manager trans(m_elf_data);
+      m_elf_data = trans.update_kernel_name(old_kernel, name);
+
+      // Update m_name to new_kernel:instance
+      m_name = name + ":" + instance;
     }
 };
 
@@ -161,13 +182,20 @@ get_name() const
   return handle->get_name();
 }
 
+void
+aiebu_assembler::argtbl::
+set_name(const std::string& name)
+{
+  handle->set_name(name);
+}
+
 aiebu_assembler::argtbl
 aiebu_assembler::
 get_argtbl(const std::string& name)
 {
   transform_manager trans(elf_data);
   arginfo_tbl = trans.extract_rela_sections(name);
-  return argtbl{std::make_shared<argtbl_impl>(arginfo_tbl, name)};
+  return argtbl{std::make_shared<argtbl_impl>(arginfo_tbl, elf_data, name)};
 }
 
 void
