@@ -560,13 +560,13 @@ transform_manager::
 get_filtered_section_indices(const std::string& kernel_instance_filter)
 {
   // Parse filter
-  size_t delimiter_pos = kernel_instance_filter.find("::");
+  size_t delimiter_pos = kernel_instance_filter.find(":");
   if (delimiter_pos == std::string::npos)
     throw error(error::error_code::invalid_input,
                 "Invalid filter format. Expected 'kernel::instance', got: " + kernel_instance_filter);
 
   std::string filter_kernel = kernel_instance_filter.substr(0, delimiter_pos);
-  std::string filter_instance = kernel_instance_filter.substr(delimiter_pos + 2);
+  std::string filter_instance = kernel_instance_filter.substr(delimiter_pos + 1);
 
   // Get .symtab and .strtab sections
   auto symtab = m_elfio.sections[".symtab"];

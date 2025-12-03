@@ -181,14 +181,24 @@ class aiebu_assembler
          * xrt_idx transform.
          */
         std::vector<arginfo>& dump() const;
+
+        /*
+         * Get the kernel:instance name filter used for this argtbl
+         * @return const reference to the name string (e.g., "DPU:dpu")
+         */
         const std::string& get_name() const;
     };
+
     /*
-     * Get an argtbl object from aiebu_assembler. In this function
-     * aiebu_assember will scan the ELF and construct a table (vector)
-     * of xrt_idx and BD offset. Then it returns an object of this table
-     * which can be used to dump the reference of the table and modify
-     * the table in place.
+     * Get an argtbl object from aiebu_assembler for a given
+     * "kernel_name:instant_name". In this function aiebu_assember
+     * will scan the ELF and construct a table (vector)
+     * of xrt_idx and BD offset of that kernel:inst's control code.
+     * Then it returns an object of this table which can be used to
+     * dump the reference of the table and modify the table in place.
+     * @name: "kernel_name:instant_name"
+     *         if name is empty, it will return the argtbl object for all kernels
+     * @return argtbl object
      */
     argtbl get_argtbl(const std::string& name = "");
 
