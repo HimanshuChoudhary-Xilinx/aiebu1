@@ -19,6 +19,7 @@ namespace dtrace
 
 //-------------------------Log Level-------------------------//
 // variable to store the current log level
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 static dtrace_log_level g_current_log_level = dtrace_log_level::dtrace_error;
 
 // Function to set the log level
