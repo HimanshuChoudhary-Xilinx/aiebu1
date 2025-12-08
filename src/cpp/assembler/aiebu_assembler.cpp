@@ -123,12 +123,11 @@ disassemble(const std::filesystem::path &root) const
 class aiebu_assembler::argtbl_impl
 {
   std::vector<arginfo>& m_tbl;
-  std::vector<char>& m_elf_data;
   std::string m_name;
 
   public:
-  explicit argtbl_impl(std::vector<arginfo>& in_tbl, std::vector<char>& in_elf_data, std::string name)
-      : m_tbl(in_tbl), m_elf_data(in_elf_data), m_name(std::move(name)) { }
+  explicit argtbl_impl(std::vector<arginfo>& in_tbl, std::string name)
+      : m_tbl(in_tbl), m_name(std::move(name)) { }
 
     std::vector<arginfo>&
     dump() const
@@ -145,20 +144,15 @@ class aiebu_assembler::argtbl_impl
     void
     set_name(const std::string& name)
     {
-      // Parse m_name to extract kernel and instance (format: "kernel:instance")
+      // Parse m_name to extract instance (format: "kernel:instance")
       size_t delimiter_pos = m_name.find(':');
       if (delimiter_pos == std::string::npos)
         throw error(error::error_code::invalid_input,
                     "Invalid name format. Expected 'kernel:instance', got: " + m_name);
 
-      std::string old_kernel = m_name.substr(0, delimiter_pos);
       std::string instance = m_name.substr(delimiter_pos + 1);
 
-      // Update kernel name in ELF
-      transform_manager trans(m_elf_data);
-      m_elf_data = trans.update_kernel_name(old_kernel, name);
-
-      // Update m_name to new_kernel:instance
+      // Update m_name to new_kernel:instance (ELF update happens in flush_argtbl)
       m_name = name + ":" + instance;
     }
 };
@@ -193,9 +187,13 @@ aiebu_assembler::argtbl
 aiebu_assembler::
 get_argtbl(const std::string& name)
 {
+  // Extract and store original kernel name from "kernel:instance" format
+  size_t delimiter_pos = name.find(':');
+  m_orig_kernel = (delimiter_pos != std::string::npos) ? name.substr(0, delimiter_pos) : "";
+
   transform_manager trans(elf_data);
   arginfo_tbl = trans.extract_rela_sections(name);
-  return argtbl{std::make_shared<argtbl_impl>(arginfo_tbl, elf_data, name)};
+  return argtbl{std::make_shared<argtbl_impl>(arginfo_tbl, name)};
 }
 
 void
@@ -209,6 +207,18 @@ flush_argtbl(const argtbl& arg_table)
                 + ", expected " + std::to_string(arginfo_tbl.size()));
 
   const auto& name = arg_table.get_name();
+
+  // Extract new kernel name from "new_kernel:instance" format
+  size_t delimiter_pos = name.find(':');
+  std::string new_kernel = (delimiter_pos != std::string::npos) ? name.substr(0, delimiter_pos) : name;
+
+  // Update kernel name in ELF if it changed
+  if (!m_orig_kernel.empty() && m_orig_kernel != new_kernel) {
+    transform_manager trans(elf_data);
+    elf_data = trans.update_kernel_name(m_orig_kernel, new_kernel);
+  }
+
+  // Update relocation sections
   transform_manager trans(elf_data);
   elf_data = trans.update_rela_sections(table, name);
 }

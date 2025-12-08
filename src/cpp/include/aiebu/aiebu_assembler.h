@@ -60,6 +60,7 @@ class aiebu_assembler
     buffer_type m_type;
     buffer_type m_output_type;
     std::vector<arginfo> arginfo_tbl;
+    std::string m_orig_kernel;  // Original kernel name (for tracking changes in flush_argtbl)
 
   public:
     /*
@@ -189,14 +190,15 @@ class aiebu_assembler
         const std::string& get_name() const;
 
         /*
-         * Update the kernel name in the ELF and this argtbl
+         * Set the new kernel name for this argtbl
          * @param name: the new kernel name (e.g., "NewKernel")
          *
          * This method:
          * 1. Parses m_name (format "kernel:instance", e.g., "DPU:dpu")
-         * 2. Extracts the old kernel name ("DPU")
-         * 3. Calls update_kernel_name("DPU", "NewKernel") to update ELF
-         * 4. Updates m_name to "NewKernel:dpu" (keeps instance unchanged)
+         * 2. Updates m_name to "NewKernel:dpu" (keeps instance unchanged)
+         *
+         * Note: The actual ELF update happens in flush_argtbl()
+         *       Changing kernel name for one instance will change kernel name for all instances of that kernel.
          */
         void set_name(const std::string& name);
     };
