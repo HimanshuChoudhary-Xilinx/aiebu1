@@ -108,9 +108,61 @@ class asm_config_preprocessor_input : public preprocessor_input
   const file_artifact* m_artifacts = nullptr;
 protected: // NOLINT
   std::map<std::string, std::map<std::string, std::shared_ptr<asm_preprocessor_input>>> m_preprocessor_input;
+  // Global level custom sections
+  std::map<std::string, std::vector<uint8_t>> m_global_custom_sections;
+  // Kernel level custom sections: kernel_name -> section_name -> data
+  std::map<std::string, std::map<std::string, std::vector<uint8_t>>> m_kernel_custom_sections;
+  // Instance level custom sections: kernel_name -> instance_name -> section_name -> data
+  std::map<std::string, std::map<std::string, std::map<std::string, std::vector<uint8_t>>>> m_instance_custom_sections;
+
+  // Helper to parse customer_section array from JSON
+  std::map<std::string, std::vector<uint8_t>> parse_customer_sections(
+      const boost::property_tree::ptree& pt,
+      const std::vector<std::string>& paths)
+  {
+    std::map<std::string, std::vector<uint8_t>> custom_sections;
+    const auto& pt_customer_sections = pt.get_child_optional("customer_section");
+    if (pt_customer_sections) {
+      for (const auto& [sec_unused, section] : pt_customer_sections.get()) {
+        auto section_name = section.get<std::string>("section_name");
+        auto section_path = section.get<std::string>("path");
+        auto section_data = readfile(section_path, paths);
+        custom_sections[section_name] = std::vector<uint8_t>(section_data.begin(), section_data.end());
+      }
+    }
+    return custom_sections;
+  }
+
 public:
   const std::map<std::string, std::map<std::string, std::shared_ptr<asm_preprocessor_input>>>&
   get_kernel_map() const { return m_preprocessor_input; }
+
+  const std::map<std::string, std::vector<uint8_t>>& get_global_custom_sections() const
+  {
+    return m_global_custom_sections;
+  }
+
+  const std::map<std::string, std::vector<uint8_t>>& get_kernel_custom_sections(const std::string& kernel) const
+  {
+    static const std::map<std::string, std::vector<uint8_t>> empty_map;
+    auto it = m_kernel_custom_sections.find(kernel);
+    if (it != m_kernel_custom_sections.end())
+      return it->second;
+    return empty_map;
+  }
+
+  const std::map<std::string, std::vector<uint8_t>>& get_instance_custom_sections(
+      const std::string& kernel, const std::string& instance) const
+  {
+    static const std::map<std::string, std::vector<uint8_t>> empty_map;
+    auto kit = m_instance_custom_sections.find(kernel);
+    if (kit != m_instance_custom_sections.end()) {
+      auto iit = kit->second.find(instance);
+      if (iit != kit->second.end())
+        return iit->second;
+    }
+    return empty_map;
+  }
 
   void add_instance(const std::string& kernel,
                     const boost::property_tree::ptree& pinstance,
@@ -129,7 +181,14 @@ public:
       ccode = m_artifacts->get(ccode_file_name, paths);
       if (!patch_json_file.empty())
         jdata = m_artifacts->get(patch_json_file, paths);
-      add_preprocessor_input(kernel, tname, ccode, jdata, flags, paths, m_artifacts);
+
+      // Parse instance-level customer_section array if present
+      auto instance_custom_sections = parse_customer_sections(pic, paths);
+      if (!instance_custom_sections.empty()) {
+        m_instance_custom_sections[kernel][tname] = instance_custom_sections;
+      }
+
+      add_preprocessor_input(kernel, tname, ccode, jdata, flags, paths, m_artifacts, instance_custom_sections);
     }
   }
 
@@ -139,6 +198,9 @@ public:
   {
     boost::property_tree::ptree pt;
     boost::property_tree::read_json(patch_json, pt);
+
+    // Parse global-level customer_section
+    m_global_custom_sections = parse_customer_sections(pt, paths);
 
     const auto& pt_xrt_kernel_instance = pt.get_child_optional("xrt-kernels");
     if (!pt_xrt_kernel_instance) {
@@ -159,6 +221,12 @@ public:
       }
       std::string mangled_name = mangle_function_name(func);
       //std::cout << "Mangled Function Name: " << mangled_name << std::endl;
+
+      // Parse kernel-level customer_section
+      auto kernel_custom_sections = parse_customer_sections(ctrlcode, paths);
+      if (!kernel_custom_sections.empty()) {
+        m_kernel_custom_sections[mangled_name] = kernel_custom_sections;
+      }
 
       const auto& pt_pdis = ctrlcode.get_child_optional("PDIs");
       if (pt_pdis)
@@ -197,7 +265,8 @@ public:
                                       const std::vector<char>& /*patch_json*/,
                                       const std::vector<std::string>& /*flags*/,
                                       const std::vector<std::string>& /*paths*/,
-                                      const file_artifact* artifacts) = 0;
+                                      const file_artifact* artifacts,
+                                      const std::map<std::string, std::vector<uint8_t>>& /*custom_sections*/ = {}) = 0;
 
   ~asm_config_preprocessor_input() override = default;
 };
@@ -212,10 +281,13 @@ public:
                               const std::vector<char>& patch_json,
                               const std::vector<std::string>& flags,
                               const std::vector<std::string>& paths,
-                              const file_artifact* artifacts) override
+                              const file_artifact* artifacts,
+                              const std::map<std::string, std::vector<uint8_t>>& /*custom_sections*/ = {}) override
   {
     auto input = std::make_shared<T>();
     input->set_args(control_code, patch_json, {}, flags, paths, {}, artifacts);
+    // Note: custom sections are tracked at config level (m_instance_custom_sections),
+    // not at individual preprocessor input level, to avoid duplication
     m_preprocessor_input[kernel][instance] = input;
   }
 };

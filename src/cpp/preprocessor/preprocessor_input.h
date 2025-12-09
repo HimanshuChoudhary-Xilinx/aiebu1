@@ -20,6 +20,7 @@ class preprocessor_input
 protected:
   std::map<std::string, std::vector<char>> m_data;
   std::map<std::string, std::vector<char>> m_controlpkt;
+  std::map<std::string, std::vector<uint8_t>> m_custom_data;
   std::vector<symbol> m_sym;
 
   class argument {
@@ -101,6 +102,21 @@ public:
   void add_symbols(const std::vector<symbol>& syms)
   {
     m_sym.insert( m_sym.end(), syms.begin(), syms.end());
+  }
+
+  void add_custom_section(const std::string& name, const std::vector<uint8_t>& data)
+  {
+    m_custom_data[name] = data;
+  }
+
+  const std::map<std::string, std::vector<uint8_t>>& get_custom_sections() const
+  {
+    return m_custom_data;
+  }
+
+  bool has_custom_sections() const
+  {
+    return !m_custom_data.empty();
   }
 };
 

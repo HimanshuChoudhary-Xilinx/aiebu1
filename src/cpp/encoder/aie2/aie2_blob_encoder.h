@@ -57,15 +57,37 @@ public:
     auto output_writer = std::make_shared<aie2_config_writer>(pinfo_first_instance);
     twriter.push_back(output_writer);
 
+    // Add global level custom sections
+    const auto& global_sections = tinput->get_global_custom_sections();
+    for (const auto& [section_name, section_data] : global_sections) {
+      output_writer->add_global_custom_section(
+          std::make_shared<section_writer>(section_name, code_section::custom, std::vector<uint8_t>(section_data)));
+    }
+
     for (auto& [kernel, instances] : tinput->get_kernel_map()) {
        for(auto [dname, data] : instances.get_common())
          output_writer->add_kernel_common_data(kernel, std::make_shared<section_writer>(dname, code_section::text, std::move(data)));
+
+       // Add kernel level custom sections
+       const auto& kernel_sections = tinput->get_kernel_custom_sections(kernel);
+       for (const auto& [section_name, section_data] : kernel_sections) {
+         output_writer->add_kernel_custom_section(kernel,
+             std::make_shared<section_writer>(section_name, code_section::custom, std::vector<uint8_t>(section_data)));
+       }
 
       for(auto& [iname, instance] : instances.get_instance_map())
       {
         aie2_blob_encoder encoder_object;
         check_partition_info(instance->get_partition_info(), output_writer->get_partition_info());
-        output_writer->add_kernel_map(kernel, iname, encoder_object.process(instance));
+        auto instance_writers = encoder_object.process(instance);
+
+        // Add instance level custom sections
+        const auto& custom_sections = instances.get_custom_sections(iname);
+        for (const auto& [section_name, section_data] : custom_sections) {
+          instance_writers.emplace_back(std::make_shared<section_writer>(section_name, code_section::custom, std::vector<uint8_t>(section_data)));
+        }
+
+        output_writer->add_kernel_map(kernel, iname, instance_writers);
       }
     }
     return twriter;

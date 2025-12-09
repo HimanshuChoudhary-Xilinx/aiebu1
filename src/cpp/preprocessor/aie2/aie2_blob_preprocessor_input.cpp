@@ -987,6 +987,18 @@ add_preemption_code(uint32_t col)
         ctrl_pkt_code =  m_artifacts->get(pic.get<std::string>("ctrl_packet_file"), paths);
       if (!pic.get<std::string>("patch_info_file", "").empty())
         jdata = m_artifacts->get(pic.get<std::string>("patch_info_file"), paths);
+
+      // Parse customer_section array if present
+      const auto& pt_customer_sections = pic.get_child_optional("customer_section");
+      if (pt_customer_sections) {
+        for (const auto& [sec_unused, section] : pt_customer_sections.get()) {
+          auto section_name = section.get<std::string>("section_name");
+          auto section_path = section.get<std::string>("path");
+          auto section_data = readfile(section_path, paths);
+          kernel_map[kernel].add_custom_section(tname, section_name, std::vector<uint8_t>(section_data.begin(), section_data.end()));
+        }
+      }
+
       auto instance = std::make_shared<aie2_blob_transaction_preprocessor_input>();
 
       kernel_map[kernel].add_instance(tname, instance);
@@ -1000,6 +1012,9 @@ add_preemption_code(uint32_t col)
   {
     boost::property_tree::ptree pt;
     boost::property_tree::read_json(patch_json, pt);
+
+    // Parse global-level customer_section
+    m_global_custom_sections = parse_customer_sections(pt, paths);
 
     const auto& pt_xrt_kernel_instance = pt.get_child_optional("xrt-kernels");
     if (!pt_xrt_kernel_instance)
@@ -1019,6 +1034,12 @@ add_preemption_code(uint32_t col)
       }
       std::string mangled_name = mangle_function_name(func);
       //std::cout << "Mangled Function Name: " << mangled_name << std::endl;
+
+      // Parse kernel-level customer_section
+      auto kernel_custom_sections = parse_customer_sections(ctrlcode, paths);
+      if (!kernel_custom_sections.empty()) {
+        m_kernel_custom_sections[mangled_name] = kernel_custom_sections;
+      }
 
       const auto& pt_pdis = ctrlcode.get_child_optional("PDIs");
       if (pt_pdis) {

@@ -64,15 +64,30 @@ public:
     auto routput = std::make_shared<aie2_config_preprocessed_output>();
     aie2_blob_preprocessor preprocessor;
 
+    // Pass global level custom sections
+    routput->set_global_custom_sections(rinput->get_global_custom_sections());
+
     for (auto& [kernel, instances] : rinput->get_kernel_map()) {
       //copy instances->m_data_common
       for(auto& [dname, data] : instances.get_common())
         routput->add_kernel_common_data(kernel, dname, transform(data));
 
+      // Pass kernel level custom sections
+      const auto& kernel_sections = rinput->get_kernel_custom_sections(kernel);
+      if (!kernel_sections.empty()) {
+        routput->set_kernel_custom_sections(kernel, kernel_sections);
+      }
+
       for(auto& [iname, instance] : instances.get_instance_map())
       {
         auto val = std::dynamic_pointer_cast<aie2_blob_preprocessed_output>(preprocessor.process(instance));
         routput->add_kernel_map(kernel, iname, val);
+
+        // Pass instance level custom sections from input to output
+        const auto& custom_sections = instances.get_custom_sections(iname);
+        for (const auto& [section_name, section_data] : custom_sections) {
+          routput->add_kernel_custom_section(kernel, iname, section_name, section_data);
+        }
       }
     }
     return routput;

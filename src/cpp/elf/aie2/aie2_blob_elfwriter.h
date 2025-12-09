@@ -43,14 +43,30 @@ public:
     auto mconfig_writer = std::dynamic_pointer_cast<aie2_config_writer>(mwriter[0]);
     init_symtab();
     uint32_t index=0;
+
+    // Add global level custom sections first
+    const auto& global_sections = mconfig_writer->get_global_custom_sections();
+    if (!global_sections.empty()) {
+      std::vector<std::shared_ptr<writer>> global_vec(global_sections.begin(), global_sections.end());
+      process_common_helper(global_vec, "");
+    }
+
     for( auto& [kernel, instances] : mconfig_writer->get_kernel_map())
     {
        auto kernel_index = add_symtab(kernel);
        std::vector<uint32_t> common_data = process_common_helper(instances.get_common(), "");
+
+       // Add kernel level custom sections
+       const auto& kernel_sections = mconfig_writer->get_kernel_custom_sections(kernel);
+       if (!kernel_sections.empty()) {
+         std::vector<std::shared_ptr<writer>> kernel_vec(kernel_sections.begin(), kernel_sections.end());
+         process_common_helper(kernel_vec, "", kernel_index);
+       }
+
        for(auto& [iname, instance] : instances.get_instance_map())
        {
          auto instance_index = add_symtab_section(iname, kernel_index);
-         std::vector<uint32_t> group_data = process_common_helper(instance, get_section_prefix(index));
+         std::vector<uint32_t> group_data = process_common_helper(instance, get_section_prefix(index), instance_index);
          // first word is GRP_COMDAT
          group_data.insert(group_data.begin(), 1);
          //group_data.insert(group_data.end(), common_data.begin(), common_data.end());

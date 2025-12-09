@@ -21,6 +21,7 @@ class aie2_blob_preprocessed_output : public preprocessed_output
   std::map<std::string, std::vector<uint8_t>> m_data;
   std::vector<symbol> m_sym;
   std::shared_ptr<const partition_info> m_partition;
+  std::map<std::string, std::vector<uint8_t>> m_custom_sections;
 public:
   explicit aie2_blob_preprocessed_output(std::shared_ptr<const partition_info> partition): m_partition(std::move(partition)) {}
 
@@ -61,12 +62,28 @@ public:
       throw error(error::error_code::internal_error, "Key (" + key + ") not found!!!");
     return m_data[key];
   }
+
+  void set_custom_sections(const std::map<std::string, std::vector<uint8_t>>& custom_sections)
+  {
+    m_custom_sections = custom_sections;
+  }
+
+  const std::map<std::string, std::vector<uint8_t>>& get_custom_sections() const
+  {
+    return m_custom_sections;
+  }
+
+  bool has_custom_sections() const
+  {
+    return !m_custom_sections.empty();
+  }
 };
 
 class instance_output
 {
   std::map<std::string, std::shared_ptr<aie2_blob_preprocessed_output>> m_instance;
   std::map<std::string, std::vector<uint8_t>> m_data_common;
+  std::map<std::string, std::map<std::string, std::vector<uint8_t>>> m_custom_sections; // instance -> section_name -> data
 public:
 
   const std::map<std::string, std::shared_ptr<aie2_blob_preprocessed_output>>& get_instance_map() const
@@ -88,11 +105,30 @@ public:
   {
     m_data_common[dname] = std::move(val);
   }
+
+  void add_custom_section(const std::string& instance, const std::string& section_name, std::vector<uint8_t> data)
+  {
+    m_custom_sections[instance][section_name] = std::move(data);
+  }
+
+  const std::map<std::string, std::vector<uint8_t>>& get_custom_sections(const std::string& instance) const
+  {
+    static const std::map<std::string, std::vector<uint8_t>> empty_map;
+    auto it = m_custom_sections.find(instance);
+    if (it != m_custom_sections.end())
+      return it->second;
+    return empty_map;
+  }
 };
 
 class aie2_config_preprocessed_output: public preprocessed_output
 {
   std::map<std::string, instance_output> m_output;
+  // Global level custom sections
+  std::map<std::string, std::vector<uint8_t>> m_global_custom_sections;
+  // Kernel level custom sections: kernel_name -> section_name -> data
+  std::map<std::string, std::map<std::string, std::vector<uint8_t>>> m_kernel_custom_sections;
+
 public:
 
   const std::map<std::string, instance_output>&
@@ -104,6 +140,32 @@ public:
 
   void add_kernel_common_data(const std::string& kernel, const std::string& dname, std::vector<uint8_t> val) {
     m_output[kernel].add_common_data(dname, std::move(val));
+  }
+
+  void add_kernel_custom_section(const std::string& kernel, const std::string& instance, const std::string& section_name, std::vector<uint8_t> val) {
+    m_output[kernel].add_custom_section(instance, section_name, std::move(val));
+  }
+
+  // Global level custom sections
+  void set_global_custom_sections(const std::map<std::string, std::vector<uint8_t>>& sections) {
+    m_global_custom_sections = sections;
+  }
+
+  const std::map<std::string, std::vector<uint8_t>>& get_global_custom_sections() const {
+    return m_global_custom_sections;
+  }
+
+  // Kernel level custom sections
+  void set_kernel_custom_sections(const std::string& kernel, const std::map<std::string, std::vector<uint8_t>>& sections) {
+    m_kernel_custom_sections[kernel] = sections;
+  }
+
+  const std::map<std::string, std::vector<uint8_t>>& get_kernel_custom_sections(const std::string& kernel) const {
+    static const std::map<std::string, std::vector<uint8_t>> empty_map;
+    auto it = m_kernel_custom_sections.find(kernel);
+    if (it != m_kernel_custom_sections.end())
+      return it->second;
+    return empty_map;
   }
 };
 

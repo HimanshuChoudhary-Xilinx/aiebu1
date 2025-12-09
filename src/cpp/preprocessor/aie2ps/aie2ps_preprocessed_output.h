@@ -32,6 +32,7 @@ class aie2ps_preprocessed_output : public preprocessed_output
   std::shared_ptr<const aie_row_topology_info> m_aie_row_topology;
   std::map<std::string, std::vector<char>> m_ctrlpkt;
   std::map<uint32_t, std::string> m_ctrlpkt_id_map;
+  std::map<std::string, std::vector<uint8_t>> m_custom_sections;
 public:
 
   explicit aie2ps_preprocessed_output(std::shared_ptr<const partition_info> partition,
@@ -107,12 +108,33 @@ public:
   {
     m_ctrlpkt_id_map = ctrlpkt_id_map;
   }
+
+  void set_custom_sections(const std::map<std::string, std::vector<uint8_t>>& custom_sections)
+  {
+    m_custom_sections = custom_sections;
+  }
+
+  const std::map<std::string, std::vector<uint8_t>>& get_custom_sections() const
+  {
+    return m_custom_sections;
+  }
+
+  bool has_custom_sections() const
+  {
+    return !m_custom_sections.empty();
+  }
 };
 
 template <typename T>
 class asm_config_preprocessed_output: public preprocessed_output
 {
   std::map<std::string, std::map<std::string, std::shared_ptr<T>>> m_output;
+  // Global level custom sections
+  std::map<std::string, std::vector<uint8_t>> m_global_custom_sections;
+  // Kernel level custom sections: kernel_name -> section_name -> data
+  std::map<std::string, std::map<std::string, std::vector<uint8_t>>> m_kernel_custom_sections;
+  // Instance level custom sections: kernel_name -> instance_name -> section_name -> data
+  std::map<std::string, std::map<std::string, std::map<std::string, std::vector<uint8_t>>>> m_instance_custom_sections;
 
 public:
   const std::map<std::string, std::map<std::string, std::shared_ptr<T>>>&
@@ -120,6 +142,46 @@ public:
 
   void add_kernel_map(const std::string& kernel, const std::string& instance, std::shared_ptr<T> val) {
     m_output[kernel][instance] = val;
+  }
+
+  // Global level custom sections
+  void set_global_custom_sections(const std::map<std::string, std::vector<uint8_t>>& sections) {
+    m_global_custom_sections = sections;
+  }
+
+  const std::map<std::string, std::vector<uint8_t>>& get_global_custom_sections() const {
+    return m_global_custom_sections;
+  }
+
+  // Kernel level custom sections
+  void set_kernel_custom_sections(const std::string& kernel, const std::map<std::string, std::vector<uint8_t>>& sections) {
+    m_kernel_custom_sections[kernel] = sections;
+  }
+
+  const std::map<std::string, std::vector<uint8_t>>& get_kernel_custom_sections(const std::string& kernel) const {
+    static const std::map<std::string, std::vector<uint8_t>> empty_map;
+    auto it = m_kernel_custom_sections.find(kernel);
+    if (it != m_kernel_custom_sections.end())
+      return it->second;
+    return empty_map;
+  }
+
+  // Instance level custom sections
+  void set_instance_custom_sections(const std::string& kernel, const std::string& instance,
+                                     const std::map<std::string, std::vector<uint8_t>>& sections) {
+    m_instance_custom_sections[kernel][instance] = sections;
+  }
+
+  const std::map<std::string, std::vector<uint8_t>>& get_instance_custom_sections(
+      const std::string& kernel, const std::string& instance) const {
+    static const std::map<std::string, std::vector<uint8_t>> empty_map;
+    auto kit = m_instance_custom_sections.find(kernel);
+    if (kit != m_instance_custom_sections.end()) {
+      auto iit = kit->second.find(instance);
+      if (iit != kit->second.end())
+        return iit->second;
+    }
+    return empty_map;
   }
 };
 
