@@ -6,7 +6,9 @@
 #include "code_section.h"
 #include "utils.h"
 #include "file_utils.h"
+#include "logger.h"
 #include "common/regex_wrapper.h"
+#include "logger.h"
 
 #include <map>
 #include <memory>

@@ -12,6 +12,7 @@
 #include "aie2ps_preprocessor_input.h"
 #include "aie2ps_preprocessed_output.h"
 #include "specification/aie2ps/isa.h"
+#include "logger.h"
 
 namespace aiebu {
 
@@ -45,25 +46,45 @@ public:
   {
     //auto keys = tinput->get_keys();
     const std::string prefix = "opt_level_";
+    
+    // Process flags before parsing
+    auto flags = tinput->get_flags();
+    uint32_t optimize = 0;
+    asm_dump_flag debug_flag = asm_dump_flag::text;
+    const std::string loglevel_prefix = "loglevel_";
+    for (const auto& flag: flags)
+    {
+      if (flag == disable_dump_map)
+        debug_flag = asm_dump_flag::disable;
+      else if (flag == full_dump_map)
+        debug_flag = asm_dump_flag::full;
+      else if (flag.find(prefix) == 0)
+        optimize = std::stoi(flag.substr(prefix.size()));
+      else if (flag.find(loglevel_prefix) == 0) {
+        // Process log level for library API users
+        std::string log_level_str = flag.substr(loglevel_prefix.size());
+        if (log_level_str == "error")
+          set_log_level(log_level::error);
+        else if (log_level_str == "warn")
+          set_log_level(log_level::warn);
+        else if (log_level_str == "info")
+          set_log_level(log_level::info);
+        else if (log_level_str == "debug")
+          set_log_level(log_level::debug);
+        else
+          log_warn() << "Invalid log level flag: " << flag << ", ignored";
+      }
+      else
+        log_warn() << "Invalid flag: " << flag << ", ignored";
+    }
+    
     std::shared_ptr<asm_parser> parser(new asm_parser(tinput->get_ctrlcode_data(), tinput->get_include_paths()));
     parser->parse_lines();
     auto collist = parser->get_col_list();
     isa i;
-    uint32_t optimize = 0;
     m_isa = i.get_isamap();
     auto toutput = std::make_shared<aie2ps_preprocessed_output>(parser->get_partition_info());
-    auto flags = tinput->get_flags();
-    for (const auto& flag: flags)
-    {
-      if (flag == disable_dump_map)
-        toutput->set_debug(asm_dump_flag::disable);
-      else if (flag == full_dump_map)
-        toutput->set_debug(asm_dump_flag::full);
-      else if (flag.find(prefix) == 0)
-        optimize = std::stoi(flag.substr(prefix.size()));
-      else
-        std::cout << "Invalid flag: " << flag << ", ignored !!!" << std::endl;
-    }
+    toutput->set_debug(debug_flag);
     auto& controlpkts = tinput->get_controlpkt();
     auto& ctrlpkt_id_map = tinput->get_ctrlpkt_id_map();
     toutput->set_optmization(optimize);

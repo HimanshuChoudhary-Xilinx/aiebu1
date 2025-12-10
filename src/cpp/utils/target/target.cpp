@@ -10,6 +10,7 @@
 #include "target.h"
 #include "utils.h"
 #include "file_utils.h"
+#include "logger.h"
 
 std::map<uint32_t, std::vector<char> >
 aiebu::utilities::
@@ -59,7 +60,7 @@ target_aie2blob::parseOption(const sub_cmd_options &options)
             ("c,controlcode", "TXN control code binary or ASM file", cxxopts::value<decltype(m_transaction_file)>())
             ("p,controlpkt", "Control packet binary", cxxopts::value<decltype(m_controlpkt_file)>())
             ("j,json", "control packet Patching json file", cxxopts::value<decltype(m_external_buffers_file)>())
-            ("l,lib", "linked libs", cxxopts::value<decltype(m_libs)>())
+            ("l,lib", "linked libs (also supports loglevel_error, loglevel_warn, loglevel_info, loglevel_debug)", cxxopts::value<decltype(m_libs)>())
             ("L,libpath", "libs path", cxxopts::value<decltype(m_libpaths)>())
             ("m,pmctrl", "pm ctrlpkt <id>:<file>", cxxopts::value<decltype(pm_key_value_pairs)>())
             ("r,report", "Generate Report", cxxopts::value<bool>()->default_value("false"))
@@ -210,7 +211,7 @@ target_aie2ps::assemble(const sub_cmd_options &options)
             ("asm,c", "ASM File", cxxopts::value<decltype(input_file)>())
             ("j,json", "control packet Patching json file", cxxopts::value<decltype(external_buffers_file)>())
             ("L,libpath", "libs path", cxxopts::value<decltype(libpaths)>())
-            ("f,flag", "flags", cxxopts::value<decltype(flags)>())
+            ("f,flag", "flags (e.g., 'disabledump', 'fulldump', 'loglevel_error', 'loglevel_warn', 'loglevel_info', 'loglevel_debug')", cxxopts::value<decltype(flags)>())
             ("help,h", "show help message and exit", cxxopts::value<bool>()->default_value("false"))
     ;
 
@@ -276,12 +277,14 @@ target_aie2_config::assemble(const sub_cmd_options &options)
   std::string output_elffile;
   std::string json_file;
   std::vector<std::string> libpaths;
+  std::vector<std::string> flags;
   cxxopts::Options all_options("Target aie2 config Options", m_description);
 
   try {
     all_options.add_options()
             ("o,outputelf", "ELF output file name", cxxopts::value<decltype(output_elffile)>())
             ("j,json", "control packet Patching json file", cxxopts::value<decltype(json_file)>())
+            ("f,flag", "flags (e.g., 'loglevel_error', 'loglevel_warn', 'loglevel_info', 'loglevel_debug')", cxxopts::value<decltype(flags)>())
             ("h,help", "show help message and exit", cxxopts::value<bool>()->default_value("false"))
     ;
 
@@ -302,6 +305,9 @@ target_aie2_config::assemble(const sub_cmd_options &options)
 
     if (result.count("json"))
       json_file = result["json"].as<decltype(json_file)>();
+
+    if (result.count("flag"))
+      flags = result["flag"].as<decltype(flags)>();
   }
   catch (const cxxopts::exceptions::exception& e) {
     std::cout << all_options.help({"", "Target config Options"});
@@ -317,7 +323,7 @@ target_aie2_config::assemble(const sub_cmd_options &options)
   }
 
   try {
-    aiebu::aiebu_assembler as(aiebu::aiebu_assembler::buffer_type::aie2_config, {}, {}, libpaths, json_buffer);
+    aiebu::aiebu_assembler as(aiebu::aiebu_assembler::buffer_type::aie2_config, {}, flags, libpaths, json_buffer);
     write_elf(as, output_elffile);
   }
   catch (aiebu::error &ex) {
@@ -344,7 +350,7 @@ target_aie4::assemble(const sub_cmd_options &_options)
             ("asm,c", "ASM File", cxxopts::value<decltype(input_file)>())
             ("j,json", "control packet Patching json file", cxxopts::value<decltype(external_buffers_file)>())
             ("L,libpath", "libs path", cxxopts::value<decltype(libpaths)>())
-            ("f,flag", "flags", cxxopts::value<decltype(flags)>())
+            ("f,flag", "flags (e.g., 'disabledump', 'fulldump', 'loglevel_error', 'loglevel_warn', 'loglevel_info', 'loglevel_debug')", cxxopts::value<decltype(flags)>())
             ("help,h", "show help message and exit", cxxopts::value<bool>()->default_value("false"))
     ;
 
@@ -415,7 +421,7 @@ asm_config_parser::parser(const sub_cmd_options &options)
     all_options.add_options()
             ("o,outputelf", "ELF output file name", cxxopts::value<decltype(output_elffile)>())
             ("j,json", "control packet Patching json file", cxxopts::value<decltype(json_file)>())
-            ("f,flag", "flags", cxxopts::value<decltype(flags)>())
+            ("f,flag", "flags (e.g., 'disabledump', 'fulldump', 'loglevel_error', 'loglevel_warn', 'loglevel_info', 'loglevel_debug')", cxxopts::value<decltype(flags)>())
             ("O,optimization", "optimization level (1-4)", cxxopts::value<int>()->default_value("0"))
             ("h,help", "show help message and exit", cxxopts::value<bool>()->default_value("false"))
     ;
