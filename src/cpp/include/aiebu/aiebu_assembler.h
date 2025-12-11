@@ -11,20 +11,32 @@
 namespace aiebu {
 
 /*!
- * @struct arginfo
+ * @struct instinfo
  *
  * @brief
- * arginfo represent a pair of xrt_idx and its BD offset in a
- * control code.
- * On AIE2PS and AIE4 platform where we use ASM control code,
- * APPLY_OFFSET_57 opcode and ctrlpkt has the xrt_idx and BD offset
- * that the address of xrt_idx (at runtime) needs to be patched. This
- * struct represent one patch pair (xrt_idx and its BD offset)
+ * instinfo represents the arginfo (a table of xrt_idx and its
+ * bd_offset) of a instance. It also has the instance name.
  */
-struct arginfo {
-  uint32_t xrt_idx;
-  uint64_t bd_offset;
+ struct instinfo {
+  /*!
+   * @struct arginfo
+   *
+   * @brief
+   * arginfo represents a pair of xrt_idx and its BD offset in a
+   * control code.
+   * On AIE2PS and AIE4 platform where we use ASM control code,
+   * APPLY_OFFSET_57 opcode has the xrt_idx and BD offset that the
+   * address of xrt_idx (at runtime) needs to be patched. This
+   * struct represent one patch pair (xrt_idx and its BD offset)
+   */
+  struct arginfo {
+    uint32_t xrt_idx;
+    uint64_t bd_offset;
+  };
+  std::string inst_name;
+  std::vector<arginfo> inst_arginfo;
 };
+
 
 // Assembler Class
 
@@ -59,8 +71,7 @@ class aiebu_assembler
   private:
     buffer_type m_type;
     buffer_type m_output_type;
-    std::vector<arginfo> arginfo_tbl;
-    std::string m_orig_kernel;  // Original kernel name (for tracking changes in flush_argtbl)
+    class argtbl_impl;  // Forward declaration
 
   public:
     /*
@@ -153,76 +164,81 @@ class aiebu_assembler
      * @class argtbl
      *
      * @brief
-     * aiebu_assembler::argtbl represents a table of xrt_idx and BD offset.
-     * The table is constructed from an aiebu_assembler object based on the
-     * control code that indicate which xrt_idx should patched into which BD.
+     * aiebu_assembler::argtbls represents a vector of instance infor.
+     * Inside each element, there is a table of xrt_idx and BD offset for
+     * that instance.
+     *
+     * The class is constructed from an aiebu_assembler object based on the
+     * control code that indicate which xrt_idx should patched into which BD
+     * for each instance within the given kernel name.
      *
      * This object can be used to dump the table and modify the xrt_idx and its
-     * BD offset in any entry from an aiebu_assembler object. And then flush it
+     * BD offset in any entry in any instance in a given kernel. And then flush it
      * back to aiebu_assembler so that the xrt_id and its BD offset can be updated
      * in the control code and .dynamic sections of ELF.
+     *
+     * The kernel name can be updated at the same time by calling set_name() API.
+     * So that when this object is flushed back, the kernel name can be updated in
+     * ELF as well.
      *
      * When using this class to do xrt argument transform
      *      1. Only host patching is supported.
      *      2. Only support AIE2PS and AIE4
      */
-    class argtbl_impl;
-    class argtbl
-    {
-      private:
-        std::shared_ptr<argtbl_impl> handle;
-      public:
-        explicit argtbl(std::shared_ptr<argtbl_impl> in_impl);
+     class argtbl
+     {
+         friend class aiebu_assembler;
+       private:
+         std::shared_ptr<argtbl_impl> handle;
+       public:
+         explicit argtbl(std::shared_ptr<argtbl_impl> in_impl);
 
-        /*
-         * Dump the reference of vetor of xrt argument (xrt_idx)
-         * and BD offset. Caller can modify entries in the vector
-         * in place. Then the whole argtbl object can be flushed
-         * back to aiebu_assembler to update the ELF to do the
-         * xrt_idx transform.
-         */
-        std::vector<arginfo>& dump() const;
+         /*
+          * Get the reference of vector of instance info. Inside
+          * each instance, there is table of xrt argument (xrt_idx)
+          * and BD offset of that instance. Caller can modify entries
+          * in the table in place. Then the whole argtbl object can be flushed
+          * back to aiebu_assembler to update the ELF to do the
+          * xrt_idx transform.
+          */
+         std::vector<instinfo>& get();
 
-        /*
-         * Get the kernel:instance name filter used for this argtbl
-         * @return const reference to the name string (e.g., "DPU:dpu")
-         */
-        const std::string& get_name() const;
+         /*
+          * Update the kernel name in the instance info object
+          * @param name: the new kernel name (e.g., "NewKernel")
+          *
+          * The kernel name in ELF won't be updated until the whole
+          * object is flushed back.
+          */
+         void set_name(const std::string& name);
+     };
 
-        /*
-         * Set the new kernel name for this argtbl
-         * @param name: the new kernel name (e.g., "NewKernel")
-         *
-         * This method:
-         * 1. Parses m_name (format "kernel:instance", e.g., "DPU:dpu")
-         * 2. Updates m_name to "NewKernel:dpu" (keeps instance unchanged)
-         *
-         * Note: The actual ELF update happens in flush_argtbl()
-         *       Changing kernel name for one instance will change kernel name for all instances of that kernel.
-         */
-        void set_name(const std::string& name);
-    };
+     /*
+      * Get an argtbl object from aiebu_assembler for a given
+      * kernel name. In this function aiebu_assember will scan
+      * the ELF and construct a vector of instance info (instinfo).
+      * Inside each instinfo, we have a table (vector)
+      * of xrt_idx and BD offset of that kernel:inst's control code.
+      *
+      * The object can be used to dump the reference of the instance
+      * info and modify the table in place inside each instance.
+      *
+      * NOTE: applicable for only config elf's
+      */
+     argtbl get_argtbl(const std::string kernel_name);
 
-    /*
-     * Get an argtbl object from aiebu_assembler for a given
-     * "kernel_name:instant_name". In this function aiebu_assember
-     * will scan the ELF and construct a table (vector)
-     * of xrt_idx and BD offset of that kernel:inst's control code.
-     * Then it returns an object of this table which can be used to
-     * dump the reference of the table and modify the table in place.
-     * @name: "kernel_name:instant_name"
-     *         if name is empty, it will return the argtbl object for all kernels
-     * @return argtbl object
-     */
-    argtbl get_argtbl(const std::string& name = "");
-
-    /*
-     * Flush the argtbl object to aiebu_assembler. In this function,
-     * aiebu will take the argtbl object and update control code and
-     * patching metadata based on the xrt_idx and BD offset in the
-     * arg table.
-     */
-    void flush_argtbl(const argtbl& arg_table);
+     /*
+      * Flush the argtbl object to aiebu_assembler. In this function,
+      * aiebu will take the argtbl object and update control code and
+      * patching metadata based on the xrt_idx and BD offset in the
+      * arg table for each instance.
+      *
+      * Also, if the kernel name associated with the argtbl object changes,
+      * the kernel name in the ELF will be updated accordingly.
+      *
+      * NOTE: applicable for only config elf's
+      */
+      void flush_argtbl(const argtbl& arg_table);
 };
 
 } //namespace aiebu

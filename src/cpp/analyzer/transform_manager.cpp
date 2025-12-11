@@ -64,8 +64,8 @@ load_elf(const std::vector<char>& elf_data)
 
   // Only AIE2PS/AIE4 legacy ELF and group ELF formats are supported
   auto os_abi = m_elfio.get_os_abi();
-  if (os_abi != elf_amd_aie2ps && os_abi != elf_amd_aie2ps_group)
-    throw error(error::error_code::invalid_input, "Only aie2ps/aie4 elf supported\n");
+  if (os_abi != elf_amd_aie2ps_group)
+    throw error(error::error_code::invalid_input, "Only aie2ps/aie4 config elf supported\n");
 }
 
 /**
@@ -1061,5 +1061,77 @@ update_rela_sections(const std::vector<arginfo>& entries, const std::string& ker
 
    return std::vector<char>(std::istream_iterator<char>(stream), std::istream_iterator<char>());
  }
+
+/**
+ * @brief Get all instance names for a given kernel
+ * @param kernel_name: Kernel name to find instances for (e.g., "DPU")
+ * @return Vector of instance names belonging to the kernel
+ *
+ * This function:
+ * 1. Finds FUNC symbol matching kernel name (extracts from mangled name like _Z3DPUPcPc)
+ * 2. Finds all OBJECT symbols whose st_shndx points to the kernel symbol
+ * 3. Returns the instance names
+ */
+std::vector<std::string>
+transform_manager::
+get_kernel_instances(const std::string& kernel_name)
+{
+  // Get .symtab and .strtab sections
+  auto symtab = m_elfio.sections[".symtab"];
+  auto strtab = m_elfio.sections[".strtab"];
+
+  if (!symtab || !strtab)
+    throw error(error::error_code::internal_error,
+                ".symtab or .strtab not found, required for getting kernel instances");
+
+  const auto symtab_size = symtab->get_size();
+  const auto strtab_size = strtab->get_size();
+  const auto sym_count = symtab_size / sizeof(ELFIO::Elf32_Sym);
+
+  // Pass 1: Find FUNC symbol matching the kernel name
+  ELFIO::Elf_Word kernel_symbol_index = 0;
+
+  for (size_t i = 0; i < sym_count; ++i) {
+    auto sym = reinterpret_cast<const ELFIO::Elf32_Sym*>(symtab->get_data() + i * sizeof(ELFIO::Elf32_Sym));
+    unsigned char sym_type = ELF_ST_TYPE(sym->st_info);
+
+    // Skip non-function symbols or invalid names
+    if (sym_type != ELFIO::STT_FUNC || sym->st_name >= strtab_size)
+      continue;
+
+    const char* sym_name = strtab->get_data() + sym->st_name;
+    std::string identifier = extract_kernel_name_from_mangled(sym_name);
+
+    if (identifier == kernel_name) {
+      kernel_symbol_index = i;
+      break;
+    }
+  }
+
+  if (kernel_symbol_index == 0)
+    throw error(error::error_code::invalid_input,
+                "Kernel '" + kernel_name + "' not found in .symtab");
+
+  // Pass 2: Find all OBJECT symbols that belong to this kernel
+  std::vector<std::string> instances;
+
+  for (size_t i = 0; i < sym_count; ++i) {
+    auto sym = reinterpret_cast<const ELFIO::Elf32_Sym*>(symtab->get_data() + i * sizeof(ELFIO::Elf32_Sym));
+    unsigned char sym_type = ELF_ST_TYPE(sym->st_info);
+
+    // Skip non-object symbols or invalid names
+    if (sym_type != ELFIO::STT_OBJECT || sym->st_name >= strtab_size)
+      continue;
+
+    // Check if this object symbol belongs to the kernel
+    if (sym->st_shndx == kernel_symbol_index) {
+      const char* sym_name = strtab->get_data() + sym->st_name;
+      instances.emplace_back(sym_name);
+    }
+  }
+
+  return instances;
+}
+
 } // End of Namespace aiebu
 

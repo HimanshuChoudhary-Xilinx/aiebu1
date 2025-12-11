@@ -44,13 +44,11 @@ int main(int argc, char ** argv)
   std::string testcase = argv[1];
   std::string testcase_path = argv[2];
 
-  std::vector<char> control_code_buf;
-  aiebu_ReadFile(testcase_path+"/ml_asm/merged_control.asm", control_code_buf);
-
   std::vector<std::string> paths;
-  paths.emplace_back(testcase_path+"/ml_asm/");
-  paths.emplace_back(testcase_path+"/asm/");
+  paths.emplace_back(testcase_path);
 
+  std::vector<char> config_json;
+  aiebu_ReadFile(testcase_path+"/config.json", config_json);
   std::vector<char> external_buffer_id;
   // external_buffer_id and ctrl_pkt path needed only in ctrlpkt testcase
   if (!testcase.compare("eff_net_ctrlpacket"))
@@ -61,14 +59,16 @@ int main(int argc, char ** argv)
 
   try
   {
-    auto as = aiebu::aiebu_assembler(aiebu::aiebu_assembler::buffer_type::asm_aie2ps, control_code_buf, {"disabledump"}, paths, external_buffer_id);
+    auto as = aiebu::aiebu_assembler(aiebu::aiebu_assembler::buffer_type::aie2ps_config, {}, {"disabledump"}, paths , config_json);
     auto e = as.get_elf();
     std::ofstream output_file(testcase+".elf", std::ios_base::binary);
     output_file.write(e.data(), e.size());
     output_file.close();
-    auto tbl = as.get_argtbl();
+    auto tbl = as.get_argtbl("DPU");
 
-    auto& table = tbl.dump();
+    auto& inst = tbl.get();
+    auto& table = inst[0].inst_arginfo;
+    tbl.set_name("CONV");
     table[1].xrt_idx = 45;
     table[1].bd_offset = 100;
 

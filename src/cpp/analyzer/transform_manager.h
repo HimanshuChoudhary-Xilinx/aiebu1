@@ -14,6 +14,15 @@
 namespace aiebu {
 
 /**
+ * @struct arginfo
+ * @brief Represents XRT argument index and buffer descriptor offset pair
+ */
+struct arginfo {
+  uint32_t xrt_idx;
+  uint64_t bd_offset;
+};
+
+/**
  * @class transform_manager
  * @brief Manages ELF transformation for AIE control code and data
  *
@@ -35,7 +44,6 @@ class transform_manager {
   static constexpr size_t ctrlcode_string_length = 13;     // Length of "control-code" prefix
 
   // AIE ELF OS ABI identifiers
-  static constexpr uint8_t elf_amd_aie2ps       = 64;      // AIE2PS/AIE4 legacy ELF format
   static constexpr uint8_t elf_amd_aie2ps_group = 70;      // AIE2PS/AIE4 group ELF format
 
   // Register offset multiplier (2 for 32-bit registers = 64-bit offset)
@@ -285,6 +293,20 @@ public:
    * @throws error if format unsupported, sections missing, or name not found
    */
    std::vector<char> update_kernel_name(const std::string orig_name, const std::string new_name);
+
+  /**
+   * @brief Get all instance names for a given kernel
+   * @param kernel_name: Kernel name to find instances for (e.g., "DPU")
+   * @return Vector of instance names belonging to the kernel
+   *
+   * This method:
+   * 1. Finds FUNC symbol matching kernel name (extracts from mangled name like _Z3DPUPcPc)
+   * 2. Finds all OBJECT symbols whose st_shndx points to the kernel symbol
+   * 3. Returns the instance names
+   *
+   * @throws error if kernel not found or required sections missing
+   */
+   std::vector<std::string> get_kernel_instances(const std::string& kernel_name);
 };
 
 }
