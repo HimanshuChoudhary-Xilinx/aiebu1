@@ -735,19 +735,19 @@ add_preemption_code(uint32_t col)
     const char *ptr = (mc_code.data());
     auto txn_header = reinterpret_cast<const XAie_TxnHeader *>(ptr);
 
-    printf("Header version %d.%d\n", txn_header->Major, txn_header->Minor);
-    printf("Device Generation: %d\n", txn_header->DevGen);
-    printf("Cols, Rows, NumMemRows : (%d, %d, %d)\n", txn_header->NumCols,
-         txn_header->NumRows, txn_header->NumMemTileRows);
-    printf("TransactionSize: %u\n", txn_header->TxnSize);
-    printf("NumOps: %u\n", txn_header->NumOps);
+    log_info() << "Header version " << (int)txn_header->Major << "." << (int)txn_header->Minor << std::endl;
+    log_info() << "Device Generation: " << (int)txn_header->DevGen << std::endl;
+    log_info() << "Cols, Rows, NumMemRows : (" << (int)txn_header->NumCols << ","
+               << (int)txn_header->NumRows << "," << (int)txn_header->NumMemTileRows << ")" << std::endl;
+    log_info() << "TransactionSize: " << txn_header->TxnSize << std::endl;
+    log_info() << "NumOps: " << txn_header->NumOps << std::endl;
 
     /**
      * Check if Header Version is 1.0 then call optimized API else continue with this
      * function to service the TXN buffer.
      */
     if ((txn_header->Major == MAJOR_VER) && (txn_header->Minor == MINOR_VER)) {
-        printf("Optimized HEADER version detected \n");
+        log_info() << "Optimized HEADER version detected" << std::endl;
         return process_txn_opt(ptr, mc_code, section_name, argname);
     }
     return process_txn(ptr, mc_code, section_name, argname);
