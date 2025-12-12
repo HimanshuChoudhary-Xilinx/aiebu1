@@ -223,7 +223,7 @@ class aiebu_assembler
       * The object can be used to dump the reference of the instance
       * info and modify the table in place inside each instance.
       *
-      * NOTE: applicable for only config elf's
+      * NOTE: applicable for only full elf's
       */
      argtbl get_argtbl(const std::string kernel_name);
 
@@ -236,7 +236,7 @@ class aiebu_assembler
       * Also, if the kernel name associated with the argtbl object changes,
       * the kernel name in the ELF will be updated accordingly.
       *
-      * NOTE: applicable for only config elf's
+      * NOTE: applicable for only full elf's
       */
       void flush_argtbl(const argtbl& arg_table);
 };
