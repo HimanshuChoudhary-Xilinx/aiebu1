@@ -123,16 +123,44 @@ disassemble(const std::filesystem::path &root) const
 
 class aiebu_assembler::argtbl_impl
 {
-  std::vector<arginfo>& m_tbl;
+  std::vector<instinfo> m_tbl;
+  std::string m_kernel_name;
+  std::string m_new_kernel_name;
 
   public:
-    explicit argtbl_impl(std::vector<arginfo>& in_tbl)
-      : m_tbl(in_tbl) { }
+  explicit argtbl_impl(std::vector<instinfo> in_tbl, std::string kernel_name)
+      : m_tbl(std::move(in_tbl)), m_kernel_name(std::move(kernel_name)), m_new_kernel_name(m_kernel_name) { }
 
-    std::vector<arginfo>&
-    dump() const
+    std::vector<instinfo>&
+    get()
     {
       return m_tbl;
+    }
+
+    void
+    set_name(const std::string& name)
+    {
+      // Update new kernel name (ELF update happens in flush_argtbl)
+      m_new_kernel_name = name;
+    }
+
+    void
+    set_kernel_name(const std::string& name)
+    {
+      // Update new kernel name (ELF update happens in flush_argtbl)
+      m_kernel_name = name;
+    }
+
+    const std::string&
+    get_new_name() const
+    {
+      return m_new_kernel_name;
+    }
+
+    const std::string&
+    get_kernel_name() const
+    {
+      return m_kernel_name;
     }
 };
 
@@ -141,34 +169,80 @@ argtbl(std::shared_ptr<argtbl_impl> in_impl)
   : handle(std::move(in_impl))
 {}
 
-std::vector<arginfo>&
+std::vector<instinfo>&
 aiebu_assembler::argtbl::
-dump() const
+get()
 {
-  return handle->dump();
+  return handle->get();
+}
+
+void
+aiebu_assembler::argtbl::
+set_name(const std::string& name)
+{
+  handle->set_name(name);
 }
 
 aiebu_assembler::argtbl
 aiebu_assembler::
-get_argtbl()
+get_argtbl(const std::string& kernel_name)
 {
+  std::vector<instinfo> tbl;
+
   transform_manager trans(elf_data);
-  arginfo_tbl = trans.extract_rela_sections();
-  return argtbl{std::make_shared<argtbl_impl>(arginfo_tbl)};
+
+  // Get all instances for this kernel from the ELF
+  // For each instance, extract its arginfo table
+  auto instances = trans.get_kernel_instances(kernel_name);
+
+  for (const auto& inst_name : instances) {
+    instinfo info;
+    info.inst_name = inst_name;
+
+    // Extract relocation info for this kernel:instance
+    std::string filter = kernel_name + ":" + inst_name;
+    auto args = trans.extract_rela_sections(filter);
+
+    // Convert arginfo to instinfo::arginfo
+    for (const auto& arg : args) {
+      info.inst_arginfo.push_back({arg.xrt_idx, arg.bd_offset});
+    }
+
+    tbl.push_back(std::move(info));
+  }
+
+  return argtbl{std::make_shared<argtbl_impl>(std::move(tbl), kernel_name)};
 }
 
 void
 aiebu_assembler::
 flush_argtbl(const argtbl& arg_table)
 {
-  const auto& table = arg_table.dump();
-  if (table.size() != arginfo_tbl.size())
-    throw error(error::error_code::invalid_input,
-                "Table size mismatch: got " + std::to_string(table.size())
-                + ", expected " + std::to_string(arginfo_tbl.size()));
+  const auto& impl = arg_table.get_handle();
+  const auto& table = impl->get();
+  const auto& orig_kernel = impl->get_kernel_name();
+  const auto& new_kernel = impl->get_new_name();
 
-  transform_manager trans(elf_data);
-  elf_data = trans.update_rela_sections(table);
+  // Update kernel name in ELF if it changed
+  if (!orig_kernel.empty() && orig_kernel != new_kernel) {
+    transform_manager trans(elf_data);
+    elf_data = trans.update_kernel_name(orig_kernel, new_kernel);
+    impl->set_kernel_name(new_kernel);
+  }
+
+  // Update relocation sections for each instance
+  for (const auto& inst : table) {
+    std::string filter = new_kernel + ":" + inst.inst_name;
+
+    // Convert instinfo::arginfo to arginfo for transform_manager
+    std::vector<arginfo> args;
+    for (const auto& arg : inst.inst_arginfo) {
+      args.push_back({arg.xrt_idx, arg.bd_offset});
+    }
+
+    transform_manager trans(elf_data);
+    elf_data = trans.update_rela_sections(args, filter);
+  }
 }
 
 aiebu_assembler::
