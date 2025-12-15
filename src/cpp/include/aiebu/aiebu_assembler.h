@@ -187,7 +187,6 @@ class aiebu_assembler
      */
      class argtbl
      {
-         friend class aiebu_assembler;
        private:
          std::shared_ptr<argtbl_impl> handle;
        public:
@@ -211,6 +210,15 @@ class aiebu_assembler
           * object is flushed back.
           */
          void set_name(const std::string& name);
+
+         /*
+          * Get the handle of the argtbl_impl object
+          */
+         const std::shared_ptr<argtbl_impl>&
+         get_handle() const
+         {
+           return handle;
+         }
      };
 
      /*
@@ -225,7 +233,7 @@ class aiebu_assembler
       *
       * NOTE: applicable for only full elf's
       */
-     argtbl get_argtbl(const std::string kernel_name);
+     argtbl get_argtbl(const std::string& kernel_name);
 
      /*
       * Flush the argtbl object to aiebu_assembler. In this function,

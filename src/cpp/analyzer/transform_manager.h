@@ -292,7 +292,7 @@ public:
    *
    * @throws error if format unsupported, sections missing, or name not found
    */
-   std::vector<char> update_kernel_name(const std::string orig_name, const std::string new_name);
+   std::vector<char> update_kernel_name(const std::string& orig_name, const std::string& new_name);
 
   /**
    * @brief Get all instance names for a given kernel

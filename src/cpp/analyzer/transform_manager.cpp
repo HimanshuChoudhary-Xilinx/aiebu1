@@ -938,7 +938,7 @@ update_rela_sections(const std::vector<arginfo>& entries, const std::string& ker
  */
  std::vector<char>
  transform_manager::
- update_kernel_name(const std::string orig_name, const std::string new_name) {
+ update_kernel_name(const std::string& orig_name, const std::string& new_name) {
    // Validate ELF format: only support OS ABI 0x46 (elf_amd_aie2ps_group) and ABI version 0x3
    auto os_abi = m_elfio.get_os_abi();
    auto abi_version = m_elfio.get_abi_version();

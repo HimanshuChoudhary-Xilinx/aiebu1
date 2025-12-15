@@ -122,7 +122,6 @@ disassemble(const std::filesystem::path &root) const
 
 class aiebu_assembler::argtbl_impl
 {
-  friend class aiebu_assembler;
   std::vector<instinfo> m_tbl;
   std::string m_kernel_name;
   std::string m_new_kernel_name;
@@ -142,6 +141,25 @@ class aiebu_assembler::argtbl_impl
     {
       // Update new kernel name (ELF update happens in flush_argtbl)
       m_new_kernel_name = name;
+    }
+
+    void
+    set_kernel_name(const std::string& name)
+    {
+      // Update new kernel name (ELF update happens in flush_argtbl)
+      m_kernel_name = name;
+    }
+
+    const std::string&
+    get_new_name() const
+    {
+      return m_new_kernel_name;
+    }
+
+    const std::string&
+    get_kernel_name() const
+    {
+      return m_kernel_name;
     }
 };
 
@@ -166,7 +184,7 @@ set_name(const std::string& name)
 
 aiebu_assembler::argtbl
 aiebu_assembler::
-get_argtbl(const std::string kernel_name)
+get_argtbl(const std::string& kernel_name)
 {
   std::vector<instinfo> tbl;
 
@@ -199,15 +217,16 @@ void
 aiebu_assembler::
 flush_argtbl(const argtbl& arg_table)
 {
-  const auto& impl = arg_table.handle;
-  const auto& table = impl->m_tbl;
-  const auto& orig_kernel = impl->m_kernel_name;
-  const auto& new_kernel = impl->m_new_kernel_name;
+  const auto& impl = arg_table.get_handle();
+  const auto& table = impl->get();
+  const auto& orig_kernel = impl->get_kernel_name();
+  const auto& new_kernel = impl->get_new_name();
 
   // Update kernel name in ELF if it changed
   if (!orig_kernel.empty() && orig_kernel != new_kernel) {
     transform_manager trans(elf_data);
     elf_data = trans.update_kernel_name(orig_kernel, new_kernel);
+    impl->set_kernel_name(new_kernel);
   }
 
   // Update relocation sections for each instance
