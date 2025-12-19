@@ -1030,7 +1030,7 @@ Example:
 ...
 ;For telluride
 .target aie2ps
-;For soundwave
+;For npu3
 .target aie4-a
 ;For medusa
 .target aie4
