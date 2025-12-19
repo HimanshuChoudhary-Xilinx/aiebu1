@@ -25,7 +25,7 @@ add_compile_options(
   )
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-  add_compile_options(/Qspectre>)  # compile with the Spectre mitigations switch
+  add_compile_options(/Qspectre)  # compile with the Spectre mitigations switch
 endif()
 
 add_link_options(
