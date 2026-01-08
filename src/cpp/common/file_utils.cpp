@@ -13,7 +13,10 @@ constexpr unsigned int magic_length = 16;
 constexpr unsigned int elf_magic = 0x464c457f;
 
 // TODO: Add magic numbers for other AIE flavors
-constexpr unsigned int ctrlcode_magic_aie2 = 0x06040001;
+// optimized header major:1 minor:0 col:4 row:6
+constexpr unsigned int ctrlcode_magic_aie2_opt = 0x06040001;
+// non-optimized header major:0 minor:1 col:4 row:6
+constexpr unsigned int ctrlcode_magic_aie2 = 0x06040100;
 
 // https://github.com/Xilinx/bootgen/blob/master/bootheader-versal.cpp
 constexpr unsigned int pdi_magic0 = 0x000000dd;
@@ -44,7 +47,7 @@ identify_buffer_type(const std::vector<char>& buffer)
   }
 
   // Transaction ctrlcode header
-  if (data[0] == ctrlcode_magic_aie2)
+  if (data[0] == ctrlcode_magic_aie2 || data[0] == ctrlcode_magic_aie2_opt)
     return aiebu_assembler::buffer_type::blob_instr_transaction;
 
   // TODO: Put the reference to PDI format from bootgen
