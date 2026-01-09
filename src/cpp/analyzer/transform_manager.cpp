@@ -121,12 +121,8 @@ modify_apply_offset_57(char* text_section_data, size_t text_section_size, uint32
       auto key = get_key(code->table_ptr, section_idx);
       // If key found, it's a kernel arg; otherwise it's .ctrlpkt-idx or control-code-idx
       auto lookup_it = xrt_idx_lookup.find(key);
-      if (lookup_it != xrt_idx_lookup.end()) {
-        auto xrt_id = lookup_it->second;
-        // If xrt_id is greater than 6 can not be patched in firmware while <=6 can be patched in firmware
-        code->offset = (xrt_id > 6) ? static_cast<uint16_t>(xrt_id)
-                                    : static_cast<uint16_t>(xrt_id * num_32bit_register); // Convert xrt_id to register offset
-      }
+      if (lookup_it != xrt_idx_lookup.end())
+        code->offset = static_cast<uint16_t>(lookup_it->second * num_32bit_register); // Convert xrt_id to register offset
     }
 
     // Move to next instruction
