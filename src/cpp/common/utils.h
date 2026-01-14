@@ -72,7 +72,7 @@ class partition_info {
   } partition_union;
   public:
   partition_info() : partition_info(0, 0) {}
-  partition_info(uint32_t core, uint32_t mem): partition_union{.core_mem = {core, mem}} { }
+  partition_info(uint32_t core, uint32_t mem): partition_union{{core, mem}} { }
 
   uint32_t get_numcore() const { return partition_union.core_mem.core; }
 
