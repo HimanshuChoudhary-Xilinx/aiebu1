@@ -67,24 +67,24 @@ class partition_info {
     struct {
       uint32_t core;
       uint32_t mem;
-    };
+    } core_mem;
     uint32_t column;
   };
   public:
   partition_info() : partition_info(0, 0) {}
-  partition_info(uint32_t core, uint32_t mem): core(core), mem(mem) { }
+  partition_info(uint32_t core, uint32_t mem): core_mem{core, mem} { }
 
-  uint32_t get_numcore() const { return core; }
+  uint32_t get_numcore() const { return core_mem.core; }
 
   uint32_t get_numcolumn() const { return column; }
 
-  uint32_t get_nummem() const { return mem; }
+  uint32_t get_nummem() const { return core_mem.mem; }
 
   void set_numcolumn(uint32_t val) { column = val; }
 
-  void set_numcore(uint32_t val) { core = val; }
+  void set_numcore(uint32_t val) { core_mem.core = val; }
 
-  void set_nummem(uint32_t val) { mem = val; }
+  void set_nummem(uint32_t val) { core_mem.mem = val; }
 };
 
 inline uint8_t low_8(uint32_t num) { return (num >> FIRST_BYTE_SHIFT ) & BYTE_MASK; }
