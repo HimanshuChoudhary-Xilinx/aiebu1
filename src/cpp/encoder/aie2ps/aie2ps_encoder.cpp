@@ -138,10 +138,6 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
                                        0x00, 0x00, 0x00, 0x00};
   page_header[2] =  low_8(lpage.get_pagenum());             // Lower 8 bit of page_index
   page_header[3] =  high_8(lpage.get_pagenum());            // Higher 8 bit of page_index
-  page_header[4] =  low_8(lpage.get_ooo_page_len_1());      // Lower 8 bit of out_of_order_page_len pdi/save
-  page_header[5] =  high_8(lpage.get_ooo_page_len_1());     // Higher 8 bit of out_of_order_page_len pdi/save
-  page_header[6] =  low_8(lpage.get_ooo_page_len_2());      // Lower 8 bit of out_of_order_page_len restore
-  page_header[7] =  high_8(lpage.get_ooo_page_len_2());     // Higher 8 bit of out_of_order_page_len restore
   page_header[8] =  low_8(lpage.get_cur_page_len());        // Lower 8 bit of cur_page_len
   page_header[9] =  high_8(lpage.get_cur_page_len());       // Higher 8 bit of cur_page_len
   page_header[10] =  low_8(lpage.get_in_order_page_len());  // Lower 8 bit of in_order_page_len
