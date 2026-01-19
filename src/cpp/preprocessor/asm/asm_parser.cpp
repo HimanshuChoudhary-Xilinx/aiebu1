@@ -254,7 +254,6 @@ operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm)
 {
   m_parserptr = parserptr;
   // Pattern: .target <arch>-<sub-arch> or .target <arch>
-  // Examples: .target aie2ps, .target aie4, .target aie4-a, .target aie4-z
   static const regex pattern(R"(\.target\s+([a-zA-Z0-9]+)(?:-([a-zA-Z0-9]+))?)");
   smatch match;
   log_info() << "TARGET:" << sm[0].str() << std::endl;
