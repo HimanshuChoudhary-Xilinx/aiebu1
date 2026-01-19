@@ -327,8 +327,10 @@ class asm_parser: public std::enable_shared_from_this<asm_parser>
   std::shared_ptr<target_info> m_target;
   std::shared_ptr<aie_row_topology_info> m_aie_row_topology;
   const file_artifact* m_artifacts;
+  bool m_preempt_enabled = false;
+  std::string m_target_type;
 public:
-  asm_parser(const std::vector<char>& data, const std::vector<std::string>& include_list, const file_artifact* artifacts = nullptr):m_data(data),  m_include_list(include_list), m_artifacts(artifacts)
+  asm_parser(const std::vector<char>& data, const std::vector<std::string>& include_list, const file_artifact* artifacts = nullptr, const std::string& target_type = "aie4"):m_data(data),  m_include_list(include_list), m_artifacts(artifacts), m_target_type(target_type)
   {
     set_data_state(false);
     m_current_col = -1;
@@ -348,6 +350,15 @@ public:
 
   bool get_annotation_state() { return annotation_state; }
 
+  void set_preempt_enabled(bool state) { m_preempt_enabled = state; }
+
+  bool is_preempt_enabled() const { return m_preempt_enabled; }
+
+  const std::string& get_target_type() const { return m_target_type; }
+
+  std::pair<std::vector<uint8_t>, std::vector<uint8_t>> get_preempt_save_restore(uint32_t num_cols) const;
+
+  void add_save_restore_aie4();
   void insert_annotation(int annotation_index);
 
   std::vector<annotation_type> get_annotations() { return std::move(m_annotation_list); }

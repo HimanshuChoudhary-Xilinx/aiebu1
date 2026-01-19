@@ -14,7 +14,9 @@ class aie4_preprocessor: public aie2ps_preprocessor
 {
 public:
   aie4_preprocessor(): aie2ps_preprocessor() {}
-  
+
+  std::string get_target_name() const override { return "aie4"; }
+
   std::shared_ptr<preprocessed_output>
   process(std::shared_ptr<preprocessor_input> input) override
   {

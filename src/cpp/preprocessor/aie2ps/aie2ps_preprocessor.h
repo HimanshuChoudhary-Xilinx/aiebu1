@@ -23,6 +23,9 @@ class aie2ps_preprocessor: public preprocessor
   std::shared_ptr<std::map<std::string, std::shared_ptr<isa_op>>> m_isa;
 public:
   aie2ps_preprocessor() {}
+
+  virtual std::string get_target_name() const { return "aie2ps"; }
+
   virtual std::shared_ptr<assembler_state> create_assembler_state(std::shared_ptr<std::map<std::string, std::shared_ptr<isa_op>>> isa,
                                                  std::vector<std::shared_ptr<asm_data>>& data,
                                                  std::map<std::string, std::shared_ptr<scratchpad_info>>& scratchpad,
@@ -78,7 +81,7 @@ public:
         log_warn() << "Invalid flag: " << flag << ", ignored";
     }
     
-    std::shared_ptr<asm_parser> parser(new asm_parser(tinput->get_ctrlcode_data(), tinput->get_include_paths(), tinput->get_artifacts()));
+    std::shared_ptr<asm_parser> parser(new asm_parser(tinput->get_ctrlcode_data(), tinput->get_include_paths(), tinput->get_artifacts(), get_target_name()));
 
     parser->parse_lines();
 

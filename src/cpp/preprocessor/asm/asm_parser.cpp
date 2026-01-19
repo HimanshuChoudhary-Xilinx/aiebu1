@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (C) 2024-2025, Advanced Micro Devices, Inc. All rights reserved.
 #include "asm_parser.h"
+#include "aie4_save_restore_map_prebuilt.h"
 
 #include "aiebu/aiebu_error.h"
 
-#include <iostream>
 #include <fstream>
 
 namespace aiebu {
@@ -187,9 +187,53 @@ parse_lines(const std::vector<char>& data, std::string& file)
       std::transform(op_name.begin(), op_name.end(), op_name.begin(), ::tolower);
       if (!op_name.compare("eof"))
         set_data_state(true);
+      else if (!is_preempt_enabled() && !op_name.compare("preempt")) {
+        if (get_target_type() == "aie2ps")
+          throw error(error::error_code::internal_error, "PREEMPT opcode is not supported for aie2ps target");
+        set_preempt_enabled(true);
+        add_save_restore_aie4();
+      }
     }
   }
 
+}
+
+std::pair<std::vector<uint8_t>, std::vector<uint8_t>>
+asm_parser::
+get_preempt_save_restore(uint32_t num_cols) const
+{
+  auto& save_restore_map = get_aie4_save_restore();
+  auto it = save_restore_map.find(num_cols);
+  if (it != save_restore_map.end())
+    return it->second;
+  return {{}, {}};
+}
+
+void
+asm_parser::
+add_save_restore_aie4()
+{
+
+
+  uint32_t num_cols = get_partition_info()->get_numcolumn();
+  auto [save_data, restore_data] = get_preempt_save_restore(num_cols);
+
+  if (save_data.empty() || restore_data.empty())
+    throw error(error::error_code::internal_error, "Preempt save/restore data not found for " + std::to_string(num_cols) + " columns");
+
+  std::string col_str = std::to_string(num_cols) + "c.asm";
+  std::string save_file = "aie4_save_" + col_str;
+  std::string restore_file = "aie4_restore_" + col_str;
+
+  std::vector<char> save_chars(save_data.begin(), save_data.end());
+  set_data_state(false);
+  parse_lines(save_chars, save_file);
+  pop_data_state();
+
+  std::vector<char> restore_chars(restore_data.begin(), restore_data.end());
+  set_data_state(false);
+  parse_lines(restore_chars, restore_file);
+  pop_data_state();
 }
 
 void
