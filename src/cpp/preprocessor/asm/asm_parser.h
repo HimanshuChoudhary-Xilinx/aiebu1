@@ -329,8 +329,12 @@ class asm_parser: public std::enable_shared_from_this<asm_parser>
   const file_artifact* m_artifacts;
   bool m_preempt_enabled = false;
   std::string m_target_type;
+  const file_artifact* m_artifacts;
+  std::map<int, std::pair<std::string, std::string>> m_preempt_labels;  // group -> (save_label, restore_label)
+
 public:
-  asm_parser(const std::vector<char>& data, const std::vector<std::string>& include_list, const file_artifact* artifacts = nullptr, const std::string& target_type = "aie4"):m_data(data),  m_include_list(include_list), m_artifacts(artifacts), m_target_type(target_type)
+  asm_parser(const std::vector<char>& data, const std::vector<std::string>& include_list, const std::string& target_type, const file_artifact* artifacts = nullptr)
+    :m_data(data),  m_include_list(include_list), m_target_type(target_type), m_artifacts(artifacts)
   {
     set_data_state(false);
     m_current_col = -1;
@@ -350,15 +354,25 @@ public:
 
   bool get_annotation_state() { return annotation_state; }
 
-  void set_preempt_enabled(bool state) { m_preempt_enabled = state; }
-
-  bool is_preempt_enabled() const { return m_preempt_enabled; }
-
   const std::string& get_target_type() const { return m_target_type; }
 
-  std::pair<std::vector<uint8_t>, std::vector<uint8_t>> get_preempt_save_restore(uint32_t num_cols) const;
+  bool is_multi_column_mode() const { return m_preempt_labels.size() > 1; }
 
-  void add_save_restore_aie4();
+  // Record preempt label for current group (called when PREEMPT opcode is hit)
+  // Label naming: save_N / restore_N where N = index (group/2 + 1)
+  // group 0 -> save_1, group 2 -> save_2, group 4 -> save_3
+  void record_preempt_label(int group) {
+    int index = group / 2 + 1;
+    std::string save_label = "save_" + std::to_string(index);
+    std::string restore_label = "restore_" + std::to_string(index);
+    m_preempt_labels[group] = {save_label, restore_label};
+  }
+
+  const std::map<int, std::pair<std::string, std::string>>& get_preempt_labels() const { return m_preempt_labels; }
+
+  std::pair<std::vector<uint8_t>, std::vector<uint8_t>> get_preempt_save_restore(uint32_t key) const;
+
+  void finalize_preempt();  // Called after parsing to inject actual save/restore code
   void insert_annotation(int annotation_index);
 
   std::vector<annotation_type> get_annotations() { return std::move(m_annotation_list); }

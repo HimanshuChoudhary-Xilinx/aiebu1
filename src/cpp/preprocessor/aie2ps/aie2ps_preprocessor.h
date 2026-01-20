@@ -81,7 +81,7 @@ public:
         log_warn() << "Invalid flag: " << flag << ", ignored";
     }
     
-    std::shared_ptr<asm_parser> parser(new asm_parser(tinput->get_ctrlcode_data(), tinput->get_include_paths(), tinput->get_artifacts(), get_target_name()));
+    std::shared_ptr<asm_parser> parser(new asm_parser(tinput->get_ctrlcode_data(), tinput->get_include_paths(), get_target_name(), tinput->get_artifacts()));
 
     parser->parse_lines();
 

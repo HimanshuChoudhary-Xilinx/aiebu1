@@ -45,10 +45,18 @@ def generate_header(asm_dir, output_file):
     """Generate the header file from assembly files."""
 
     # Define the mapping: key -> (save_file, restore_file)
+    # Keys 1, 2, 3: partition-based selection (1c, 2c, 3c)
+    # Keys 10, 12, 14: group-based selection for multi-column mode
+    #   - Key 10: 1c0 files for attach_to_group 0
+    #   - Key 12: 1c1 files for attach_to_group 2
+    #   - Key 14: 1c2 files for attach_to_group 4
     file_mappings = {
         1: ("aie4_save_1c.asm", "aie4_restore_1c.asm"),
         2: ("aie4_save_2c.asm", "aie4_restore_2c.asm"),
         3: ("aie4_save_3c.asm", "aie4_restore_3c.asm"),
+        10: ("aie4_save_1c0.asm", "aie4_restore_1c0.asm"),
+        12: ("aie4_save_1c1.asm", "aie4_restore_1c1.asm"),
+        14: ("aie4_save_1c2.asm", "aie4_restore_1c2.asm"),
     }
 
     # Parse all files
@@ -57,12 +65,29 @@ def generate_header(asm_dir, output_file):
         save_path = os.path.join(asm_dir, save_file)
         restore_path = os.path.join(asm_dir, restore_file)
 
-        save_bytes = read_file_as_bytes(save_path, "save:")
-        restore_bytes = read_file_as_bytes(restore_path, "restore:")
+        # Determine label names based on key:
+        # Keys 1, 2, 3 (single-col): all use save_1 / restore_1
+        # Keys 10, 12, 14 (multi-col): save_1/save_2/save_3 based on index
+        #   - Key 10 (group 0) -> save_1
+        #   - Key 12 (group 2) -> save_2
+        #   - Key 14 (group 4) -> save_3
+        if key <= 3:
+            # Single-column mode: always use save_1 / restore_1
+            save_label = "save_1:"
+            restore_label = "restore_1:"
+        else:
+            # Multi-column mode: index = group/2 + 1
+            group = key - 10
+            index = group // 2 + 1
+            save_label = f"save_{index}:"
+            restore_label = f"restore_{index}:"
+
+        save_bytes = read_file_as_bytes(save_path, save_label)
+        restore_bytes = read_file_as_bytes(restore_path, restore_label)
 
         if save_bytes or restore_bytes:
             data[key] = (save_bytes, restore_bytes)
-            print(f"Key {key}: save={len(save_bytes)} bytes, restore={len(restore_bytes)} bytes")
+            print(f"Key {key}: save={len(save_bytes)} bytes ({save_label}), restore={len(restore_bytes)} bytes ({restore_label})")
 
     # Generate header content
     header = """// SPDX-License-Identifier: MIT
