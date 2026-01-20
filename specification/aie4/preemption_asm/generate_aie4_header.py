@@ -108,13 +108,18 @@ get_aie4_save_restore()
 
     # Add entries
     entries = []
-    for key in sorted(data.keys()):
+    sorted_keys = sorted(data.keys())
+    for i, key in enumerate(sorted_keys):
         save_bytes, restore_bytes = data[key]
         save_str = format_bytes_array(save_bytes)
         restore_str = format_bytes_array(restore_bytes)
-        entries.append(f"    {{{key}, {{{save_str}, {restore_str}}}}}")
+        # Last entry has no trailing comma
+        if i == len(sorted_keys) - 1:
+            entries.append(f"    {{{key}, {{{save_str}, {restore_str}}}}}  // NOLINT")
+        else:
+            entries.append(f"    {{{key}, {{{save_str}, {restore_str}}}}},  // NOLINT")
 
-    header += ",\n".join(entries)
+    header += "\n".join(entries)
 
     header += """
   };
