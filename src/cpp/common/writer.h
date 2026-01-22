@@ -163,9 +163,14 @@ class config_writer: public writer
 {
   std::map<std::string, std::map<std::string, std::vector<std::shared_ptr<writer>>>> m_output;
   std::shared_ptr<const partition_info> m_partition;
+  std::shared_ptr<const target_info> m_target;
+  std::shared_ptr<const aie_row_topology_info> m_aie_row_topology;
 
 public:
-  explicit config_writer(std::shared_ptr<const partition_info> partition): m_partition(std::move(partition)) {}
+  explicit config_writer(std::shared_ptr<const partition_info> partition,
+                         std::shared_ptr<const target_info> target = nullptr,
+                         std::shared_ptr<const aie_row_topology_info> aie_row_topology = nullptr)
+    : m_partition(std::move(partition)), m_target(std::move(target)), m_aie_row_topology(std::move(aie_row_topology)) {}
 
   const std::map<std::string, std::map<std::string,  std::vector<std::shared_ptr<writer>>>>&
   get_kernel_map() const { return m_output; }
@@ -175,6 +180,8 @@ public:
   }
 
   std::shared_ptr<const partition_info> get_partition_info() const { return m_partition; }
+  std::shared_ptr<const target_info> get_target_info() const { return m_target; }
+  std::shared_ptr<const aie_row_topology_info> get_aie_row_topology_info() const { return m_aie_row_topology; }
 };
 
 class asm_writer
