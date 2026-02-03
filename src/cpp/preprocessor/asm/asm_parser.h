@@ -326,9 +326,7 @@ class asm_parser: public std::enable_shared_from_this<asm_parser>
   std::shared_ptr<partition_info> m_partition;
   std::shared_ptr<target_info> m_target;
   std::shared_ptr<aie_row_topology_info> m_aie_row_topology;
-  const file_artifact* m_artifacts;
-  bool m_preempt_enabled = false;
-  std::string m_target_type;
+  const std::string m_target_type;
   const file_artifact* m_artifacts;
   std::map<int, std::pair<std::string, std::string>> m_preempt_labels;  // group -> (save_label, restore_label)
 
