@@ -575,7 +575,7 @@ std::unique_ptr<aie2_isa_op> aie2_asm_preprocessor_input::assemble_operation(std
 
 std::vector<char>
 aie2_asm_preprocessor_input::encode(const std::vector<char>& mc_asm_code) {
-  std::shared_ptr<asm_parser> a(new asm_parser(mc_asm_code, {}));
+  std::shared_ptr<asm_parser> a(new asm_parser(mc_asm_code, {}, "aie2"));
   a->parse_lines();
   std::stringstream store;
 

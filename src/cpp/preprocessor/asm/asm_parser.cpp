@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (C) 2024-2025, Advanced Micro Devices, Inc. All rights reserved.
 #include "asm_parser.h"
+#include "preprocessor/aie4/aie4_save_restore_map_prebuilt.h"
 
 #include "aiebu/aiebu_error.h"
 
-#include <iostream>
 #include <fstream>
 
 namespace aiebu {
@@ -109,6 +109,9 @@ parse_lines()
   directive_list[".aie_row_topology"] = std::make_shared<aie_row_topology_directive>();
   std::string file = "default";
   parse_lines(m_data, file);
+
+  // After all parsing is done, inject actual save/restore code
+  finalize_preempt();
 }
 
 void
@@ -180,16 +183,136 @@ parse_lines(const std::vector<char>& data, std::string& file)
     else if (regex_match(line, sm, OP_REGEX))
     {
       std::string arg_str = (sm.size() > 2 && sm[2].matched) ? sm[2].str() : "";
+      std::string op_name = sm[1].str();
+      std::transform(op_name.begin(), op_name.end(), op_name.begin(), ::tolower);
+
+      // Handle PREEMPT opcode - record label for current group
+      if (!op_name.compare("preempt")) {
+        if (get_target_type() == "aie2ps")
+          throw error(error::error_code::internal_error, "PREEMPT opcode is not supported for aie2ps target");
+
+        // Get current group (default to 0 if no attach_to_group yet)
+        int current_group = (m_current_col >= 0) ? m_current_col : 0;
+
+        // Record preempt label for this group (save_N/restore_N)
+        record_preempt_label(current_group);
+        auto& labels = m_preempt_labels[current_group];
+
+        // Extract first argument (e.g., "0x0001" from "0x0001, @save, @restore")
+        // and replace placeholder labels with computed ones
+        std::string first_arg;
+        if (!arg_str.empty()) {
+          size_t comma_pos = arg_str.find(',');
+          if (comma_pos != std::string::npos)
+            first_arg = trim(arg_str.substr(0, comma_pos));
+          else
+            first_arg = trim(arg_str);
+        }
+
+        // Build new arg_str: <first_arg>, @<save_label>, @<restore_label>
+        if (!first_arg.empty())
+          arg_str = first_arg + ", @" + labels.first + ", @" + labels.second;
+        else
+          arg_str = "@" + labels.first + ", @" + labels.second;
+      }
+
       insert_col_asmdata(std::make_shared<asm_data>(std::make_shared<operation>(sm[1].str(), arg_str),
                                                     operation_type::op, code_section::unknown, 0, (uint32_t)-1,
                                                     linenumber, line, file));
-      std::string op_name = sm[1].str();
-      std::transform(op_name.begin(), op_name.end(), op_name.begin(), ::tolower);
       if (!op_name.compare("eof"))
         set_data_state(true);
     }
   }
 
+}
+
+std::pair<std::vector<uint8_t>, std::vector<uint8_t>>
+asm_parser::
+get_preempt_save_restore(uint32_t num_cols) const
+{
+  // Key    Save Label   Restore Label
+  //
+  // 1 (1c)      save_1:     restore_1:
+  // 2 (2c)      save_1:     restore_1:
+  // 3 (3c)      save_1:     restore_1:
+  // 10 (1c0)    save_1:     restore_1:
+  // 12 (1c1)    save_2:     restore_2:
+  // 14 (1c2)    save_3:     restore_3:
+  auto& save_restore_map = get_aie4_save_restore();
+  auto it = save_restore_map.find(num_cols);
+  if (it != save_restore_map.end())
+    return it->second;
+  return {{}, {}};
+}
+
+void
+asm_parser::
+finalize_preempt()
+{
+  // Skip if no preempt labels were recorded
+  if (m_preempt_labels.empty())
+    return;
+
+  if (is_multi_column_mode()) {
+    // Multi-column mode: multiple groups have PREEMPT
+    // Use 1c0 for col0, 1c1 for col2, 1c2 for col4
+    for (const auto& [group, labels] : m_preempt_labels) {
+      uint32_t key = 10 + group;
+      auto [save_data, restore_data] = get_preempt_save_restore(key);
+
+      if (save_data.empty() || restore_data.empty())
+        throw error(error::error_code::internal_error, "Preempt save/restore data not found for group " + std::to_string(group));
+
+      // Map group to file suffix: 0->1c0, 2->1c1, 4->1c2
+      std::string suffix;
+      if (group == 0) suffix = "1c0";
+      else if (group == 2) suffix = "1c1";
+      else if (group == 4) suffix = "1c2";
+      else suffix = "1c" + std::to_string(group);
+
+      std::string save_file = "aie4_save_" + suffix + ".asm";
+      std::string restore_file = "aie4_restore_" + suffix + ".asm";
+      log_info() << "Adding save_file: " << save_file << " [size: " << save_data.size()
+                 << "], restore_file: " << restore_file << " [size: " << restore_data.size() << "]" << std::endl;
+      // Add save/restore code to the corresponding column
+      m_current_col = group;
+      std::vector<char> save_chars(save_data.begin(), save_data.end());
+      set_data_state(false);
+      parse_lines(save_chars, save_file);
+      pop_data_state();
+
+      std::vector<char> restore_chars(restore_data.begin(), restore_data.end());
+      set_data_state(false);
+      parse_lines(restore_chars, restore_file);
+      pop_data_state();
+    }
+  } else {
+    // Single-column mode: only one group has PREEMPT
+    // Use 1c/2c/3c based on partition, add to col0
+    uint32_t num_cols = get_partition_info()->get_numcolumn();
+    auto [save_data, restore_data] = get_preempt_save_restore(num_cols);
+
+    if (save_data.empty() || restore_data.empty())
+      throw error(error::error_code::internal_error, "Preempt save/restore data not found for " + std::to_string(num_cols) + " columns");
+
+    std::string col_str = std::to_string(num_cols) + "c.asm";
+    std::string save_file = "aie4_save_" + col_str;
+    std::string restore_file = "aie4_restore_" + col_str;
+
+    log_info() << "Adding save_file: " << save_file << " [size: " << save_data.size()
+               << "], restore_file: " << restore_file << " [size: " << restore_data.size() << "]" << std::endl;
+    // Add save/restore code to col0
+    m_current_col = 0;
+    std::vector<char> save_chars(save_data.begin(), save_data.end());
+    set_data_state(false);
+    parse_lines(save_chars, save_file);
+    pop_data_state();
+
+    std::vector<char> restore_chars(restore_data.begin(), restore_data.end());
+    set_data_state(false);
+    parse_lines(restore_chars, restore_file);
+    pop_data_state();
+  }
 }
 
 void
