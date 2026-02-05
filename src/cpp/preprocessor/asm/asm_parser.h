@@ -15,6 +15,7 @@
 #include <stack>
 #include <sstream>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <vector>
 
@@ -281,6 +282,9 @@ class col_data
   std::map<std::string, section_asmdata> m_label_data;
   std::map<std::string, uint32_t> m_labelpageindex;
   std::map<std::string, std::shared_ptr<scratchpad_info>> m_scratchpads;
+  // Counter for PREEMPT opcodes in this column's control code.
+  // Used to verify all columns have the same number of preempt points.
+  uint32_t m_preempt_count = 0;
 public:
 
   std::vector<std::shared_ptr<asm_data>> get_label_asmdata(const std::string& label)
@@ -301,6 +305,12 @@ public:
   {
     m_scratchpads[name] = std::make_shared<scratchpad_info>(name, size, 0 , 0, content);
   }
+
+  // Get the number of PREEMPT opcodes encountered in this column's control code
+  uint32_t get_preempt_count() const { return m_preempt_count; }
+
+  // Increment the PREEMPT opcode counter (called when parsing encounters a PREEMPT opcode)
+  void increment_preempt_count() { m_preempt_count++; }
 };
 
 class attach_to_group_directive;
@@ -364,9 +374,61 @@ public:
     std::string save_label = "save_" + std::to_string(index);
     std::string restore_label = "restore_" + std::to_string(index);
     m_preempt_labels[group] = {save_label, restore_label};
+    // Increment preempt count for this group/col
+    if (m_current_col >= 0) {
+      auto it = m_col.find(m_current_col);
+      if (it != m_col.end())
+        it->second.increment_preempt_count();
+    }
   }
 
   const std::map<int, std::pair<std::string, std::string>>& get_preempt_labels() const { return m_preempt_labels; }
+
+  // Verify that all columns have the same PREEMPT opcode count as column 0.
+  // This ensures uniform preemption behavior across all controllers in the partition.
+  // Returns a tuple: {success, expected_count, mismatched_col, mismatched_count}
+  //   - success: true if all columns match col 0's count, false otherwise
+  //   - expected_count: the preempt count from column 0 (reference)
+  //   - mismatched_col: column number that has a different count (if success=false)
+  //   - mismatched_count: the actual count in the mismatched column (if success=false)
+  std::tuple<bool, uint32_t, int, uint32_t> verify_preempt_count() const {
+    // Get column 0 as the reference for expected preempt count
+    auto it = m_col.find(0);
+    if (it == m_col.end())
+      throw error(error::error_code::internal_error,
+                  "Controlcode for Column 0 not found for preempt count verification\n");
+
+    uint32_t expected_count = it->second.get_preempt_count();
+
+    // Compare all other columns against column 0
+    for (const auto& [col, data] : m_col) {
+      if (col == 0) continue;  // Skip reference column
+      uint32_t count = data.get_preempt_count();
+      if (count != expected_count) {
+        return {false, expected_count, col, count};  // Mismatch found
+      }
+    }
+    return {true, expected_count, 0, 0};  // All columns match
+  }
+
+  // Check if any column in the control code contains PREEMPT opcodes
+  bool has_preempt() const {
+    for (const auto& [col, data] : m_col) {
+      if (data.get_preempt_count() > 0)
+        return true;
+    }
+    return false;
+  }
+
+  // Get the number of columns that contain PREEMPT opcodes
+  size_t get_preempt_col_count() const {
+    size_t count = 0;
+    for (const auto& [col, data] : m_col) {
+      if (data.get_preempt_count() > 0)
+        ++count;
+    }
+    return count;
+  }
 
   std::pair<std::vector<uint8_t>, std::vector<uint8_t>> get_preempt_save_restore(uint32_t key) const;
 
