@@ -345,7 +345,7 @@ operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm)
   else if (is_annotation_section(args[0]))
     m_parserptr->set_annotation_state();
   else
-    log_warn() << "section directive with unknown section found:" << args[0];
+    log_warn() << "section directive with unknown section found:" << args[0] << "\n";
 }
 
 void
@@ -355,17 +355,17 @@ operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm)
   m_parserptr = parserptr;
   static const regex pattern(R"(\.partition\s+(\d+)(column|core:(\d+)mem))");
   smatch match;
-  log_info() << "PARTITION:" << sm[0].str();
+  log_info() << "PARTITION:" << sm[0].str() << "\n";
   std::string line = sm[0].str();
   if (regex_match(line, match, pattern)) {
     if (match[2] == "column") {
-      log_info() << "Column count: " << match[1];
+      log_info() << "Column count: " << match[1] << "\n";
       m_parserptr->set_numcolumn(to_uinteger<uint32_t>(match[1]));
     } else {
       m_parserptr->set_numcore(to_uinteger<uint32_t>(match[1]));
       m_parserptr->set_nummem(to_uinteger<uint32_t>(match[3]));
-      log_info() << "Core count: " << match[1];
-      log_info() << "Memory size: " << match[3];
+      log_info() << "Core count: " << match[1] << "\n";
+      log_info() << "Memory size: " << match[3] << "\n";
     }
   } else
     throw error(error::error_code::invalid_asm, "Invalid format!! " + line + "\n");
@@ -433,12 +433,12 @@ read_include_file(std::string filename)
 {
   m_parserptr->set_data_state(false);
   std::vector<char> data;
-  log_info() << "Reading contents from virtual or disk file:" << filename;
+  log_info() << "Reading contents from virtual or disk file:" << filename << "\n";
   try {
     if (!m_parserptr->get_artifacts()) return false;
     data = m_parserptr->get_artifacts()->get(filename, m_parserptr->get_include_list());
   } catch (const std::runtime_error& e) {
-    log_error() << "Error reading buffer from artifacts: " << e.what();
+    log_error() << "Error reading buffer from artifacts: " << e.what() << "\n";
     return false;
   }
   m_parserptr->parse_lines(data, filename);
@@ -522,14 +522,14 @@ pad_directive::
 read_pad_file(std::string& name, std::string& filename)
 {
 
-  log_info() << "Reading contents from virtual or disk file:" << filename;
+  log_info() << "Reading contents from virtual or disk file:" << filename << "\n";
   m_parserptr->set_data_state(false);
   std::vector<char> data;
   try {
     if (!m_parserptr->get_artifacts()) return false;
     data = m_parserptr->get_artifacts()->get(filename, m_parserptr->get_include_list());
   } catch (const std::runtime_error& e) {
-    log_error() << "Error reading buffer from artifacts: " << e.what();
+    log_error() << "Error reading buffer from artifacts: " << e.what() << "\n";
     return false;
   }
   m_parserptr->insert_scratchpad(name, data.size(), data);

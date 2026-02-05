@@ -370,19 +370,19 @@ aiebu_assembler_get_elf(enum aiebu_assembler_buffer_type type,
     static_cast<size_t>(std::numeric_limits<std::ptrdiff_t>::max());
   if (buffer1 == nullptr && buffer1_size != 0)
   {
-    aiebu::log_error() << "Invalid buffer1 size";
+    aiebu::log_error() << "Invalid buffer1 size\n";
     return -(static_cast<int>(aiebu::error::error_code::invalid_input));
   }
 
   if (buffer2 == nullptr && buffer2_size != 0)
   {
-    aiebu::log_error() << "Invalid buffer2 size";
+    aiebu::log_error() << "Invalid buffer2 size\n";
     return -(static_cast<int>(aiebu::error::error_code::invalid_input));
   }
 
   if (patch_json == nullptr && patch_json_size !=0)
   {
-    aiebu::log_error() << "Invalid patch json size";
+    aiebu::log_error() << "Invalid patch json size\n";
     return -(static_cast<int>(aiebu::error::error_code::invalid_input));
   }
 
@@ -425,12 +425,12 @@ aiebu_assembler_get_elf(enum aiebu_assembler_buffer_type type,
   }
   catch (aiebu::error &ex)
   {
-    aiebu::log_error() << ex.what();
+    aiebu::log_error() << ex.what() << "\n";
     ret = -(ex.get_code());
   }
   catch (std::exception &ex)
   {
-    aiebu::log_error() << ex.what();
+    aiebu::log_error() << ex.what() << "\n";
     ret = -(static_cast<int>(aiebu::error::error_code::internal_error));
   }
   return ret;
