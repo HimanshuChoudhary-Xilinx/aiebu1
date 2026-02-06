@@ -142,7 +142,7 @@ public:
 
     const auto& pt_xrt_kernel_instance = pt.get_child_optional("xrt-kernels");
     if (!pt_xrt_kernel_instance) {
-      log_warn() << "xrt-kernels instance not found, returning";
+      log_warn() << "xrt-kernels instance not found, returning\n";
       return;
     }
     const auto& p_xrt_kernel_instance = pt_xrt_kernel_instance.get();
@@ -169,7 +169,7 @@ public:
         const auto& pinstance = pt_instance.get();
         add_instance(mangled_name, pinstance, flags, paths);
       } else {
-        log_warn() << "instance not found";
+        log_warn() << "instance not found\n";
       }
     }
   }
