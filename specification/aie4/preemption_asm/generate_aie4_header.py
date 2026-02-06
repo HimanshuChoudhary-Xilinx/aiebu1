@@ -90,6 +90,7 @@ def generate_header(asm_dir, output_file):
             print(f"Key {key}: save={len(save_bytes)} bytes ({save_label}), restore={len(restore_bytes)} bytes ({restore_label})")
 
     # Generate header content
+    # Using C++17 inline variable at file scope to avoid MSVC "function too large" error
     header = """// SPDX-License-Identifier: MIT
 // Copyright (C) 2026, Advanced Micro Devices, Inc. All rights reserved.
 
@@ -100,10 +101,8 @@ def generate_header(asm_dir, output_file):
 #include <vector>
 #include <cstdint>
 
-inline std::map<uint32_t, std::pair<std::vector<uint8_t>, std::vector<uint8_t>>>&
-get_aie4_save_restore()
-{
-  static std::map<uint32_t, std::pair<std::vector<uint8_t>, std::vector<uint8_t>>> aie4_save_restore_map = {
+// C++17 inline variable - single instance across all translation units
+inline std::map<uint32_t, std::pair<std::vector<uint8_t>, std::vector<uint8_t>>> aie4_save_restore_map = {
 """
 
     # Add entries
@@ -115,14 +114,18 @@ get_aie4_save_restore()
         restore_str = format_bytes_array(restore_bytes)
         # Last entry has no trailing comma
         if i == len(sorted_keys) - 1:
-            entries.append(f"    {{{key}, {{{save_str}, {restore_str}}}}}  // NOLINT")
+            entries.append(f"  {{{key}, {{{save_str}, {restore_str}}}}}  // NOLINT")
         else:
-            entries.append(f"    {{{key}, {{{save_str}, {restore_str}}}}},  // NOLINT")
+            entries.append(f"  {{{key}, {{{save_str}, {restore_str}}}}},  // NOLINT")
 
     header += "\n".join(entries)
 
     header += """
-  };
+};
+
+inline std::map<uint32_t, std::pair<std::vector<uint8_t>, std::vector<uint8_t>>>&
+get_aie4_save_restore()
+{
   return aie4_save_restore_map;
 }
 
