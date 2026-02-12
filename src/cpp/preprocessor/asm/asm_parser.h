@@ -374,11 +374,10 @@ public:
     std::string save_label = "save_" + std::to_string(index);
     std::string restore_label = "restore_" + std::to_string(index);
     m_preempt_labels[group] = {save_label, restore_label};
-    // Increment preempt count for this group/col
+    // Increment preempt count for the current col
     if (m_current_col >= 0) {
       auto it = m_col.find(m_current_col);
-      if (it != m_col.end())
-        it->second.increment_preempt_count();
+      it->second.increment_preempt_count();
     }
   }
 
@@ -418,16 +417,6 @@ public:
         return true;
     }
     return false;
-  }
-
-  // Get the number of columns that contain PREEMPT opcodes
-  size_t get_preempt_col_count() const {
-    size_t count = 0;
-    for (const auto& [col, data] : m_col) {
-      if (data.get_preempt_count() > 0)
-        ++count;
-    }
-    return count;
   }
 
   std::pair<std::vector<uint8_t>, std::vector<uint8_t>> get_preempt_save_restore(uint32_t key) const;
