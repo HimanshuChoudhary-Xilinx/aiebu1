@@ -8,18 +8,18 @@
 namespace dtrace::action
 {
 
-//-------------------------timestamps32_action::timestamps32_action-------------------------//
+//-------------------------host_timestamps_action::host_timestamps_action-------------------------//
 /**
- * timestamps32_action() - Constructor with action token, probe type and probe name.
+ * host_timestamps_action() - Constructor with action token, probe type and probe name.
  * It parses the token and extracts the result, action name and arguments.
  *
  * @param token
- *  Multi Timestamp action token: name[length] = timestamps32()
+ *  Multiple Host Timestamp action token: name[length] = host_timestamps()
  * @param probe_type
  * @param probe_name
  */
-timestamps32_action::
-timestamps32_action(std::string token, uint32_t probe_type, const std::string& probe_name)
+host_timestamps_action::
+host_timestamps_action(std::string token, uint32_t probe_type, const std::string& probe_name)
     : action(probe_type, probe_name)
 {
     std::vector<std::string> fields;
@@ -30,8 +30,8 @@ timestamps32_action(std::string token, uint32_t probe_type, const std::string& p
 
     if (fields.size() != 2)
         DTRACE_ERROR("DTRACE_ACTION_INVALID_TOKEN", 
-            "Invalid token: '" << token << "' Expected 'name[length] = timestamps32()'");
-    
+            "Invalid token: '" << token << "' Expected 'name[length] = host_timestamps()'");
+
     // Regex pattern to match '<name>[<length>]' format
     aiebu::regex buffer_regex(R"(^(.+)\[(.+)\]$)");
     aiebu::smatch buffer;
@@ -45,15 +45,15 @@ timestamps32_action(std::string token, uint32_t probe_type, const std::string& p
     aiebu::smatch action;
     if (!aiebu::regex_match(fields[1], action, action_name::action_regex))
         DTRACE_ERROR("DTRACE_ACTION_INVALID_TOKEN", 
-            "Invalid token: '" << token << "' Expected 'timestamps32()'");
+            "Invalid token: '" << token << "' Expected 'host_timestamps()'");
 
     m_action_name = action[1];
     m_length = std::stoull(length, nullptr, 0);
 }
 
-//-------------------------timestamps32_action::actionize-------------------------//
+//-------------------------host_timestamps_action::actionize-------------------------//
 /**
- * actionize() - Adds timestamp 32-bit action values to the control buffer.
+ * actionize() - Adds host timestamp action values to the control buffer.
  *
  * @param last 
  *  Last action for the current probe.
@@ -61,45 +61,53 @@ timestamps32_action(std::string token, uint32_t probe_type, const std::string& p
  * @param mem_buffer 
  */
 void
-timestamps32_action::
+host_timestamps_action::
 actionize(uint32_t last, std::vector<uint32_t>& control_buffer, std::vector<uint32_t>&)
 {
-    // control buffer
-    // timestamps 32-bit action header
+    // control_buffer 
+    // timestamp header
     control_buffer.push_back(
-        (last << dtrace::dtrace_ctrl::second_byte_shift) | action_type::timestamps32
+        (last << dtrace::dtrace_ctrl::second_byte_shift) | action_type::host_timestamps
     );
     set_location(control_buffer, false);
     // timestamp length
     control_buffer.push_back(m_length);
-    // timestamp value for the length
-    control_buffer.insert(control_buffer.end(), m_length, 0);
+    // timestamp values for m_length
+    for (size_t i = 0; i < m_length; ++i)
+    {   // timestamp high values
+        control_buffer.push_back(0);
+        // timestamp low values
+        control_buffer.push_back(0);
+    }
 }
 
-//-------------------------timestamps32_action::serialize-------------------------//
+//-------------------------host_timestamps_action::serialize-------------------------//
 /**
- * serialize() - Serializes the multiple timestamp 32-bit action into a string format.
+ * serialize() - Serializes the timestamp action into a string format.
  *
  * @param result_buffer
  * @param mem_buffer
  * @param mapping
  *
  * @return 
- *  String representing the serialized multiple timestamp 32-bit action.
+ *  String representing the serialized timestamp action.
  */
 std::string
-timestamps32_action::
+host_timestamps_action::
 serialize(std::vector<uint32_t>& result_buffer, std::vector<uint32_t>&, 
     const std::unordered_map<uint32_t, uint32_t>& mapping) const
 {
     
-    std::vector<uint32_t> result;
+    std::vector<uint64_t> result;
     for (uint32_t i = 0; i < m_length; ++i) {
-        // action location + length word + timestamp value
-        uint32_t location = mapping.at(get_location(false)) + 1 + i;
-        result.push_back(result_buffer[location]);
+        // action location + length word + high and low value
+        uint32_t location = mapping.at(get_location(false)) + 1 + i*2;
+        uint64_t high = static_cast<uint64_t>(result_buffer[location]) << dtrace::dtrace_ctrl::forth_byte_shift;
+        uint64_t low = result_buffer[location + 1];
+        result.push_back(high + low);
         // reset value after serialization
         result_buffer[location] = 0;
+        result_buffer[location + 1] = 0;
     }
 
     std::ostringstream output_action;
@@ -110,6 +118,7 @@ serialize(std::vector<uint32_t>& result_buffer, std::vector<uint32_t>&,
             output_action << ", ";
     }
     output_action << "]\n";
+    
     return output_action.str();
 }
 
