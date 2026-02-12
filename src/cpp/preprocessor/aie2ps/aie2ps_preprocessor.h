@@ -112,6 +112,7 @@ public:
     toutput->set_ctrlpkt_id_map(ctrlpkt_id_map);
     toutput->set_annotations(parser->get_annotations());
 
+    offset_type preemption_scratchpad = 0;
     for (auto col: collist)
     {
       std::vector<page> pages;
@@ -133,10 +134,15 @@ public:
 
       for (auto& pad : scratchpad)
       {
-        pad_size = (((pad_size + 3) >> 2) << 2); // round off to next multiple of 4
-        pad.second->set_offset(pad_size);
-        pad.second->set_base(PAGE_SIZE * relative_page_index);
-        pad_size += pad.second->get_size();
+        if (pad.second->get_skip_pad_section()) {
+          pad.second->set_offset(preemption_scratchpad);
+          preemption_scratchpad += pad.second->get_size();
+        } else {
+          pad_size = (((pad_size + 3) >> 2) << 2); // round off to next multiple of 4
+          pad.second->set_offset(pad_size);
+          pad.second->set_base(PAGE_SIZE * relative_page_index);
+          pad_size += pad.second->get_size();
+        }
       }
 
       toutput->set_coldata(col, pages, scratchpad, label_page_index, tinput->get_control_packet_index());

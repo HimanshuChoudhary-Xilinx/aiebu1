@@ -16,6 +16,10 @@ fill_scratchpad(std::shared_ptr<section_writer> padwriter, const std::map<std::s
 {
   for (const auto& pad : scratchpads)
   {
+    // Skip scratchpads marked for save/restore (don't add to pad section)
+    if (pad.second->get_skip_pad_section())
+      continue;
+
     const auto& content = pad.second->get_content();
     if (content.size())
     {
@@ -71,7 +75,15 @@ process(std::shared_ptr<preprocessed_output> input)
       page_writer(lpage, coldata.second->m_scratchpad, coldata.second->m_labelpageindex,
                                  ctrlpkt_id_map, optimizatiom_level);
 
-    if (coldata.second->m_scratchpad.size()) {
+    // Check if there are any scratchpads that should be written to pad section
+    bool has_writable_scratchpad = false;
+    for (const auto& pad : coldata.second->m_scratchpad) {
+      if (!pad.second->get_skip_pad_section()) {
+        has_writable_scratchpad = true;
+        break;
+      }
+    }
+    if (has_writable_scratchpad) {
       auto padwriter = std::make_shared<section_writer>(get_PadSectionName(colnum), code_section::data);
       fill_scratchpad(padwriter, coldata.second->m_scratchpad);
       twriter.push_back(padwriter); 
@@ -180,6 +192,7 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
     if (text->isOpcode())
     {
       page_state->set_pos(textwriter->tell() - offset);
+      page_state->set_is_save_restore_op(text->get_is_save_restore());  // Track if this is save/restore op
       std::vector<uint8_t> ret = (*m_isa)[name]->serializer(text->get_operation()->get_args())
                                                ->serialize(page_state, tsym, colnum, pagenum);
       textwriter->write_bytes(ret);
@@ -218,6 +231,17 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
     for (auto& arg : spad.second)
     {
       offset = page_state->parse_num_arg(arg);
+
+      // Log patch information using std::cout
+      log_info() << "Patching scratchpad: label=" << spad.first
+                 << ", arg=" << arg
+                 << ", offset=" << offset
+                 << ", base=" << page_state->m_scratchpad[spad.first.substr(1)]->get_base()
+                 << ", offset=" << page_state->m_scratchpad[spad.first.substr(1)]->get_offset()
+                 << ", patch=" << (page_state->m_scratchpad[spad.first.substr(1)]->get_base() +
+                                  page_state->m_scratchpad[spad.first.substr(1)]->get_offset())
+                 << std::endl;
+
       patch57(textwriter, datawriter, offset + page_header.size(),
               page_state->m_scratchpad[spad.first.substr(1)]->get_base() + page_state->m_scratchpad[spad.first.substr(1)]->get_offset());
     }
@@ -243,6 +267,12 @@ patch57(const std::shared_ptr<section_writer> textwriter, std::shared_ptr<sectio
   uint64_t bd2 = datawriter->read_word(offset + 2*4); // NOLINT
   uint64_t bd8 = datawriter->read_word(offset + 8*4); // NOLINT
   uint64_t arg = ((bd8 & 0x1FF) << 48) + ((bd2 & 0xFFFF) << 32) + (bd1 & 0xFFFFFFFF); // NOLINT
+  // Add log for debugging patching
+  log_info() << "aie2ps_encoder::patch57: offset=" << offset
+             << ", patch=0x" << std::hex << patch
+             << ", arg=0x" << std::hex << arg
+             << ", after patch=0x" << std::hex << patch + arg
+             << std::dec << std::endl;
   patch = arg + patch;
   datawriter->write_word_at(offset + 1*4, patch & 0xFFFFFFFF); // NOLINT
   datawriter->write_word_at(offset + 2*4, ((patch >> 32) & 0xFFFF) | (bd2 & 0xFFFF0000)); // NOLINT

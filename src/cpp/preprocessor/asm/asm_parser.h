@@ -110,7 +110,7 @@ public:
 
 class pad_directive: public directive
 {
-  bool read_pad_file(std::string& name, std::string& filename);
+  bool read_pad_file(std::string& name, std::string& filename, bool skip_pad_section = false);
 public:
   offset_type convert2int(std::string& str)
   {
@@ -128,7 +128,7 @@ public:
     }
     return size;
   }
-  void add_scratchpad(std::string& name, std::string& str);
+  void add_scratchpad(std::string& name, std::string& str, bool skip_pad_section = false);
   pad_directive() = default;
   void operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm) override;
   ~pad_directive() override = default;
@@ -192,14 +192,15 @@ class asm_data
   std::string m_line;
   std::string m_file;
   int m_annotation_index = -1;
+  bool m_is_save_restore = false;  // True if this instruction is from save/restore routine
 
 public:
   asm_data() = default;
   asm_data(std::shared_ptr<operation> op, operation_type optype,
            code_section sec, uint64_t size, uint32_t pgnum,
-           uint32_t ln, std::string line, std::string file)
+           uint32_t ln, std::string line, std::string file, bool is_save_restore = false)
            :m_op(op), m_optype(optype), m_section(sec), m_size(size),
-            m_pagenum(pgnum), m_linenumber(ln), m_line(line), m_file(file) {}
+            m_pagenum(pgnum), m_linenumber(ln), m_line(line), m_file(file), m_is_save_restore(is_save_restore) {}
 
   asm_data( asm_data* a)
   {
@@ -211,6 +212,7 @@ public:
     a->m_linenumber = m_linenumber;
     a->m_line = m_line;
     a->m_file = m_file;
+    a->m_is_save_restore = m_is_save_restore;
   }
 
   HEADER_ACCESS_GET_SET(code_section, section);
@@ -219,6 +221,7 @@ public:
   HEADER_ACCESS_GET_SET(uint32_t, linenumber);
   HEADER_ACCESS_GET_SET(std::string, file);
   HEADER_ACCESS_GET_SET(std::string, line);
+  HEADER_ACCESS_GET_SET(bool, is_save_restore);
   bool isLabel() { return m_optype == operation_type::label; }
   bool isOpcode() { return m_optype == operation_type::op; }
   bool isAnnotation() { return m_optype == operation_type::annotation; }
@@ -241,18 +244,20 @@ class scratchpad_info
   offset_type m_offset;
   offset_type m_base;
   std::vector<char> m_content;
+  bool m_skip_pad_section = false;  // True for save/restore scratchpads - don't output to .pad section
 public:
-  scratchpad_info(std::string name, offset_type size, offset_type offset, offset_type base, std::vector<char>& content):
-    m_name(name), m_size(size), m_offset(offset), m_base(base), m_content(std::move(content)) {}
+  scratchpad_info(std::string name, offset_type size, offset_type offset, offset_type base, std::vector<char>& content, bool skip_pad_section = false):
+    m_name(name), m_size(size), m_offset(offset), m_base(base), m_content(std::move(content)), m_skip_pad_section(skip_pad_section) {}
 
   scratchpad_info(const scratchpad_info& other) : m_name(other.m_name),
     m_size(other.m_size), m_offset(other.m_offset), m_base(other.m_base),
-    m_content(other.m_content) { }
+    m_content(other.m_content), m_skip_pad_section(other.m_skip_pad_section) { }
 
   HEADER_ACCESS_GET_SET(std::string, name);
   HEADER_ACCESS_GET_SET(offset_type, size);
   HEADER_ACCESS_GET_SET(offset_type, offset);
   HEADER_ACCESS_GET_SET(offset_type, base);
+  HEADER_ACCESS_GET_SET(bool, skip_pad_section);
 
   const std::vector<char>& get_content() const { return m_content; }
 };
@@ -297,9 +302,9 @@ public:
   void set_labelpageindex(std::string& label, uint32_t val) { m_labelpageindex[label] = val; }
 
   std::map<std::string, std::shared_ptr<scratchpad_info>>& get_scratchpads() { return m_scratchpads; }
-  void set_scratchpad(std::string& name, offset_type size, std::vector<char>& content)
+  void set_scratchpad(std::string& name, offset_type size, std::vector<char>& content, bool skip_pad_section = false)
   {
-    m_scratchpads[name] = std::make_shared<scratchpad_info>(name, size, 0 , 0, content);
+    m_scratchpads[name] = std::make_shared<scratchpad_info>(name, size, 0 , 0, content, skip_pad_section);
   }
 };
 
@@ -329,6 +334,7 @@ class asm_parser: public std::enable_shared_from_this<asm_parser>
   const std::string m_target_type;
   const file_artifact* m_artifacts;
   std::map<int, std::pair<std::string, std::string>> m_preempt_labels;  // group -> (save_label, restore_label)
+  bool m_is_save_restore_routine = false;  // True when parsing save/restore routine files
 
 public:
   asm_parser(const std::vector<char>& data, const std::vector<std::string>& include_list, const std::string& target_type, const file_artifact* artifacts = nullptr)
@@ -355,6 +361,20 @@ public:
   const std::string& get_target_type() const { return m_target_type; }
 
   bool is_multi_column_mode() const { return m_preempt_labels.size() > 1; }
+
+  // Check if currently parsing save/restore routine
+  bool is_save_restore_routine() const { return m_is_save_restore_routine; }
+  void set_save_restore_routine(bool val) { m_is_save_restore_routine = val; }
+
+  // Check if we should skip setpad for this target in save/restore routine
+  bool should_skip_setpad_in_save_restore() const {
+    return m_is_save_restore_routine;
+  }
+
+  // Check if we should use scratch-pad section for save/restore APPLY_OFFSET_57
+  //bool should_use_scratchpad_section_for_save_restore() const {
+  //  return m_is_save_restore_routine;
+  //}
 
   // Record preempt label for current group (called when PREEMPT opcode is hit)
   // Label naming: save_N / restore_N where N = index (group/2 + 1)
@@ -451,7 +471,7 @@ public:
     return keys;
   }
 
-  void insert_scratchpad(std::string& name, offset_type size, std::vector<char>& content);
+  void insert_scratchpad(std::string& name, offset_type size, std::vector<char>& content, bool skip_pad_section = false);
 
   std::map<std::string, std::shared_ptr<scratchpad_info>>& getcolscratchpad(int col) { return m_col[col].get_scratchpads(); }
 

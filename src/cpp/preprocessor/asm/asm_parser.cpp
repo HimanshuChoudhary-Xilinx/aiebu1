@@ -60,19 +60,19 @@ insert_annotation(int annotation_index)
 
 void
 asm_parser::
-insert_scratchpad(std::string& name, offset_type size, std::vector<char>& content)
+insert_scratchpad(std::string& name, offset_type size, std::vector<char>& content, bool skip_pad_section)
 {
   if (m_current_col == -1)
     m_current_col = 0;
 
-  m_col[m_current_col].set_scratchpad(name, size, content);
+  m_col[m_current_col].set_scratchpad(name, size, content, skip_pad_section);
 }
 
 std::vector<uint32_t>
 asm_parser::
 get_col_list()
 {
-  // get col list
+  // get col list (sorted order since unordered_map doesn't preserve insertion order)
   std::vector<uint32_t> keys;
 
   std::transform(
@@ -80,6 +80,7 @@ get_col_list()
     m_col.end(),
     std::back_inserter(keys),
     [](const std::unordered_map<uint32_t, col_data>::value_type &pair){return pair.first;});
+  std::sort(keys.begin(), keys.end());
   return keys;
 }
 
@@ -176,7 +177,7 @@ parse_lines(const std::vector<char>& data, std::string& file)
       } else
         insert_col_asmdata(std::make_shared<asm_data>(std::make_shared<operation>(sm[1].str(), ""),
                                                       operation_type::label, code_section::unknown, 0,
-                                                      (uint32_t)-1, linenumber, line, file));
+                                                      (uint32_t)-1, linenumber, line, file, is_save_restore_routine()));
       continue;
     }
     // check for operation
@@ -218,7 +219,7 @@ parse_lines(const std::vector<char>& data, std::string& file)
 
       insert_col_asmdata(std::make_shared<asm_data>(std::make_shared<operation>(sm[1].str(), arg_str),
                                                     operation_type::op, code_section::unknown, 0, (uint32_t)-1,
-                                                    linenumber, line, file));
+                                                    linenumber, line, file, is_save_restore_routine()));
       if (!op_name.compare("eof"))
         set_data_state(true);
     }
@@ -278,12 +279,14 @@ finalize_preempt()
       m_current_col = group;
       std::vector<char> save_chars(save_data.begin(), save_data.end());
       set_data_state(false);
+      set_save_restore_routine(true);  // Mark as save/restore routine
       parse_lines(save_chars, save_file);
       pop_data_state();
 
       std::vector<char> restore_chars(restore_data.begin(), restore_data.end());
       set_data_state(false);
       parse_lines(restore_chars, restore_file);
+      set_save_restore_routine(false);  // Clear save/restore routine flag
       pop_data_state();
     }
   } else {
@@ -305,12 +308,14 @@ finalize_preempt()
     m_current_col = 0;
     std::vector<char> save_chars(save_data.begin(), save_data.end());
     set_data_state(false);
+    set_save_restore_routine(true);  // Mark as save/restore routine
     parse_lines(save_chars, save_file);
     pop_data_state();
 
     std::vector<char> restore_chars(restore_data.begin(), restore_data.end());
     set_data_state(false);
     parse_lines(restore_chars, restore_file);
+    set_save_restore_routine(false);  // Clear save/restore routine flag
     pop_data_state();
   }
 }
@@ -487,24 +492,30 @@ operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm)
 
   std::vector<std::string> args = splitoption(sm[2].str().c_str(), ',');
 
-  add_scratchpad(args[0], args[1]);
+  // For save/restore routine, mark scratchpad to skip in pad section output
+  if (m_parserptr->should_skip_setpad_in_save_restore()) {
+    log_info() << "Marking .setpad as save/restore scratchpad (skip in pad section) for target: " << m_parserptr->get_target_type() << "\n";
+    add_scratchpad(args[0], args[1], true);  // Mark as save/restore scratchpad
+  } else {
+    add_scratchpad(args[0], args[1]);
+  }
 }
 
 void
 pad_directive::
-add_scratchpad(std::string& name, std::string& str) {
+add_scratchpad(std::string& name, std::string& str, bool skip_pad_section) {
   // Check if the string is an integer
   str = trim(str);
   if (std::all_of(str.begin(), str.end(), ::isdigit)) {
     std::vector<char> empty_vector;
-    m_parserptr->insert_scratchpad(name, convert2int(str) * WORD_SIZE, empty_vector);
+    m_parserptr->insert_scratchpad(name, convert2int(str) * WORD_SIZE, empty_vector, skip_pad_section);
     return;
   }
   // Check if the string is a hexadecimal number
   static const regex hex_regex("0[xX][0-9a-fA-F]+");
   if (regex_match(str, hex_regex)) {
     std::vector<char> empty_vector;
-    m_parserptr->insert_scratchpad(name, convert2int(str) * WORD_SIZE, empty_vector);
+    m_parserptr->insert_scratchpad(name, convert2int(str) * WORD_SIZE, empty_vector, skip_pad_section);
     return;
   }
 
@@ -512,14 +523,14 @@ add_scratchpad(std::string& name, std::string& str) {
   if (file.front() == '"' && file.back() == '"')
     file = str.substr(1, str.size() - 2);
 
-  if (read_pad_file(name, file))
+  if (read_pad_file(name, file, skip_pad_section))
     return;
   throw error(error::error_code::internal_error, "File " + file + " not exist\n");
 }
 
 bool
 pad_directive::
-read_pad_file(std::string& name, std::string& filename)
+read_pad_file(std::string& name, std::string& filename, bool skip_pad_section)
 {
 
   log_info() << "Reading contents from virtual or disk file:" << filename << "\n";
@@ -532,7 +543,7 @@ read_pad_file(std::string& name, std::string& filename)
     log_error() << "Error reading buffer from artifacts: " << e.what() << "\n";
     return false;
   }
-  m_parserptr->insert_scratchpad(name, data.size(), data);
+  m_parserptr->insert_scratchpad(name, data.size(), data, skip_pad_section);
   return true;
 }
 }
