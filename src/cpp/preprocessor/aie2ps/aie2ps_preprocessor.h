@@ -85,6 +85,21 @@ public:
 
     parser->parse_lines();
 
+    // Verify PREEMPT opcode count is equal across all columns in the control code.
+    // All controllers must have the same number of preemption points to ensure consistent
+    // in cert, as cert synchronize preemption points at runtime and mismatch may lead to hang.
+    // The count from column 0 is used as the reference for comparison.
+    if (parser->has_preempt()) {
+      auto [success, expected_count, mismatch_col, mismatch_count] = parser->verify_preempt_count();
+      if (!success) {
+        throw error(error::error_code::invalid_asm,
+          "Preempt opcode count mismatch: expected " + std::to_string(expected_count) +
+          " preempt opcodes (from col 0), but controller " + std::to_string(mismatch_col) +
+          " has " + std::to_string(mismatch_count) + " preempt opcodes\n");
+      }
+      log_info() << "Ctrlcode has " << expected_count << " preemption points\n";
+    }
+
     // Verify .target directive matches the -t command line option
     auto target_info = parser->get_target_info();
     std::string expected_target = tinput->get_expected_target();
