@@ -60,12 +60,12 @@ insert_annotation(int annotation_index)
 
 void
 asm_parser::
-insert_scratchpad(std::string& name, offset_type size, std::vector<char>& content, bool skip_pad_section)
+insert_scratchpad(std::string& name, offset_type size, std::vector<char>& content)
 {
   if (m_current_col == -1)
     m_current_col = 0;
 
-  m_col[m_current_col].set_scratchpad(name, size, content, skip_pad_section);
+  m_col[m_current_col].set_scratchpad(name, size, content);
 }
 
 std::vector<uint32_t>
@@ -490,32 +490,31 @@ operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm)
   m_parserptr = parserptr;
   verify_match(sm, error::error_code::invalid_asm, ".setpad directive requires arguments\n");
 
-  std::vector<std::string> args = splitoption(sm[2].str().c_str(), ',');
-
-  // For save/restore routine, mark scratchpad to skip in pad section output
-  if (m_parserptr->should_skip_setpad_in_save_restore()) {
-    log_info() << "Marking .setpad as save/restore scratchpad (skip in pad section) for target: " << m_parserptr->get_target_type() << "\n";
-    add_scratchpad(args[0], args[1], true);  // Mark as save/restore scratchpad
-  } else {
-    add_scratchpad(args[0], args[1]);
+  // .setpad should only be part of save/restore routines
+  if (!m_parserptr->should_skip_setpad_in_save_restore()) {
+    log_warn() << "Warning: Directive \"" << sm[0].str() << "\" found outside save/restore routine for target: "
+               << m_parserptr->get_target_type() << "\n";
   }
+
+  std::vector<std::string> args = splitoption(sm[2].str().c_str(), ',');
+  add_scratchpad(args[0], args[1]);
 }
 
 void
 pad_directive::
-add_scratchpad(std::string& name, std::string& str, bool skip_pad_section) {
+add_scratchpad(std::string& name, std::string& str) {
   // Check if the string is an integer
   str = trim(str);
   if (std::all_of(str.begin(), str.end(), ::isdigit)) {
     std::vector<char> empty_vector;
-    m_parserptr->insert_scratchpad(name, convert2int(str) * WORD_SIZE, empty_vector, skip_pad_section);
+    m_parserptr->insert_scratchpad(name, convert2int(str) * WORD_SIZE, empty_vector);
     return;
   }
   // Check if the string is a hexadecimal number
   static const regex hex_regex("0[xX][0-9a-fA-F]+");
   if (regex_match(str, hex_regex)) {
     std::vector<char> empty_vector;
-    m_parserptr->insert_scratchpad(name, convert2int(str) * WORD_SIZE, empty_vector, skip_pad_section);
+    m_parserptr->insert_scratchpad(name, convert2int(str) * WORD_SIZE, empty_vector);
     return;
   }
 
@@ -523,14 +522,14 @@ add_scratchpad(std::string& name, std::string& str, bool skip_pad_section) {
   if (file.front() == '"' && file.back() == '"')
     file = str.substr(1, str.size() - 2);
 
-  if (read_pad_file(name, file, skip_pad_section))
+  if (read_pad_file(name, file))
     return;
   throw error(error::error_code::internal_error, "File " + file + " not exist\n");
 }
 
 bool
 pad_directive::
-read_pad_file(std::string& name, std::string& filename, bool skip_pad_section)
+read_pad_file(std::string& name, std::string& filename)
 {
 
   log_info() << "Reading contents from virtual or disk file:" << filename << "\n";
@@ -543,7 +542,7 @@ read_pad_file(std::string& name, std::string& filename, bool skip_pad_section)
     log_error() << "Error reading buffer from artifacts: " << e.what() << "\n";
     return false;
   }
-  m_parserptr->insert_scratchpad(name, data.size(), data, skip_pad_section);
+  m_parserptr->insert_scratchpad(name, data.size(), data);
   return true;
 }
 }

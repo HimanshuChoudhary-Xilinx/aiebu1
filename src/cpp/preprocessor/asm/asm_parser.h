@@ -110,7 +110,7 @@ public:
 
 class pad_directive: public directive
 {
-  bool read_pad_file(std::string& name, std::string& filename, bool skip_pad_section = false);
+  bool read_pad_file(std::string& name, std::string& filename);
 public:
   offset_type convert2int(std::string& str)
   {
@@ -128,7 +128,7 @@ public:
     }
     return size;
   }
-  void add_scratchpad(std::string& name, std::string& str, bool skip_pad_section = false);
+  void add_scratchpad(std::string& name, std::string& str);
   pad_directive() = default;
   void operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm) override;
   ~pad_directive() override = default;
@@ -244,20 +244,18 @@ class scratchpad_info
   offset_type m_offset;
   offset_type m_base;
   std::vector<char> m_content;
-  bool m_skip_pad_section = false;  // True for save/restore scratchpads - don't output to .pad section
 public:
-  scratchpad_info(std::string name, offset_type size, offset_type offset, offset_type base, std::vector<char>& content, bool skip_pad_section = false):
-    m_name(name), m_size(size), m_offset(offset), m_base(base), m_content(std::move(content)), m_skip_pad_section(skip_pad_section) {}
+  scratchpad_info(std::string name, offset_type size, offset_type offset, offset_type base, std::vector<char>& content):
+    m_name(name), m_size(size), m_offset(offset), m_base(base), m_content(std::move(content)) {}
 
   scratchpad_info(const scratchpad_info& other) : m_name(other.m_name),
     m_size(other.m_size), m_offset(other.m_offset), m_base(other.m_base),
-    m_content(other.m_content), m_skip_pad_section(other.m_skip_pad_section) { }
+    m_content(other.m_content) { }
 
   HEADER_ACCESS_GET_SET(std::string, name);
   HEADER_ACCESS_GET_SET(offset_type, size);
   HEADER_ACCESS_GET_SET(offset_type, offset);
   HEADER_ACCESS_GET_SET(offset_type, base);
-  HEADER_ACCESS_GET_SET(bool, skip_pad_section);
 
   const std::vector<char>& get_content() const { return m_content; }
 };
@@ -302,9 +300,9 @@ public:
   void set_labelpageindex(std::string& label, uint32_t val) { m_labelpageindex[label] = val; }
 
   std::map<std::string, std::shared_ptr<scratchpad_info>>& get_scratchpads() { return m_scratchpads; }
-  void set_scratchpad(std::string& name, offset_type size, std::vector<char>& content, bool skip_pad_section = false)
+  void set_scratchpad(std::string& name, offset_type size, std::vector<char>& content)
   {
-    m_scratchpads[name] = std::make_shared<scratchpad_info>(name, size, 0 , 0, content, skip_pad_section);
+    m_scratchpads[name] = std::make_shared<scratchpad_info>(name, size, 0 , 0, content);
   }
 };
 
@@ -471,7 +469,7 @@ public:
     return keys;
   }
 
-  void insert_scratchpad(std::string& name, offset_type size, std::vector<char>& content, bool skip_pad_section = false);
+  void insert_scratchpad(std::string& name, offset_type size, std::vector<char>& content);
 
   std::map<std::string, std::shared_ptr<scratchpad_info>>& getcolscratchpad(int col) { return m_col[col].get_scratchpads(); }
 

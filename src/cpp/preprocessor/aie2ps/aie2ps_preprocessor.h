@@ -117,7 +117,6 @@ public:
     {
       std::vector<page> pages;
       int relative_page_index = 0;
-      int pad_size = 0;
       auto& label_page_index = parser->getcollabelpageindex(col);
       auto& scratchpad = parser->getcolscratchpad(col);
       auto& coldata = parser->get_col_asmdata(col);
@@ -134,15 +133,8 @@ public:
 
       for (auto& pad : scratchpad)
       {
-        if (pad.second->get_skip_pad_section()) {
-          pad.second->set_offset(preemption_scratchpad);
-          preemption_scratchpad += pad.second->get_size();
-        } else {
-          pad_size = (((pad_size + 3) >> 2) << 2); // round off to next multiple of 4
-          pad.second->set_offset(pad_size);
-          pad.second->set_base(PAGE_SIZE * relative_page_index);
-          pad_size += pad.second->get_size();
-        }
+        pad.second->set_offset(preemption_scratchpad);
+        preemption_scratchpad += pad.second->get_size();
       }
 
       toutput->set_coldata(col, pages, scratchpad, label_page_index, tinput->get_control_packet_index());

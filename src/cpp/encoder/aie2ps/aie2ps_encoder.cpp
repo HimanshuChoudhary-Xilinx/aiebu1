@@ -10,28 +10,6 @@
 
 namespace aiebu {
 
-void
-aie2ps_encoder::
-fill_scratchpad(std::shared_ptr<section_writer> padwriter, const std::map<std::string, std::shared_ptr<scratchpad_info>>& scratchpads)
-{
-  for (const auto& pad : scratchpads)
-  {
-    // Skip scratchpads marked for save/restore (don't add to pad section)
-    if (pad.second->get_skip_pad_section())
-      continue;
-
-    const auto& content = pad.second->get_content();
-    if (content.size())
-    {
-      assert((void("Pad content size and size doesnt match\n"), content.size() == pad.second->get_size()));
-      padwriter->write_bytes(content);
-    } else {
-      auto size = pad.second->get_size();
-      std::vector<uint8_t> zeros(size, 0x00);
-      padwriter->write_bytes(zeros);
-    }
-  }
-}
 
 void
 aie2ps_encoder::
@@ -70,24 +48,10 @@ process(std::shared_ptr<preprocessed_output> input)
 
   // for each colnum encode each page
   for (const auto& coldata: totalcoldata) {
-    auto colnum = coldata.first;
     for (auto& lpage : coldata.second->m_pages)
       page_writer(lpage, coldata.second->m_scratchpad, coldata.second->m_labelpageindex,
                                  ctrlpkt_id_map, optimizatiom_level);
 
-    // Check if there are any scratchpads that should be written to pad section
-    bool has_writable_scratchpad = false;
-    for (const auto& pad : coldata.second->m_scratchpad) {
-      if (!pad.second->get_skip_pad_section()) {
-        has_writable_scratchpad = true;
-        break;
-      }
-    }
-    if (has_writable_scratchpad) {
-      auto padwriter = std::make_shared<section_writer>(get_PadSectionName(colnum), code_section::data);
-      fill_scratchpad(padwriter, coldata.second->m_scratchpad);
-      twriter.push_back(padwriter); 
-    }
 
     for (const auto& pair : ctrlpkt_id_map) {
       auto ctrlpktwriter = std::make_shared<section_writer>(pair.second, code_section::data);
