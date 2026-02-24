@@ -365,8 +365,8 @@ pagify(assembler_state& state, uint32_t col, std::vector<page>& pages, uint32_t 
     page_tsize += tsize;
     page_dsize += dsize;
     page_jobs.insert( page_jobs.end(), job_list.begin(), job_list.end() );
-    page_labels.insert( page_labels.end(), labels_list.begin(), labels_list.end() );
-    page_external_labels.insert( page_external_labels.end(), external_labels_list.begin(), external_labels_list.end() );
+    page_labels = union_of_lists_inorder<std::string>(page_labels, labels_list);
+    page_external_labels = union_of_lists_inorder<std::string>(page_external_labels, external_labels_list);
   }
 
   if (page_jobs.size())
