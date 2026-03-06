@@ -82,7 +82,7 @@ serialize(std::shared_ptr<assembler_state> state, std::vector<symbol>& symbols,
     {
       try {
         val = state->parse_num_arg(sval);
-      } catch (symbol_exception &s) {
+      } catch (symbol_exception &) {
         symbols.emplace_back(sval, state->get_pos()+(uint32_t)ret.size(),
                              colnum, pagenum, 0, 0, ".ctrltext." + std::to_string(colnum)
                              + "." + std::to_string(pagenum),
@@ -136,8 +136,8 @@ serialize(std::shared_ptr<assembler_state> state, std::vector<symbol>& symbols,
             auto usymbo = m_args[3].substr(1);
             if (state->m_scratchpad.find(usymbo) != state->m_scratchpad.end())
             {
-              auto num_entries = state->parse_num_arg(m_args[1]);
-              for (uint32_t numbd = 0; numbd < num_entries; ++numbd)
+              auto inner_num_entries = state->parse_num_arg(m_args[1]);
+              for (uint32_t numbd = 0; numbd < inner_num_entries; ++numbd)
               {
                 auto label = state->get_label_at(index);
                 state->m_patch[m_args[3]].emplace_back(label);
@@ -268,9 +268,9 @@ handle_descriptor_ptr_arg(uint32_t val,
 {
   auto slabels = state->get_labels();
   if (slabels.find(val) == slabels.end()) {
-    std::string label = get_label();
-    state->add_label(val, label);
-    return label;
+    std::string sym_label = get_label();
+    state->add_label(val, sym_label);
+    return sym_label;
   } else {
     return slabels.at(val);
   }
@@ -283,9 +283,9 @@ handle_table_ptr_arg(uint32_t val,
 {
   auto slocal_ptrs = state->get_local_ptrs();
   if (slocal_ptrs.find(val) == slocal_ptrs.end()) {
-    std::string label = get_label();
-    state->add_local_ptr(val, label, shim_bd_len);
-    return label;
+    std::string sym_label = get_label();
+    state->add_local_ptr(val, sym_label, shim_bd_len);
+    return sym_label;
   } else {
     return slocal_ptrs.at(val).first;
   }
@@ -372,9 +372,9 @@ handle_page_id_arg(uint32_t /*val*/,
 {
   // PAGE_ID arguments reference text sections that come later
   // Add to OOO label queue to be written at the start of the target section
-  std::string label = get_label();
-  state->add_ooo_label(label);
-  return label;
+  std::string sym_label = get_label();
+  state->add_ooo_label(sym_label);
+  return sym_label;
 }
 
 uint32_t op_deserializer::numlabel = 0;
@@ -469,8 +469,8 @@ ucDmaBd_op_deserializer::
 deserialize(asm_writer& writer, std::shared_ptr<disassembler_state> state, const char* data)
 {
   assert(state->get_address() % align() == 0 && "uC DMA definition has to be 128-bit aligned!");
-  std::string label = state->get_labels().at(state->get_address());
-  writer.write_label(label);
+  std::string sym_label = state->get_labels().at(state->get_address());
+  writer.write_label(sym_label);
   int ctrl_next_BD = 1;
   uint32_t count = 0;
   constexpr uint32_t size_offset = 0;
@@ -501,14 +501,14 @@ deserialize(asm_writer& writer, std::shared_ptr<disassembler_state> state, const
       result.push_back(a3.str());
     }
 
-    uint32_t local_ptr_offset = arg[2] + state->get_address();
+    uint32_t lp_offset = arg[2] + state->get_address();
     auto slocal_ptr = state->get_local_ptrs();
-    if (slocal_ptr.find(local_ptr_offset) == slocal_ptr.end()) {
+    if (slocal_ptr.find(lp_offset) == slocal_ptr.end()) {
       std::string ptr_label = get_label();
       result.push_back(ptr_label);
-      state->add_local_ptr(local_ptr_offset, ptr_label, arg[0]);
+      state->add_local_ptr(lp_offset, ptr_label, arg[0]);
     } else {
-      result.push_back(slocal_ptr[local_ptr_offset].first);
+      result.push_back(slocal_ptr[lp_offset].first);
     }
 
     result.push_back(std::to_string(arg[0]));
@@ -539,8 +539,8 @@ deserialize(asm_writer& writer, std::shared_ptr<disassembler_state> state, const
 {
   uint32_t lp = state->get_address();
   auto label_pair = state->get_local_ptrs().at(lp);
-  std::string label = label_pair.first;
-  writer.write_label(label);
+  std::string sym_label = label_pair.first;
+  writer.write_label(sym_label);
   uint32_t count = label_pair.second;
   assert(count != 0 && ".long length is zero");
   uint32_t pos = 0;

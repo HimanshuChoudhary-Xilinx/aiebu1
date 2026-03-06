@@ -107,7 +107,7 @@ public:
   const std::string& get_code_name() const { return m_opname; }
   std::unique_ptr<op_deserializer> create_deserializer() const;
 
-  isa_op_disasm(std::string opname, uint8_t code, std::vector<opArg> args):m_opname(std::move(opname)), m_code(code) {
+  isa_op_disasm(std::string opname, int code, std::vector<opArg> args):m_opname(std::move(opname)), m_code(static_cast<uint8_t>(code)) {
     for (auto a : args)
       m_args.emplace_back(a);
   }
@@ -254,7 +254,7 @@ public:
   uint8_t get_code() const { return m_code; }
   const std::string& get_code_name() const { return m_opname; }
 
-  isa_op(std::string opname, uint8_t code, std::vector<opArg> args):m_opname(opname), m_code(code) {
+  isa_op(std::string opname, int code, std::vector<opArg> args):m_opname(opname), m_code(static_cast<uint8_t>(code)) {
     for (auto a : args)
       m_args.emplace_back(a);
   }

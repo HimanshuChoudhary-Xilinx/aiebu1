@@ -150,7 +150,7 @@ serialize(std::vector<uint32_t>&, std::vector<uint32_t>& mem_buffer,
     {
         std::ostringstream readable_result;
         uint32_t index = get_location(true);
-        uint32_t length = m_write_buffer_values.size();
+        auto length = static_cast<uint32_t>(m_write_buffer_values.size());
         for (uint32_t i = index; i < index+length; ++i)
         {
             readable_result << "  0x" << std::hex << mem_buffer[i];

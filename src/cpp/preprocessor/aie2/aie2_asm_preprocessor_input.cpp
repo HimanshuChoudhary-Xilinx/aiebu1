@@ -84,7 +84,7 @@ protected:
     char *storage = new char[m_size];
     std::memset(storage, 0, m_size);
     m_op = reinterpret_cast<XAie_OpHdr *>(storage);
-    m_op->Op = m_code;
+    m_op->Op = static_cast<uint8_t>(m_code);
   }
 
   void operand_count_check(const std::vector<std::string>& args, unsigned int size) const {
@@ -153,7 +153,7 @@ public:
     initialize_OpHdr(sizeof(XAie_Write32Hdr));
 
     auto op = reinterpret_cast<XAie_Write32Hdr *>(m_op);
-    op->RegOff = to_uinteger<uint64_t>(regoff);
+    op->RegOff = to_uinteger<uint32_t>(regoff);
     op->Value = to_uinteger<uint32_t>(args[1]);
     op->Size = sizeof(XAie_Write32Hdr);
   }
@@ -170,7 +170,7 @@ private:
 
   [[nodiscard]] unsigned int get_extended_operand_index() const {
     size_t ex_op_size = get_op_size() - get_op_base_size();
-    return ex_op_size / sizeof(uint32_t) - outstanding_extended_operand_count;
+    return static_cast<unsigned int>(ex_op_size / sizeof(uint32_t)) - outstanding_extended_operand_count;
   }
 
 public:
@@ -205,8 +205,8 @@ public:
                      sizeof(uint32_t) * outstanding_extended_operand_count);
 
     auto op = reinterpret_cast<XAie_BlockWrite32Hdr *>(m_op);
-    op->RegOff = to_uinteger<uint64_t>(regoff);
-    op->Size = get_op_size();
+    op->RegOff = to_uinteger<uint32_t>(regoff);
+    op->Size = static_cast<uint32_t>(get_op_size());
   }
 
   [[nodiscard]] size_t get_op_base_size() const override {
@@ -218,7 +218,7 @@ public:
   }
 
   [[nodiscard]] unsigned int total_extended_operand_count() const {
-    return (get_op_size() - get_op_base_size()) / sizeof(uint32_t);
+    return static_cast<unsigned int>((get_op_size() - get_op_base_size()) / sizeof(uint32_t));
   }
 
   void process_outstanding_ext_op(const std::shared_ptr<operation> op) override {
@@ -249,7 +249,7 @@ public:
     std::string regoff = args[0].substr(1);
 
     auto op = reinterpret_cast<XAie_MaskWrite32Hdr *>(m_op);
-    op->RegOff = to_uinteger<uint64_t>(regoff);
+    op->RegOff = to_uinteger<uint32_t>(regoff);
     static const aiebu::regex mask_regex = get_regex({fragment::begin_anchor_re, fragment::hex_re, fragment::l_brack_re,
         fragment::r_brack_re, fragment::end_anchor_re});
 
@@ -262,7 +262,7 @@ public:
 
     op->Mask = to_uinteger<uint32_t>(matches[1]);
     op->Value = to_uinteger<uint32_t>(args[2]);
-    op->Size = get_op_size();
+    op->Size = static_cast<uint32_t>(get_op_size());
   }
 
   [[nodiscard]] size_t get_op_base_size() const override {
@@ -281,7 +281,7 @@ public:
     const std::string regoff = args[idx++].substr(1);
 
     auto op = reinterpret_cast<XAie_MaskPoll32Hdr *>(m_op);
-    op->RegOff = to_uinteger<uint64_t>(regoff);
+    op->RegOff = to_uinteger<uint32_t>(regoff);
 
     static const aiebu::regex mask_poll_regex = get_regex({fragment::begin_anchor_re, fragment::hex_re, fragment::l_brack_re,
         fragment::r_brack_re, fragment::equal_re, fragment::hex_re, fragment::end_anchor_re});
@@ -296,7 +296,7 @@ public:
 
     op->Mask = to_uinteger<uint32_t>(matches[1]);
     op->Value = to_uinteger<uint32_t>(matches[2]);
-    op->Size = get_op_size();
+    op->Size = static_cast<uint32_t>(get_op_size());
   }
 
   [[nodiscard]] size_t get_op_base_size() const override {
@@ -336,7 +336,7 @@ public:
     initialize_OpHdr(sizeof(XAie_PreemptHdr));
 
     auto op = reinterpret_cast<XAie_PreemptHdr *>(m_op);
-    op->Preempt_level = preempt_level_table.at(args[0]);
+    op->Preempt_level = static_cast<uint8_t>(preempt_level_table.at(args[0]));
   }
 
   [[nodiscard]] size_t get_op_base_size() const override {
@@ -405,7 +405,7 @@ public:
     initialize_OpHdr(sizeof(XAie_CustomOpHdr) + sizeof(tct_op_t));
 
     auto op = reinterpret_cast<XAie_CustomOpHdr *>(m_op);
-    op->Size = get_op_size();
+    op->Size = static_cast<uint32_t>(get_op_size());
 
     auto values = get_extended_storage<tct_op_t>();
     unsigned int idx = 0;
@@ -416,7 +416,7 @@ public:
     std::pair<uint8_t, uint8_t> col_val = parse_index(col_regex, args[idx++]);
 
     uint8_t dir =  dma_direction_table.at(args[idx++]);
-    uint8_t channel = to_uinteger<uint32_t>(args[idx]);
+    uint8_t channel = static_cast<uint8_t>(to_uinteger<uint32_t>(args[idx]));
 
     values->word = col_val.first;
     values->word <<= 8;
@@ -445,7 +445,7 @@ public:
     initialize_OpHdr(sizeof(XAie_CustomOpHdr) + sizeof(tct_op_t));
 
     auto op = reinterpret_cast<XAie_CustomOpHdr *>(m_op);
-    op->Size = get_op_size();
+    op->Size = static_cast<uint32_t>(get_op_size());
 
     auto values = get_extended_storage<tct_op_t>();
 
@@ -478,7 +478,7 @@ public:
     initialize_OpHdr(sizeof(XAie_CustomOpHdr) + sizeof(patch_op_t));
 
     auto op = reinterpret_cast<XAie_CustomOpHdr *>(m_op);
-    op->Size = get_op_size();
+    op->Size = static_cast<uint32_t>(get_op_size());
     auto values = get_extended_storage<patch_op_t>();
 
     const std::string regoff = args[0].substr(1);
@@ -501,10 +501,10 @@ public:
     initialize_OpHdr(sizeof(XAie_CustomOpHdr) + sizeof(unsigned int));
 
     auto op = reinterpret_cast<XAie_CustomOpHdr *>(m_op);
-    op->Size = get_op_size();
+    op->Size = static_cast<uint32_t>(get_op_size());
     auto values = get_extended_storage<unsigned int>();
 
-    values[0] = to_uinteger<uint64_t>(args[0].substr(1));
+    values[0] = static_cast<unsigned int>(to_uinteger<uint64_t>(args[0].substr(1)));
   }
 
   [[nodiscard]] size_t get_op_base_size() const override {
@@ -586,8 +586,8 @@ aie2_asm_preprocessor_input::encode(const std::vector<char>& mc_asm_code) {
   std::vector<std::unique_ptr<aie2_isa_op>> isa_op_list;
 
   /* The ASM lines hang off the last column referred by.attach_to_group directive */
-  auto coldata = a->get_col_asmdata(collist.size() - 1);
-  auto labels = a->getLabelsforcol(collist.size() - 1);
+  auto coldata = a->get_col_asmdata(static_cast<uint32_t>(collist.size() - 1));
+  auto labels = a->getLabelsforcol(static_cast<uint32_t>(collist.size() - 1));
   if (labels.size() != 1)
     throw error(error::error_code::invalid_asm, "aie2 ctrlcode should have only one label");
   for (auto line : coldata.get_label_asmdata(labels.front())) {
@@ -609,8 +609,8 @@ aie2_asm_preprocessor_input::encode(const std::vector<char>& mc_asm_code) {
   std::streamoff size = store.tellp();
   store.seekp(0);
 
-  hdr.TxnSize = size;
-  hdr.NumOps = isa_op_list.size();
+  hdr.TxnSize = static_cast<uint32_t>(size);
+  hdr.NumOps = static_cast<uint32_t>(isa_op_list.size());
   store.write(reinterpret_cast<const char *>(&hdr), sizeof(hdr));
 
   std::vector<char> result(size);

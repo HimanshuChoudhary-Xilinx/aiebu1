@@ -57,8 +57,8 @@ public:
 
   operation(const std::string& name, std::string sargs): m_name(name)
   {
-    std::transform(m_name.begin(), m_name.end(), m_name.begin(), ::tolower);
-    std::transform(sargs.begin(), sargs.end(), sargs.begin(), ::tolower);
+    std::transform(m_name.begin(), m_name.end(), m_name.begin(), [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
+    std::transform(sargs.begin(), sargs.end(), sargs.begin(), [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
 
     std::string s;
     std::stringstream ss(sargs);
@@ -122,9 +122,9 @@ public:
       if (pos != str.length()) {
         throw error(error::error_code::internal_error,"Invalid characters found in the scratchpad size");
       }
-    } catch (const std::invalid_argument& e) {
+    } catch (const std::invalid_argument&) {
       throw error(error::error_code::internal_error, "Invalid argument in scratchpad size");
-    } catch (const std::out_of_range& e) {
+    } catch (const std::out_of_range&) {
       throw error(error::error_code::internal_error, "Out of range scratchpad size");
     }
     return size;

@@ -40,10 +40,10 @@ set_location(const std::vector<uint32_t>& buffer, bool is_mem_buffer)
     // Otherwise, set location in control block.
     if (is_mem_buffer)
     {
-        m_mem_location = buffer.size();
+        m_mem_location = static_cast<uint32_t>(buffer.size());
         return;
     }
-    m_control_location = buffer.size();
+    m_control_location = static_cast<uint32_t>(buffer.size());
 }
 
 //-------------------------action::get_location-------------------------//

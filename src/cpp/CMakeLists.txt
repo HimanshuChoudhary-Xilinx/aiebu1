@@ -35,12 +35,12 @@ set_target_properties(aiebu_library_objects PROPERTIES
   INCLUDE_DIRECTORIES ""  # Clear inherited dirs
   )
 
+target_include_directories(aiebu_library_objects SYSTEM PRIVATE ${AIEBU_ELFIO_SRC_DIR})
 target_include_directories(aiebu_library_objects
   PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${AIEBU_SOURCE_DIR}
-  ${AIEBU_ELFIO_SRC_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/aie-rt/include
   ${AIEBU_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}
   ${Boost_INCLUDE_DIRS}

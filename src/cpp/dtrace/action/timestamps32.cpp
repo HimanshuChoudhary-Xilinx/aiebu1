@@ -48,7 +48,7 @@ timestamps32_action(std::string token, uint32_t probe_type, const std::string& p
             "Invalid token: '" << token << "' Expected 'timestamps32()'");
 
     m_action_name = action[1];
-    m_length = std::stoull(length, nullptr, 0);
+    m_length = static_cast<uint32_t>(std::stoull(length, nullptr, 0));
 }
 
 //-------------------------timestamps32_action::actionize-------------------------//

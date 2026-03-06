@@ -35,7 +35,7 @@ public:
 
     constexpr size_t element_size = sizeof(digest[0]);
 
-    if (element_size == 1)
+    if constexpr (element_size == 1)
       return sig;
 
     // Different boost versions model digest_type differently:

@@ -135,7 +135,7 @@ void asm_disassembler::process_data_block(const char* data, size_t size,
             offset += consumed;
         } 
         // Handle padding bytes
-        else if (opcode == align || opcode == zero_padding) {
+        else if (opcode == align_opcode || opcode == zero_padding) {
             state->increment_address(1);
             ++offset;
         } 

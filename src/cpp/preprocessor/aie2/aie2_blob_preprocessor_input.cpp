@@ -239,7 +239,7 @@ add_preemption_code(uint32_t col)
       auto patch = pat.second;
       if (m_data.find(ctrl_data) == m_data.end())
         throw error(error::error_code::invalid_asm, "control packet not present");
-      uint32_t control_packet_size = m_data[ctrl_data].size();
+      auto control_packet_size = static_cast<uint32_t>(m_data[ctrl_data].size());
       uint32_t control_packet_offset = get_32_bit_property(patch, "offset");
       // Check if the control packet offset is within the control packet size
       validate_json(control_packet_offset, control_packet_size, arg_index, offset_type::CONTROL_PACKET);
@@ -307,7 +307,7 @@ add_preemption_code(uint32_t col)
     {
       auto patch = pat.second;
       uint32_t control_packet_offset = get_32_bit_property(patch, "offset");
-      uint32_t control_packet_size = m_data[".ctrldata"].size();
+      uint32_t control_packet_size = static_cast<uint32_t>(m_data[".ctrldata"].size());
       uint32_t arg_index = get_32_bit_property(patch, "xrt_arg_idx");
       // check if the offset is less than the size of the control packet
       validate_json(control_packet_offset, control_packet_size, arg_index, offset_type::CONTROL_PACKET);
@@ -680,7 +680,7 @@ add_preemption_code(uint32_t col)
           if (loadsequence && pm_exist)
             throw error(error::error_code::invalid_asm, "Patch opcode found in PM Load Sequence!!!");
           auto op = reinterpret_cast<const patch_op_opt_t *>(ptr + sizeof(*hdr));
-          uint64_t reg = op->regaddr & 0xFFFFFFF0; // regaddr point either to 1st word or 2nd word of BD
+          auto reg = static_cast<uint32_t>(op->regaddr & 0xFFFFFFF0); // regaddr point either to 1st word or 2nd word of BD
           auto it = blockWriteRegOffsetMap.find(reg);
           if ( it == blockWriteRegOffsetMap.end()) {
             auto error_msg = boost::format("Invalid Control Code. No block-write opcode"

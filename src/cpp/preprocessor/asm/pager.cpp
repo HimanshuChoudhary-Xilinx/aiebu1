@@ -57,9 +57,9 @@ getdatasectionsize(assembler_state& state, std::vector<std::string>& labels_list
     if (ALIGNMAP.count(name) > 0)
     {
       if (ALIGNMENT_16 == ALIGNMAP.at(name))
-        dsize16 += state.m_labelmap[lb]->get_size();
+        dsize16 += static_cast<offset_type>(state.m_labelmap[lb]->get_size());
       else if (ALIGNMENT_4 == ALIGNMAP.at(name))
-        dsize4 += state.m_labelmap[lb]->get_size();
+        dsize4 += static_cast<offset_type>(state.m_labelmap[lb]->get_size());
       else
         throw error(error::error_code::internal_error, name +" found in ALIGNMAP with allignment " + std::to_string(ALIGNMAP.at(name)));
     }

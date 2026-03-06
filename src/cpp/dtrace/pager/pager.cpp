@@ -97,7 +97,6 @@ paging(const std::vector<uint32_t>& buffer, uint32_t uC_index)
     catch (const std::exception& e)
     {
         DTRACE_ERROR("DTRACE_PAGER_ERROR", "Error in pager: " << e.what());
-        return m_primary_buffer;
     }
 }
 
@@ -248,7 +247,7 @@ get_begin_probe(const std::vector<uint32_t>& source, std::vector<uint32_t>& dest
             source, source[location] >> dtrace::dtrace_ctrl::second_byte_shift
         );
         destination[location] = 
-            (destination.size() << dtrace::dtrace_ctrl::second_byte_shift) | 
+            (static_cast<uint32_t>(destination.size()) << dtrace::dtrace_ctrl::second_byte_shift) | 
             (dtrace::probe::probe_type::begin << dtrace::dtrace_ctrl::first_byte_shift) | 
             (destination[location] & pager_ctrl::mask_probe_type);
         copy_actions(

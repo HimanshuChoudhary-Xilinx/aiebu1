@@ -69,7 +69,7 @@ target_aie2blob::parseOption(const sub_cmd_options &options)
 
     auto char_ver = aiebu::utilities::vector_of_string_to_vector_of_char(options);
 
-    auto result = all_options.parse(char_ver.size(), char_ver.data());
+    auto result = all_options.parse(static_cast<int>(char_ver.size()), char_ver.data());
 
     if (result.count("help")) {
       std::cout << all_options.help({"", "Target aie2blob Options"});
@@ -216,7 +216,7 @@ target_aie2ps::assemble(const sub_cmd_options &options)
     ;
 
     auto char_ver = aiebu::utilities::vector_of_string_to_vector_of_char(options);
-    auto result = all_options.parse(char_ver.size(), char_ver.data());
+    auto result = all_options.parse(static_cast<int>(char_ver.size()), char_ver.data());
 
     if (result.count("help")) {
       std::cout << all_options.help({"", "Target aie2ps Options"});

@@ -244,7 +244,7 @@ void XAie_OpHdr_add_loadpdi::transform() {
   auto load = allocXaie<XAie_LoadPdiHdr>();
   load->Op = XAIE_IO_LOADPDI;
   load->PdiId = m_pdiid;
-  load->PdiSize = m_pdisize;
+  load->PdiSize = static_cast<uint32_t>(m_pdisize);
   auto it = m_nodes.begin();
   size_t original_offset = it->m_original_offset;
   m_nodes.emplace(it, reinterpret_cast<const XAie_OpHdr *>(load),

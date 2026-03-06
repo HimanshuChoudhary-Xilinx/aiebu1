@@ -161,7 +161,7 @@ parse_lines(const std::vector<char>& data, std::string& file)
           throw error(error::error_code::internal_error, "Unknown annotation field " + aline + "!!!");
       }
       m_annotation_list.emplace_back(id_line, name_line, description_line);
-      insert_annotation(m_annotation_list.size() - 1);
+      insert_annotation(static_cast<int>(m_annotation_list.size() - 1));
       reset_annotation_state();
       linenumber+=3;
       continue;
@@ -532,7 +532,7 @@ read_pad_file(std::string& name, std::string& filename)
     log_error() << "Error reading buffer from artifacts: " << e.what() << "\n";
     return false;
   }
-  m_parserptr->insert_scratchpad(name, data.size(), data);
+  m_parserptr->insert_scratchpad(name, static_cast<offset_type>(data.size()), data);
   return true;
 }
 }
