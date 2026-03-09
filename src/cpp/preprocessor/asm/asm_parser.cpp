@@ -432,8 +432,7 @@ hintmap_words_to_scratchpad(const std::vector<uint32_t>& words,
                             const std::string& hintmap_label,
                             int group)
 {
-  constexpr uint64_t CHUNK_SIZE   = 64ULL * 1024ULL;
-  constexpr uint64_t DEFAULT_SIZE = 9ULL  * 1024ULL * 1024ULL;
+  constexpr uint64_t DEFAULT_SIZE = 9ULL * 1024ULL * 1024ULL; // 9MB
   constexpr uint64_t DEFAULT_BASE = 0x0ULL;
   constexpr uint64_t NO_BIT       = UINT64_MAX;
 
@@ -938,8 +937,11 @@ asm_parser::inject_hintmap_save_restore(int col,
   for (const auto& hm : grp.hintmaps)
     m_hintmap_labels[col_prefix + hm] = grp.labels;
 
-  log_info() << "Adding save_file: " << save_file << " [size: " << save_data.size()
-             << "], restore_file: " << restore_file << " [size: " << restore_data.size()
+  // Modify save_file like {scratchaddress}_{size}_aie4_save_3c.asm / {scratchaddress}_{size}_aie4_restore_3c.asm
+  std::string save_file_mod = std::to_string(grp.scratchbase / CHUNK_SIZE) + "_" + std::to_string(grp.size / CHUNK_SIZE) + "_" + save_file;
+  std::string restore_file_mod = std::to_string(grp.scratchbase / CHUNK_SIZE) + "_" + std::to_string(grp.size / CHUNK_SIZE) + "_" + restore_file;
+  log_info() << "Adding save_file: " << save_file_mod << " [size: " << save_data.size()
+             << "], restore_file: " << restore_file_mod << " [size: " << restore_data.size()
              << "] for " << grp.hintmaps.size() << " hintmap(s) with shared labels @"
              << grp.labels.first << " / @" << grp.labels.second << std::endl;
 
@@ -984,13 +986,12 @@ asm_parser::inject_hintmap_save_restore(int col,
   restore_chars.assign(restore_text.begin(), restore_text.end());
 
   m_current_col = col;
-  std::string sf = save_file, rf = restore_file;
   set_data_state(false);
-  parse_lines(save_chars, sf);
+  parse_lines(save_chars, save_file_mod);
   pop_data_state();
 
   set_data_state(false);
-  parse_lines(restore_chars, rf);
+  parse_lines(restore_chars, restore_file_mod);
   pop_data_state();
 }
 
@@ -1079,6 +1080,12 @@ asm_parser::inject_default_save_restore(int col,
   auto save_bd_ranges    = compute_save_bd_ranges   (save_bd.size(), scratchbase, size);
   auto restore_bd_ranges = compute_restore_bd_ranges(restore_bd.size(), scratchbase, size);
 
+  std::string save_file_mod = std::to_string(scratchbase / CHUNK_SIZE) + "_" + std::to_string(size / CHUNK_SIZE) + "_" + save_file;
+  std::string restore_file_mod = std::to_string(scratchbase / CHUNK_SIZE) + "_" + std::to_string(size / CHUNK_SIZE) + "_" + restore_file;
+
+  log_info() << "Adding default save_file: " << save_file_mod << " [size: " << save_data.size()
+             << "], restore_file: " << restore_file_mod << " [size: " << restore_data.size() << "]" << std::endl;
+
   log_info() << "================BD ranges for save (scratchbase=0x" << std::hex << scratchbase
              << ", size=0x" << size << std::dec << "):" << std::endl;
   for (std::size_t i = 0; i < save_bd_ranges.size(); ++i)
@@ -1089,9 +1096,6 @@ asm_parser::inject_default_save_restore(int col,
   for (std::size_t i = 0; i < restore_bd_ranges.size(); ++i)
     log_info() << "  restore_bd[" << i << "]: base=0x" << std::hex << restore_bd_ranges[i].first
                << " size=0x" << restore_bd_ranges[i].second << std::dec << std::endl;
-
-  log_info() << "Adding default save_file: " << save_file << " [size: " << save_data.size()
-             << "], restore_file: " << restore_file << " [size: " << restore_data.size() << "]" << std::endl;
 
   // Patch BD address/length fields directly in the ASM text
   std::vector<char> save_chars(save_data.begin(), save_data.end());
@@ -1111,13 +1115,12 @@ asm_parser::inject_default_save_restore(int col,
   restore_chars.assign(restore_text.begin(), restore_text.end());
 
   m_current_col = col;
-  std::string sf = save_file, rf = restore_file;
   set_data_state(false);
-  parse_lines(save_chars, sf);
+  parse_lines(save_chars, save_file_mod);
   pop_data_state();
 
   set_data_state(false);
-  parse_lines(restore_chars, rf);
+  parse_lines(restore_chars, restore_file_mod);
   pop_data_state();
 }
 

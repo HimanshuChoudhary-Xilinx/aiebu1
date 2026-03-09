@@ -22,6 +22,8 @@
 
 namespace aiebu {
 
+constexpr uint64_t CHUNK_SIZE = 64ULL * 1024ULL; // 64KB
+
 inline std::string trim(const std::string& line)
 {
     // trim the last
