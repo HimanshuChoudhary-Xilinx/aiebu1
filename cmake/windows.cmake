@@ -18,7 +18,6 @@ add_compile_options(
   /Zc:__cplusplus
   /WX           # treat warnings as errors
   /W4           # warning level
-  /external:W0  # suppress warnings from system/external include directories
   /Zi           # generate pdb files even in release mode
   /sdl          # enable security checks
   /ZH:SHA_256   # enable secure source code hashing
