@@ -218,7 +218,7 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
     for (auto& arg : spad.second)
     {
       offset = page_state->parse_num_arg(arg);
-      patch57(textwriter, datawriter, offset + page_header.size(),
+      patch57(textwriter, datawriter, offset + static_cast<offset_type>(page_header.size()),
               page_state->m_scratchpad[spad.first.substr(1)]->get_base() + page_state->m_scratchpad[spad.first.substr(1)]->get_offset());
     }
   }

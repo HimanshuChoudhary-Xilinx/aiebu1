@@ -76,7 +76,7 @@ namespace aiebu {
       auto patch = pat.second;
       auto ctrlpkt_id = get_32_bit_property(patch, "xrt_id");
       auto ctrpkt_buf = m_ctrlpkt_id_map.at(ctrlpkt_id);
-      uint32_t control_packet_size = m_controlpkt[ctrpkt_buf].size(); 
+      auto control_packet_size = static_cast<uint32_t>(m_controlpkt[ctrpkt_buf].size());
       uint32_t control_packet_offset = get_32_bit_property(patch, "offset");
       // Check if the control packet offset is within the control packet size
       validate_json(control_packet_offset, control_packet_size, arg_index, offset_type::CONTROL_PACKET);
@@ -150,7 +150,7 @@ namespace aiebu {
     {
       auto patch = pat.second;
       uint32_t control_packet_offset = get_32_bit_property(patch, "offset");
-      uint32_t control_packet_size = m_data[".ctrldata"].size();
+      uint32_t control_packet_size = static_cast<uint32_t>(m_data[".ctrldata"].size());
       uint32_t arg_index = get_32_bit_property(patch, "xrt_arg_id");
       // check if the offset is less than the size of the control packet
       validate_json(control_packet_offset, control_packet_size, arg_index, offset_type::CONTROL_PACKET);

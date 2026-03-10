@@ -11,9 +11,9 @@ set_target_properties(aiebu_transform_objects PROPERTIES
   INCLUDE_DIRECTORIES ""  # Clear inherited dirs
   )
 
+target_include_directories(aiebu_transform_objects SYSTEM PRIVATE ${AIEBU_ELFIO_SRC_DIR})
 target_include_directories(aiebu_transform_objects
   PRIVATE
-  ${AIEBU_ELFIO_SRC_DIR}
   ${AIEBU_SOURCE_DIR}/src/cpp/include
   ${AIEBU_SOURCE_DIR}/src/cpp/cxxopts/include
   ${AIEBU_SOURCE_DIR}/src/cpp

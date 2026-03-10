@@ -57,8 +57,8 @@ public:
 
   operation(const std::string& name, std::string sargs): m_name(name)
   {
-    std::transform(m_name.begin(), m_name.end(), m_name.begin(), ::tolower);
-    std::transform(sargs.begin(), sargs.end(), sargs.begin(), ::tolower);
+    std::transform(m_name.begin(), m_name.end(), m_name.begin(), [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
+    std::transform(sargs.begin(), sargs.end(), sargs.begin(), [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
 
     std::string s;
     std::stringstream ss(sargs);
@@ -122,9 +122,9 @@ public:
       if (pos != str.length()) {
         throw error(error::error_code::internal_error,"Invalid characters found in the scratchpad size");
       }
-    } catch (const std::invalid_argument& e) {
+    } catch (const std::invalid_argument&) {
       throw error(error::error_code::internal_error, "Invalid argument in scratchpad size");
-    } catch (const std::out_of_range& e) {
+    } catch (const std::out_of_range&) {
       throw error(error::error_code::internal_error, "Out of range scratchpad size");
     }
     return size;
@@ -187,7 +187,7 @@ class asm_data
   std::shared_ptr<operation> m_op;
   operation_type m_optype;
   code_section m_section;
-  uint64_t m_size;
+  offset_type m_size;
   pageid_type m_pagenum;
   uint32_t m_linenumber;
   std::string m_line;
@@ -197,7 +197,7 @@ class asm_data
 public:
   asm_data() = default;
   asm_data(std::shared_ptr<operation> op, operation_type optype,
-           code_section sec, uint64_t size, uint32_t pgnum,
+           code_section sec, offset_type size, uint32_t pgnum,
            uint32_t ln, std::string line, std::string file)
            :m_op(op), m_optype(optype), m_section(sec), m_size(size),
             m_pagenum(pgnum), m_linenumber(ln), m_line(line), m_file(file) {}
@@ -215,7 +215,7 @@ public:
   }
 
   HEADER_ACCESS_GET_SET(code_section, section);
-  HEADER_ACCESS_GET_SET(uint64_t, size);
+  HEADER_ACCESS_GET_SET(offset_type, size);
   HEADER_ACCESS_GET_SET(pageid_type, pagenum);
   HEADER_ACCESS_GET_SET(uint32_t, linenumber);
   HEADER_ACCESS_GET_SET(std::string, file);

@@ -143,7 +143,7 @@ public:
       // create pages
         pager(PAGE_SIZE).pagify(*state, col, pages, relative_page_index);
         label_page_index[get_pagelabel(label)] = relative_page_index;
-        relative_page_index = pages.size();
+        relative_page_index = static_cast<int>(pages.size());
       }
 
       for (auto& pad : scratchpad)

@@ -26,7 +26,7 @@ using offset_type = uint32_t;
 using pageid_type = uint32_t;
 using opcode_type = uint8_t;
 
-constexpr pageid_type NO_PAGE = -1;
+constexpr pageid_type NO_PAGE = std::numeric_limits<pageid_type>::max();
 const static jobid_type EOF_ID("EOF");
 const static jobid_type EOP_ID("EOP");
 constexpr offset_type PAGE_SIZE = 8192;
@@ -34,7 +34,7 @@ constexpr int HEX_BASE = 16;
 constexpr int WORD_SIZE = 4;
 constexpr uint32_t byte_to_bits = 8;
 constexpr uint32_t shim_bd_len = 9;
-constexpr opcode_type align = 0xA5;
+constexpr opcode_type align_opcode = 0xA5;
 
 namespace aiebu {
 

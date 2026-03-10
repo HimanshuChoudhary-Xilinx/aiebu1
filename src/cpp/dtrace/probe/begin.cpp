@@ -43,7 +43,7 @@ enable(std::vector<uint32_t>& control_buffer, std::vector<uint32_t>& mem_buffer)
     // Get the begin probe location and update the control buffer
     uint32_t location = probe_type::begin;
     control_buffer[location] = 
-        (control_buffer.size() <<  dtrace::dtrace_ctrl::second_byte_shift) | 
+        (static_cast<uint32_t>(control_buffer.size()) <<  dtrace::dtrace_ctrl::second_byte_shift) | 
         (probe_type::begin <<  dtrace::dtrace_ctrl::first_byte_shift);
     // Add the control actions to the control buffer and memory buffer for the begin probe
     // and return the memory action locations for probe.

@@ -143,10 +143,10 @@ process(bool makeunique)
   {
     if (pair.second == 1)
       continue;
-    size_t index = find_label_entry(pair.first);
+    size_t label_idx = find_label_entry(pair.first);
     for (uint32_t i = 0; i < pair.second; ++i)
     {
-      auto label = get_label_at(index+i);
+      auto label = get_label_at(label_idx+i);
       m_dependent_labelmap[pair.first].push_back(label.substr(1));
     }
   }

@@ -47,7 +47,7 @@ write_mem_action(std::string token, uint32_t probe_type, const std::string& prob
             "Invalid arguments: '" << token << "' write_mem requires 3 arguments (addr, length, buffer)");
 
     // Check to parse a length string as hexadecimal or decimal
-    m_length = std::stoull(m_arguments[1], nullptr, 0);
+    m_length = static_cast<uint32_t>(std::stoull(m_arguments[1], nullptr, 0));
     std::string write_buffer_name = m_arguments[2];
 
     // check if write buffer name exists in the map and get the values

@@ -156,8 +156,8 @@ private:
       case (XAIE_IO_CUSTOM_OP_READ_REGS):
       case (XAIE_IO_CUSTOM_OP_RECORD_TIMER):
       case (XAIE_IO_CUSTOM_OP_MERGE_SYNC): {
-        auto Hdr = reinterpret_cast<const XAie_CustomOpHdr *>(curr);
-        size = Hdr->Size;
+        auto custom_hdr = reinterpret_cast<const XAie_CustomOpHdr *>(curr);
+        size = custom_hdr->Size;
         break;
       }
       default:
@@ -175,14 +175,14 @@ private:
     const char *ptr = psec->get_data();
     XAie_TxnHeader hdr;
     std::memcpy(&hdr, ptr, sizeof(hdr));
-    hdr.NumOps = m_nodes.size();
+    hdr.NumOps = static_cast<uint32_t>(m_nodes.size());
     store.write(reinterpret_cast<const char *>(&hdr), sizeof(hdr));
     for (auto &node : m_nodes) {
       node.m_transformed_offset = store.tellp();
       store.write(reinterpret_cast<const char *>(node.m_op), static_cast<std::streamsize>(node.m_size));
     }
     store.seekp(0, std::ios_base::end);
-    hdr.TxnSize = store.tellp();
+    hdr.TxnSize = static_cast<uint32_t>(store.tellp());
     store.seekp(0);
     store.write(reinterpret_cast<const char *>(&hdr), sizeof(hdr));
     psec->free_data();
@@ -215,7 +215,7 @@ private:
       else if (passname.get() == "loadpdi") {
         auto pdiid = pass.second.get_optional<int>("pdiid");
         auto pdisize = pass.second.get_optional<int>("pdisize");
-        XAie_OpHdr_add_loadpdi loadpdi(m_nodes, pdiid.get(), pdisize.get());
+        XAie_OpHdr_add_loadpdi loadpdi(m_nodes, static_cast<uint16_t>(pdiid.get()), static_cast<uint64_t>(pdisize.get()));
         loadpdi.transform();
       }
       else if (passname.get() == "nopreempt") {
@@ -302,12 +302,12 @@ private:
       const auto nodei = find_node(offset);
       if ((nodei == m_nodes.end()) || (nodei->m_state != basic_node_state::original)) {
         // We should drop/invalidate this relocation as it is either orphaned or a newly added node
-        reloc.set_entry(i, offset, it->second,
+        reloc.set_entry(i, offset, static_cast<ELFIO::Elf_Word>(it->second),
                         (char)symbol::patch_schema::unknown, addend);
       }
       else {
         auto new_address = nodei->m_transformed_offset + (offset - nodei->m_original_offset);
-        reloc.set_entry(i, new_address, it->second, type, addend);
+        reloc.set_entry(i, new_address, static_cast<ELFIO::Elf_Word>(it->second), type, addend);
       }
     }
   }
@@ -329,7 +329,7 @@ private:
 
   unsigned int find_section_original_index(const std::string &secname) const
   {
-    unsigned i = ~0;
+    unsigned i = ~0U;
     for (auto name : m_sectable) {
       if (name == secname)
         return i;
@@ -414,7 +414,7 @@ private:
       if (it == offsets.end())
         continue;
       // Bind the new segment to its new section
-      nseg->add_section_index(it->first, seg->get_align());
+      nseg->add_section_index(static_cast<ELFIO::Elf_Half>(it->first), seg->get_align());
     }
 
     elf_layout(m_nbin);

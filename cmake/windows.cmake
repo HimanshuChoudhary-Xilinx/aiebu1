@@ -17,7 +17,7 @@ endif()
 add_compile_options(
   /Zc:__cplusplus
   /WX           # treat warnings as errors
-  /W2           # warning level
+  /W4           # warning level
   /Zi           # generate pdb files even in release mode
   /sdl          # enable security checks
   /ZH:SHA_256   # enable secure source code hashing

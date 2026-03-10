@@ -48,16 +48,16 @@ protected:
 // Optimized log_stream with nested buffer
 class log_stream : public std::ostream {
 public:
-    log_stream(std::ostream& out, log_level lvl)
-        : std::ostream(&buf), buf(out, lvl) {}
+    log_stream(std::ostream& stream, log_level lvl)
+        : std::ostream(&buf), buf(stream, lvl) {}
 
     void set_level(log_level lvl) { buf.set_level(lvl); }
 
 private:
     class buf_type : public std::streambuf {
     public:
-        buf_type(std::ostream& out, log_level lvl)
-            : sink(out), level(lvl) {}
+        buf_type(std::ostream& stream, log_level lvl)
+            : sink(stream), level(lvl) {}
 
         void set_level(log_level lvl) { level = lvl; }
 

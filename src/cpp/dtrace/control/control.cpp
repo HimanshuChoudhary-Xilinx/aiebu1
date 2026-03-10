@@ -78,8 +78,8 @@ control(std::string script_file, const std::string& map_data, uint32_t log_level
     file.close();
 
     // Compile the script
-    for (const auto& line : file_lines)
-        m_parser.parse_line(line);
+    for (const auto& script_line : file_lines)
+        m_parser.parse_line(script_line);
 
     // Check if any uC indices were parsed
     if (m_parser.m_uC_indices.empty()) {
@@ -170,7 +170,6 @@ create_control_buffer(uint32_t uC) const
     {
         DTRACE_ERROR("DTRACE_CONTROL_BUFFER_CREATE_FAILED", 
             "Control buffer for uC " << uC << " not found.");
-        return buffer;
     }
     for (const auto& item : m_control_buffers.at(uC))
     {
@@ -201,7 +200,6 @@ create_mem_buffer(uint32_t uC) const
     {
         DTRACE_ERROR("DTRACE_CONTROL_MEMORY_BUFFER_CREATE_FAILED", 
             "Memory buffer for uC " << uC << " not found.");
-        return buffer;
     }
     for (const auto& item : m_mem_buffers.at(uC))
     {
@@ -360,34 +358,34 @@ create_result_file(std::unordered_map<uint32_t, std::vector<uint32_t>>& result_b
     }
 
     // Create python script
-    std::ofstream output(output_file);
-    if (!output)
+    std::ofstream script_output(output_file);
+    if (!script_output)
         DTRACE_ERROR("DTRACE_CONTROL_RESULT_FILE_NOT_FOUND", "result file: " << output_file);
         
-    output << "#! /usr/bin/env python3\n";
-    output << "import sys\n\n";
-    output << "if __name__ == '__main__':\n";
+    script_output << "#! /usr/bin/env python3\n";
+    script_output << "import sys\n\n";
+    script_output << "if __name__ == '__main__':\n";
     for (const auto& item : actions)
     {
         const auto& action = item.first;
-        uint32_t uC_index = item.second;
+        uint32_t loop_uC_index = item.second;
         try 
         {
-            output << action->serialize(
-                result_buffers.at(uC_index), 
-                mem_buffers.at(uC_index), 
-                m_pager.get_action_location_mapping(uC_index)
+            script_output << action->serialize(
+                result_buffers.at(loop_uC_index), 
+                mem_buffers.at(loop_uC_index), 
+                m_pager.get_action_location_mapping(loop_uC_index)
             );
         } 
         catch (const std::exception& e) 
         {
             DTRACE_ERROR("DTRACE_ACTION_SERIALIZE_FAILED", "Failed to serialize action " 
-                << action->create_string() << " for uC index " << uC_index << ". Exception: " << e.what() 
+                << action->create_string() << " for uC index " << loop_uC_index << ". Exception: " << e.what() 
             );
         }
     }
-    output << "  " << "sys.exit(0)\n";
-    output.close();
+    script_output << "  " << "sys.exit(0)\n";
+    script_output.close();
 }
 
 } // namespace dtrace

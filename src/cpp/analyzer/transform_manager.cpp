@@ -182,7 +182,7 @@ update_uid_section() {
     // Clear existing note data and add updated hash
     ELFIO::note_section_accessor note_writer(m_elfio, note_sec);
     note_sec->set_data(nullptr, 0);
-    note_writer.add_note(NT_XRT_UID, "XRT", uid_hash.data(), uid_hash.size());
+    note_writer.add_note(NT_XRT_UID, "XRT", uid_hash.data(), static_cast<ELFIO::Elf_Word>(uid_hash.size()));
   }
 }
 
@@ -421,7 +421,7 @@ get_controlcode_bd_offset(const std::string& section_name, uint32_t offset, symb
                 + std::to_string(offset) + "\n");
 
   // Adjust offset to point into ctrldata section
-  offset -= ctrltext->get_size();
+  offset -= static_cast<uint32_t>(ctrltext->get_size());
   offset += elf_section_header_size;
 
   const auto* bd_data_ptr = reinterpret_cast<const uint32_t*>(ctrldata->get_data() + offset);
@@ -464,7 +464,7 @@ set_controlcode_bd_offset(const std::string& section_name, uint32_t offset, uint
                 + std::to_string(offset) + "\n");
 
   // Adjust offset to point into ctrldata section
-  offset -= ctrltext->get_size();
+  offset -= static_cast<uint32_t>(ctrltext->get_size());
   offset += elf_section_header_size;
   if (offset > ctrldata->get_size())
     throw error(error::error_code::internal_error, "ctrltext size lesser than offset:"
@@ -631,7 +631,7 @@ get_filtered_section_indices(const std::string& kernel_instance_filter)
     std::string identifier = extract_kernel_name_from_mangled(sym_name);
 
     if (identifier == filter_kernel) {
-      kernel_symbol_index = i;
+      kernel_symbol_index = static_cast<ELFIO::Elf_Word>(i);
       break;
     }
   }
@@ -653,7 +653,7 @@ get_filtered_section_indices(const std::string& kernel_instance_filter)
 
     const char* sym_name = strtab->get_data() + sym->st_name;
     if (std::string(sym_name) == filter_instance && sym->st_shndx == kernel_symbol_index) {
-      instance_symbol_index = i;
+      instance_symbol_index = static_cast<ELFIO::Elf_Word>(i);
       break;
     }
   }
@@ -900,7 +900,7 @@ update_rela_sections(const std::vector<arginfo>& entries, const std::string& ker
     auto hash_it = hash.find(key);
     if (hash_it == hash.end()) {
       // New unique symbol: add to string table
-      new_offset = strtab_data.size();
+      new_offset = static_cast<ELFIO::Elf_Word>(strtab_data.size());
       strtab_data.append(name).push_back('\0');
       hash[key] = new_offset;
     } else {
@@ -938,7 +938,7 @@ update_rela_sections(const std::vector<arginfo>& entries, const std::string& ker
 
   // Replace old symbol string table and symbol table with new versions
   dynstr->set_data(strtab_data);
-  dynsym->set_data(dynsym_copy.data(), dynsym_copy.size());
+  dynsym->set_data(dynsym_copy.data(), static_cast<ELFIO::Elf_Word>(dynsym_copy.size()));
 
   // Process all .ctrltext sections to update apply_offset_57 opcodes
   process_sections();
@@ -1060,16 +1060,16 @@ update_rela_sections(const std::vector<arginfo>& entries, const std::string& ker
 
      if (is_match) {
        new_strtab_data.append(modified_str).push_back('\0');
-       new_offset += modified_str.size() + 1;
+       new_offset += static_cast<ELFIO::Elf_Word>(modified_str.size() + 1);
        found = true;
      } else {
        // No match - copy as is
        new_strtab_data.append(current_str).push_back('\0');
-       new_offset += current_str.size() + 1;
+       new_offset += static_cast<ELFIO::Elf_Word>(current_str.size() + 1);
      }
 
      // Move to next string (past null terminator)
-     current_offset += current_str.size() + 1;
+     current_offset += static_cast<ELFIO::Elf_Word>(current_str.size() + 1);
    }
 
    if (!found)
@@ -1091,7 +1091,7 @@ update_rela_sections(const std::vector<arginfo>& entries, const std::string& ker
 
    // Update the sections with new data
    strtab->set_data(new_strtab_data);
-   symtab->set_data(symtab_copy.data(), symtab_copy.size());
+   symtab->set_data(symtab_copy.data(), static_cast<ELFIO::Elf_Word>(symtab_copy.size()));
 
    // Serialize modified ELF back to binary format
    std::stringstream stream;
@@ -1142,7 +1142,7 @@ get_kernel_instances(const std::string& kernel_name)
     std::string identifier = extract_kernel_name_from_mangled(sym_name);
 
     if (identifier == kernel_name) {
-      kernel_symbol_index = i;
+      kernel_symbol_index = static_cast<ELFIO::Elf_Word>(i);
       break;
     }
   }

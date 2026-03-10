@@ -104,7 +104,7 @@ protected:  // NOLINT(cppcoreguidelines-non-private-member-variables-in-classes)
   std::string get_group_name(uint32_t index) {return ".group."+ std::to_string(index); }
   std::string get_section_prefix(uint32_t index) {return "."+ std::to_string(index); }
   void add_group(const std::string& name, const std::vector<uint32_t>& member, ELFIO::Elf_Word info_index);
-  uint64_t get_virtual_addr(uint64_t prev_virtual_addr, uint64_t prev_seg_size);
+  uint64_t get_virtual_addr(uint64_t in_prev_virtual_addr, uint64_t in_prev_seg_size);
   uint64_t align_address(uint64_t address);
 
 public:

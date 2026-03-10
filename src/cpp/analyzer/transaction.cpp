@@ -168,8 +168,8 @@ private:
             case (XAIE_IO_CUSTOM_OP_READ_REGS):
             case (XAIE_IO_CUSTOM_OP_RECORD_TIMER):
             case (XAIE_IO_CUSTOM_OP_MERGE_SYNC): {
-                auto Hdr = (const XAie_CustomOpHdr *)(ptr);
-                ptr += Hdr->Size;
+                auto custom_hdr = reinterpret_cast<const XAie_CustomOpHdr *>(ptr);
+                ptr += custom_hdr->Size;
                 break;
             }
             default:
@@ -227,8 +227,8 @@ private:
             case (XAIE_IO_CUSTOM_OP_READ_REGS):
             case (XAIE_IO_CUSTOM_OP_RECORD_TIMER):
             case (XAIE_IO_CUSTOM_OP_MERGE_SYNC): {
-                auto Hdr = (const XAie_CustomOpHdr_opt *)(ptr);
-                ptr += Hdr->Size;
+                auto custom_hdr_opt = reinterpret_cast<const XAie_CustomOpHdr_opt *>(ptr);
+                ptr += custom_hdr_opt->Size;
                 break;
             }
             default:

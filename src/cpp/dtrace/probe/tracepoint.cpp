@@ -64,7 +64,7 @@ enable(std::vector<uint32_t>& control_buffer, std::vector<uint32_t>& mem_buffer)
         link = control_buffer[link] >> dtrace::dtrace_ctrl::second_byte_shift;
     }
     control_buffer[location] = 
-        (control_buffer.size() << dtrace::dtrace_ctrl::second_byte_shift) | 
+        (static_cast<uint32_t>(control_buffer.size()) << dtrace::dtrace_ctrl::second_byte_shift) | 
         (probe_type::tracepoint << dtrace::dtrace_ctrl::first_byte_shift);
     control_buffer.push_back(
         (probe_ctrl::link_end << dtrace::dtrace_ctrl::second_byte_shift) | 

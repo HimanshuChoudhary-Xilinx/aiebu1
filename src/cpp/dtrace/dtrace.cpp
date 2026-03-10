@@ -81,7 +81,7 @@ get_dtrace_col_numbers(dtrace_handle_t dtrace_handle, uint32_t* buffers_length)
         auto* handle = static_cast<dtrace_command_handle*>(dtrace_handle);
 
         // Get the number of uC in the script file
-        uint32_t number_uC = handle->g_control->m_control_uC_indices.size();
+        auto number_uC = static_cast<uint32_t>(handle->g_control->m_control_uC_indices.size());
         *buffers_length = number_uC;
     }
     catch (const std::exception& e)
@@ -110,8 +110,8 @@ get_dtrace_buffer_size(dtrace_handle_t dtrace_handle, uint64_t* buffers)
             l_dtrace_buffer_info.control_buffer = handle->g_control->create_control_buffer(uC_index);
             l_dtrace_buffer_info.mem_buffer = handle->g_control->create_mem_buffer(uC_index);
 
-            uint32_t length = 
-                l_dtrace_buffer_info.control_buffer.size() + l_dtrace_buffer_info.mem_buffer.size();
+            auto length = static_cast<uint32_t>(
+                l_dtrace_buffer_info.control_buffer.size() + l_dtrace_buffer_info.mem_buffer.size());
             // Update the control buffer and memory buffer length and uC index in buffers array
             buffers[buffer_index] = (static_cast<uint64_t>(length) << 32) | uC_index; // NOLINT(cppcoreguidelines-avoid-magic-numbers)
             buffer_index++;

@@ -111,7 +111,7 @@ add_note(ELFIO::Elf_Word type, const std::string& name, const std::vector<char>&
   note_sec->set_addr_align( 1 );
 
   ELFIO::note_section_accessor note_writer( m_elfio, note_sec );
-  note_writer.add_note( type, "XRT", dec.data(), dec.size() );
+  note_writer.add_note( type, "XRT", dec.data(), static_cast<ELFIO::Elf_Word>(dec.size()) );
 }
 
 std::vector<char>
@@ -220,7 +220,7 @@ add_symtab_section(const std::string& name, ELFIO::Elf_Word index)
   ELFIO::symbol_section_accessor syma( m_elfio, sym_sec );
   // Another way to add symbol
   return syma.add_symbol( stra, name.c_str(), 0x00000000, 0, ELFIO::STB_WEAK, ELFIO::STT_OBJECT, 0,
-                   index );
+                   static_cast<ELFIO::Elf_Half>(index) );
 }
 
 void
@@ -310,9 +310,9 @@ elf_writer::align_address(uint64_t address)
 
 // Calcualte the next section address based on previous section address and size.
 uint64_t
-elf_writer::get_virtual_addr(uint64_t prev_virtual_addr, uint64_t prev_seg_size)
+elf_writer::get_virtual_addr(uint64_t in_prev_virtual_addr, uint64_t in_prev_seg_size)
 {
-  return align_address(prev_virtual_addr + prev_seg_size);
+  return align_address(in_prev_virtual_addr + in_prev_seg_size);
 }
 
 }

@@ -75,7 +75,7 @@ class label
   offset_type m_pos;
   uint32_t m_index;
   int32_t m_count = -1;
-  uint64_t m_size = 0;
+  offset_type m_size = 0;
   pageid_type m_pagenum;
 
 public:
@@ -90,12 +90,12 @@ public:
   }
 
   HEADER_ACCESS_GET_SET(pageid_type, pagenum);
-  HEADER_ACCESS_GET_SET(uint64_t, size);
+  HEADER_ACCESS_GET_SET(offset_type, size);
   HEADER_ACCESS_GET_SET(int32_t, count);
   HEADER_ACCESS_GET_SET(uint32_t, index);
   HEADER_ACCESS_GET_SET(offset_type, pos);
   const std::string& get_name() { return m_name; }
-  void increment_size(uint64_t size)
+  void increment_size(offset_type size)
   {
     m_size += size;
   }

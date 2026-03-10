@@ -48,7 +48,7 @@ host_timestamps_action(std::string token, uint32_t probe_type, const std::string
             "Invalid token: '" << token << "' Expected 'host_timestamps()'");
 
     m_action_name = action[1];
-    m_length = std::stoull(length, nullptr, 0);
+    m_length = static_cast<uint32_t>(std::stoull(length, nullptr, 0));
 }
 
 //-------------------------host_timestamps_action::actionize-------------------------//

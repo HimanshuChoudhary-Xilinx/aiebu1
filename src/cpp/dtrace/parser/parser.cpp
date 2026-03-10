@@ -133,19 +133,18 @@ get_list(const std::string& token) const
     {
         DTRACE_ERROR("DTRACE_PARSER_INVALID_LINE_ID_TOKEN", 
             "Invalid token: " << token);
-        return ret;
     }
 
     // Parse each token in the list and add the numbers to the return vector
     // If a token contains a range, add all the numbers in the range to the return vector
-    for (const auto& item : token_list)
+    for (const auto& token_item : token_list)
     {
-        if (item.find('-') == std::string::npos)
+        if (token_item.find('-') == std::string::npos)
         {
-            ret.push_back(std::stoi(item));
+            ret.push_back(std::stoi(token_item));
             continue;
         }
-        std::istringstream range_stream(item);
+        std::istringstream range_stream(token_item);
         std::string start, end;
         std::getline(range_stream, start, '-');
         std::getline(range_stream, end, '-');
@@ -154,8 +153,7 @@ get_list(const std::string& token) const
 
         if (start_int > end_int) {
             DTRACE_ERROR("DTRACE_PARSER_INVALID_LINE_ID_RANGE", 
-                "Invalid range: " << item);
-            return ret;
+                "Invalid range: " << token_item);
         }
 
         for (int rg = start_int; rg <= end_int; ++rg)
