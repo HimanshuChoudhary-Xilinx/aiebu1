@@ -255,6 +255,13 @@ get_save_timestamps(const std::string& kernel_name) const
       std::make_shared<savetimestamp_tbl_impl>(std::move(results)));
 }
 
+aiebu_assembler::savetimestamp_tbl
+aiebu_assembler::
+get_save_timestamps() const
+{
+  return get_save_timestamps("");
+}
+
 class aiebu_assembler::argtbl_impl
 {
   std::vector<instinfo> m_tbl;

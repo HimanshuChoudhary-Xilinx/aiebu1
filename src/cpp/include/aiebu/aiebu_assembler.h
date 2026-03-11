@@ -328,6 +328,10 @@ class aiebu_assembler
     savetimestamp_tbl
     get_save_timestamps(const std::string& kernel_name) const;
 
+    [[nodiscard]]
+    savetimestamp_tbl
+    get_save_timestamps() const;
+
     /*!
      * @class argtbl
      *
