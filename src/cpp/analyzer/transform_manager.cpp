@@ -1172,5 +1172,55 @@ get_kernel_instances(const std::string& kernel_name)
   return instances;
 }
 
+std::string
+transform_manager::
+get_dump_section_json()
+{
+  static constexpr std::string_view dump_prefix = ".dump";
+
+  for (const auto& section_ptr : m_elfio.sections) {
+    const ELFIO::section* sec = section_ptr.get();
+
+    if (sec->get_type() != ELFIO::SHT_PROGBITS)
+      continue;
+
+    const std::string& name = sec->get_name();
+    if (name.size() < dump_prefix.size() ||
+        name.compare(0, dump_prefix.size(), dump_prefix) != 0)
+      continue;
+
+    return std::string(sec->get_data(), static_cast<size_t>(sec->get_size()));
+  }
+
+  return {};
+}
+
+std::string
+transform_manager::
+get_dump_section_json(const std::string& kernel_instance_filter)
+{
+  auto section_indices = get_filtered_section_indices(kernel_instance_filter);
+
+  static constexpr std::string_view dump_prefix = ".dump";
+
+  for (const auto& section_ptr : m_elfio.sections) {
+    const ELFIO::section* sec = section_ptr.get();
+
+    if (sec->get_type() != ELFIO::SHT_PROGBITS)
+      continue;
+    if (section_indices.find(sec->get_index()) == section_indices.end())
+      continue;
+
+    const std::string& name = sec->get_name();
+    if (name.size() < dump_prefix.size() ||
+        name.compare(0, dump_prefix.size(), dump_prefix) != 0)
+      continue;
+
+    return std::string(sec->get_data(), static_cast<size_t>(sec->get_size()));
+  }
+
+  return {};
+}
+
 } // End of Namespace aiebu
 

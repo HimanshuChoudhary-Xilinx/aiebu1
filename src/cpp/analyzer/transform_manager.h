@@ -315,6 +315,29 @@ public:
    * @throws error if kernel not found or required sections missing
    */
    std::vector<std::string> get_kernel_instances(const std::string& kernel_name);
+
+  /**
+   * @brief Return the content of the .dump section belonging to a given
+   *        kernel:instance pair as a UTF-8 JSON string
+   * @param kernel_instance_filter  Filter in format "kernel:instance"
+   *                                (e.g. "DPU:dpu")
+   * @return JSON string written to the .dump section by the aie2ps encoder,
+   *         or an empty string if no .dump section exists for this instance
+   *         (e.g. the ELF was assembled with the disabledump flag)
+   *
+   * @throws error if the filter is malformed, or the kernel / instance is
+   *         not found in .symtab
+   */
+  std::string
+  get_dump_section_json(const std::string& kernel_instance_filter);
+
+  /**
+   * @brief Return the content of the single .dump section from a non-config
+   *        ELF (no group filtering) as a UTF-8 JSON string
+   * @return JSON string from the .dump section, or empty string if absent
+   */
+  std::string
+  get_dump_section_json();
 };
 
 }

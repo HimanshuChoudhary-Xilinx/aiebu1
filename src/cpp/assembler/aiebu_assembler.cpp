@@ -14,7 +14,10 @@
 #include "aiebu/aiebu.h"
 #include "aiebu/aiebu_assembler.h"
 #include "aiebu/aiebu_error.h"
+#include "json/nlohmann/json.hpp"
 
+#include <algorithm>
+#include <cctype>
 #include <map>
 #include <string>
 #include <limits>
@@ -147,6 +150,109 @@ disassemble(const std::filesystem::path &root) const
 {
   reporter rep(m_output_type, elf_data);
   rep.disassemble(root, true);
+}
+
+
+// ---------------------------------------------------------------------------
+// savetimestamp_tbl_impl  (PIMPL, defined in .cpp like argtbl_impl)
+// ---------------------------------------------------------------------------
+class aiebu_assembler::savetimestamp_tbl_impl
+{
+  std::vector<save_timestamp_loc> m_tbl;
+
+public:
+  explicit savetimestamp_tbl_impl(std::vector<save_timestamp_loc> tbl)
+      : m_tbl(std::move(tbl)) {}
+
+  const std::vector<save_timestamp_loc>&
+  get() const
+  {
+    return m_tbl;
+  }
+};
+
+// ---------------------------------------------------------------------------
+// savetimestamp_tbl  (public inner class methods)
+// ---------------------------------------------------------------------------
+aiebu_assembler::savetimestamp_tbl::
+savetimestamp_tbl(std::shared_ptr<savetimestamp_tbl_impl> in_impl)
+  : handle(std::move(in_impl))
+{}
+
+const std::vector<aiebu_assembler::save_timestamp_loc>&
+aiebu_assembler::savetimestamp_tbl::
+get() const
+{
+  return handle->get();
+}
+
+// ---------------------------------------------------------------------------
+// aiebu_assembler::get_save_timestamps(kernel_name)
+// ---------------------------------------------------------------------------
+// Parse one .dump JSON blob and append grouped ts_lineinfo entries into loc.
+static void
+parse_dump_json(const std::string& dump_json, aiebu_assembler::save_timestamp_loc& loc)
+{
+  std::map<uint32_t, size_t> col_index;
+
+  static constexpr std::string_view save_ts_prefix = "save_timestamps";
+
+  auto jdoc = nlohmann::json::parse(dump_json);
+  for (const auto& entry : jdoc.at("debug")) {
+    std::string op = entry.value("operation", std::string{});
+    std::transform(op.begin(), op.end(), op.begin(), ::tolower);
+    if (op.size() < save_ts_prefix.size() ||
+        op.compare(0, save_ts_prefix.size(), save_ts_prefix) != 0)
+      continue;
+
+    uint32_t    col      = entry.at("column").get<uint32_t>();
+    uint32_t    linenum  = entry.at("line").get<uint32_t>();
+    std::string filename = entry.value("file", std::string{});
+
+    auto it = col_index.find(col);
+    if (it == col_index.end()) {
+      col_index[col] = loc.ts_line_info.size();
+      loc.ts_line_info.push_back({col, {{linenum, std::move(filename)}}});
+    } else {
+      loc.ts_line_info[it->second].entries.emplace_back(linenum, std::move(filename));
+    }
+  }
+}
+
+aiebu_assembler::savetimestamp_tbl
+aiebu_assembler::
+get_save_timestamps(const std::string& kernel_name) const
+{
+  transform_manager trans(elf_data);
+  std::vector<save_timestamp_loc> results;
+
+  if (kernel_name.empty()) {
+    // Non-config ELF: single .dump section, no group filtering needed.
+    std::string dump_json = trans.get_dump_section_json();
+    if (!dump_json.empty()) {
+      save_timestamp_loc loc;
+      parse_dump_json(dump_json, loc);
+      if (!loc.ts_line_info.empty())
+        results.push_back(std::move(loc));
+    }
+  } else {
+    // Config ELF: one .dump section per kernel instance, filtered by group.
+    for (const auto& inst_name : trans.get_kernel_instances(kernel_name)) {
+      save_timestamp_loc loc;
+      loc.inst_name = inst_name;
+
+      std::string dump_json = trans.get_dump_section_json(kernel_name + ":" + inst_name);
+      if (dump_json.empty())
+        continue;
+
+      parse_dump_json(dump_json, loc);
+      if (!loc.ts_line_info.empty())
+        results.push_back(std::move(loc));
+    }
+  }
+
+  return savetimestamp_tbl(
+      std::make_shared<savetimestamp_tbl_impl>(std::move(results)));
 }
 
 class aiebu_assembler::argtbl_impl
