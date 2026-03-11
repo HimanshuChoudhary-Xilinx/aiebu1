@@ -956,8 +956,8 @@ asm_parser::inject_hintmap_save_restore(int col,
   // Compute per-BD address/size pairs from the allocated scratchpad region.
   //   Save:    3 regions × 2 halves   =  6 pairs  (shim BD)
   //   Restore: 3 regions × 4 quarters = 12 pairs  (shim BD)
-  auto save_bd_ranges    = compute_save_bd_ranges   (save_bd.size(), grp.scratchbase, grp.size);
-  auto restore_bd_ranges = compute_restore_bd_ranges(restore_bd.size(), grp.scratchbase, grp.size);
+  auto save_bd_ranges    = compute_save_bd_ranges(static_cast<uint32_t>(save_bd.size()), grp.scratchbase, grp.size);
+  auto restore_bd_ranges = compute_restore_bd_ranges(static_cast<uint32_t>(restore_bd.size()), grp.scratchbase, grp.size);
 
   log_info() << "================BD ranges for save (scratchbase=0x" << std::hex << grp.scratchbase
              << ", size=0x" << grp.size << std::dec << "):" << std::endl;

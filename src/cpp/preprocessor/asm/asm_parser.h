@@ -452,7 +452,7 @@ public:
 
     // Generate temporary labels based on group and hintmap index
     // These will be updated in finalize_preempt() based on (scratchbase, size)
-    int hintmap_index = m_preempt_hintmaps[group].size();
+    auto hintmap_index = static_cast<int>(m_preempt_hintmaps[group].size());
     int group_index = group / 2 + 1;
     std::string save_label = "save_" + std::to_string(group_index) + "_" + std::to_string(hintmap_index);
     std::string restore_label = "restore_" + std::to_string(group_index) + "_" + std::to_string(hintmap_index);
