@@ -103,7 +103,7 @@ static int test_target(const std::string& dir)
 
   // Empty kernel name → non-config ELF path: scans .dump section directly
   // without group-based kernel:instance filtering.
-  auto tbl = as.get_save_timestamps("");
+  auto tbl = as.get_save_timestamps();
   if (tbl.get().empty()) {
     std::cerr << "FAIL: no save_timestamps found\n";
     return 1;
