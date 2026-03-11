@@ -127,7 +127,7 @@ class aiebu_assembler
   private:
     buffer_type m_type;
     buffer_type m_output_type;
-    class argtbl_impl;           // Forward declaration
+    class argtbl_impl;  // Forward declaration
     class savetimestamp_tbl_impl; // Forward declaration
     file_artifact artifacts;
   public:
@@ -241,8 +241,7 @@ class aiebu_assembler
      *
      * @brief
      * save_timestamp_loc groups all save_timestamps opcodes found across
-     * the .ctrltext sections of one kernel instance.  It mirrors the
-     * layout of instinfo:
+     * the .dump section of one kernel instance.
      *   - an outer identifier  (inst_name — instance name)
      *   - an inner struct      (ts_lineinfo — col, linenumber, filename per opcode)
      *   - a vector of entries  (ts_line_info)
@@ -273,11 +272,7 @@ class aiebu_assembler
      *
      * @brief
      * savetimestamp_tbl is a read-only container that holds all
-     * save_timestamps locations scanned from the ELF .ctrltext sections.
-     *
-     * It is constructed by aiebu_assembler::get_save_timestamps() and
-     * uses PIMPL (savetimestamp_tbl_impl) to hide implementation details,
-     * following the same pattern as aiebu_assembler::argtbl.
+     * save_timestamps locations.
      */
     class savetimestamp_tbl
     {
@@ -305,29 +300,50 @@ class aiebu_assembler
         }
     };
 
-    /*
-     * Scan the .ctrltext sections of every instance of the given kernel
+    /*!
+     * @brief
+     * Scan the .dump section JSON of every instance of the given kernel
      * and return a savetimestamp_tbl containing one save_timestamp_loc per
      * instance that has at least one save_timestamps opcode.
      *
-     * Each save_timestamp_loc carries the instance name (inst_name) and a
-     * ts_line_info vector with one entry per opcode: the column number (col),
-     * the unq_id of the instruction (linenumber), and the section name
-     * (filename) where the opcode was found.
+     * The .dump section holds the debug JSON written by the encoder at
+     * assembly time.  It is present by default and suppressed only when the
+     * ELF is assembled with the "disabledump" flag.
      *
-     * The ELF must be a full config ELF (aie2ps_config or aie4_config)
-     * with a .symtab section.  Throws aiebu::error if the kernel is not
-     * found.
+     * Each save_timestamp_loc carries:
+     *   inst_name    — kernel instance name
+     *   ts_line_info — opcodes grouped by column; each ts_lineinfo holds:
+     *     col     — AIE column number
+     *     entries — one {linenumber, filename} pair per opcode:
+     *                 linenumber  source line number in the .asm file
+     *                 filename    source .asm file path
      *
-     * @kernel_name  Kernel to scan (e.g. "DPU")
-     * @return       savetimestamp_tbl in instance-traversal order
+     * Applicable to full config ELFs (aie2ps_config / aie4_config).
      *
-     * NOTE: applicable for only full elf's
+     * @param kernel_name  Kernel to scan (e.g. "DPU")
+     * @return             savetimestamp_tbl in instance-traversal order;
+     *                     empty if no .dump section exists or no matching
+     *                     opcodes are found
+     * @throws aiebu::error  if kernel_name is not found
      */
     [[nodiscard]]
     savetimestamp_tbl
     get_save_timestamps(const std::string& kernel_name) const;
 
+    /*!
+     * @brief
+     * Overload for xclbin + elf ELFs.
+     *
+     * Scans the single .dump section present in a ELF
+     * (assembled with asm_aie4 / asm_aie2ps) and returns a savetimestamp_tbl
+     * containing one save_timestamp_loc for all save_timestamps opcodes found.
+     *
+     * inst_name is left empty in the returned save_timestamp_loc because a
+     * standalone ELF has no kernel:instance structure.
+     *
+     * @return savetimestamp_tbl — empty if no .dump section exists
+     *         (e.g. the ELF was assembled with the disabledump flag)
+     */
     [[nodiscard]]
     savetimestamp_tbl
     get_save_timestamps() const;

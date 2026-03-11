@@ -194,7 +194,6 @@ static void
 parse_dump_json(const std::string& dump_json, aiebu_assembler::save_timestamp_loc& loc)
 {
   std::map<uint32_t, size_t> col_index;
-
   static constexpr std::string_view save_ts_prefix = "save_timestamps";
 
   auto jdoc = nlohmann::json::parse(dump_json);
@@ -205,8 +204,8 @@ parse_dump_json(const std::string& dump_json, aiebu_assembler::save_timestamp_lo
         op.compare(0, save_ts_prefix.size(), save_ts_prefix) != 0)
       continue;
 
-    uint32_t    col      = entry.at("column").get<uint32_t>();
-    uint32_t    linenum  = entry.at("line").get<uint32_t>();
+    uint32_t col = entry.at("column").get<uint32_t>();
+    uint32_t linenum = entry.at("line").get<uint32_t>();
     std::string filename = entry.value("file", std::string{});
 
     auto it = col_index.find(col);

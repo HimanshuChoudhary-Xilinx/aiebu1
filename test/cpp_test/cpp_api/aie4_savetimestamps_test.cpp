@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Copyright (C) 2025 Advanced Micro Devices, Inc.
+// Copyright (C) 2026 Advanced Micro Devices, Inc.
 
 // Sample test for aiebu_assembler::get_save_timestamps()
 //
