@@ -287,17 +287,8 @@ class aiebu_assembler
          * section-traversal order.
          */
         [[nodiscard]]
-        const std::vector<save_timestamp_loc>& get() const;
+        const std::vector<save_timestamp_loc>& get_line_info() const;
 
-        /*
-         * Access the underlying implementation handle.
-         */
-        [[nodiscard]]
-        const std::shared_ptr<savetimestamp_tbl_impl>&
-        get_handle() const
-        {
-          return handle;
-        }
     };
 
     /*!

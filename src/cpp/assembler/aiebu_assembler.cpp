@@ -181,7 +181,7 @@ savetimestamp_tbl(std::shared_ptr<savetimestamp_tbl_impl> in_impl)
 
 const std::vector<aiebu_assembler::save_timestamp_loc>&
 aiebu_assembler::savetimestamp_tbl::
-get() const
+get_line_info() const
 {
   return handle->get();
 }
@@ -227,6 +227,7 @@ get_save_timestamps(const std::string& kernel_name) const
 
   if (kernel_name.empty()) {
     // Non-config ELF: single .dump section, no group filtering needed.
+    trans.check_aie2ps_aie4_elf();
     std::string dump_json = trans.get_dump_section_json();
     if (!dump_json.empty()) {
       save_timestamp_loc loc;
@@ -236,6 +237,7 @@ get_save_timestamps(const std::string& kernel_name) const
     }
   } else {
     // Config ELF: one .dump section per kernel instance, filtered by group.
+    trans.check_aie2ps_aie4_fullelf();
     for (const auto& inst_name : trans.get_kernel_instances(kernel_name)) {
       save_timestamp_loc loc;
       loc.inst_name = inst_name;

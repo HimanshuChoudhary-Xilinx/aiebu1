@@ -39,7 +39,7 @@ static void read_file(const std::string& path, std::vector<char>& buf)
 static void print_results(const aiebu::aiebu_assembler::savetimestamp_tbl& tbl,
                           const std::string& label)
 {
-  const auto& locs = tbl.get();
+  const auto& locs = tbl.get_line_info();
 
   if (locs.empty()) {
     std::cout << "No save_timestamps opcodes found" << (label.empty() ? "" : " for " + label) << "\n";
@@ -76,7 +76,7 @@ static int test_config(const std::string& dir)
       config_json);
 
   auto tbl = as.get_save_timestamps("DPU");
-  if (tbl.get().empty()) {
+  if (tbl.get_line_info().empty()) {
     std::cerr << "FAIL: no save_timestamps found for kernel DPU\n";
     return 1;
   }
@@ -104,7 +104,7 @@ static int test_target(const std::string& dir)
   // Empty kernel name → non-config ELF path: scans .dump section directly
   // without group-based kernel:instance filtering.
   auto tbl = as.get_save_timestamps();
-  if (tbl.get().empty()) {
+  if (tbl.get_line_info().empty()) {
     std::cerr << "FAIL: no save_timestamps found\n";
     return 1;
   }
