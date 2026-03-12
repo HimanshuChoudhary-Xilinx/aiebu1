@@ -1077,8 +1077,8 @@ asm_parser::inject_default_save_restore(int col,
 {
 
   auto [scratchbase, size] = parse_hintmap_and_calculate_scratchpad(col, "", "");
-  auto save_bd_ranges    = compute_save_bd_ranges   (save_bd.size(), scratchbase, size);
-  auto restore_bd_ranges = compute_restore_bd_ranges(restore_bd.size(), scratchbase, size);
+  auto save_bd_ranges    = compute_save_bd_ranges(static_cast<uint32_t>(save_bd.size()), scratchbase, size);
+  auto restore_bd_ranges = compute_restore_bd_ranges(static_cast<uint32_t>(restore_bd.size()), scratchbase, size);
 
   std::string save_file_mod = std::to_string(scratchbase / CHUNK_SIZE) + "_" + std::to_string(size / CHUNK_SIZE) + "_" + save_file;
   std::string restore_file_mod = std::to_string(scratchbase / CHUNK_SIZE) + "_" + std::to_string(size / CHUNK_SIZE) + "_" + restore_file;
