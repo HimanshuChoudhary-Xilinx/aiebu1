@@ -12,6 +12,7 @@
 
 #include <map>
 #include <memory>
+#include <set>
 #include <stack>
 #include <sstream>
 #include <string>
@@ -20,6 +21,8 @@
 #include <vector>
 
 namespace aiebu {
+
+constexpr uint64_t CHUNK_SIZE = 64ULL * 1024ULL; // 64KB
 
 inline std::string trim(const std::string& line)
 {
@@ -224,6 +227,7 @@ public:
   bool isOpcode() { return m_optype == operation_type::op; }
   bool isAnnotation() { return m_optype == operation_type::annotation; }
   std::shared_ptr<operation> get_operation() { return m_op; }
+  void set_operation(std::shared_ptr<operation> op) { m_op = op; }
   int get_annotation_index() { return m_annotation_index; }
   void set_annotation_index(int annotation_index) { m_annotation_index = annotation_index; }
 };
@@ -339,6 +343,61 @@ class asm_parser: public std::enable_shared_from_this<asm_parser>
   const std::string m_target_type;
   const file_artifact* m_artifacts;
   std::map<int, std::pair<std::string, std::string>> m_preempt_labels;  // group -> (save_label, restore_label)
+  std::map<int, std::vector<std::string>> m_preempt_hintmaps;  // group -> vector of hintmap_labels (multiple PREEMPT opcodes per group)
+  std::map<std::string, std::pair<std::string, std::string>> m_hintmap_labels;  // hintmap_label -> (save_label, restore_label)
+  std::set<int> m_preempt_without_hintmap;  // groups that have PREEMPT opcodes without hintmaps
+
+  // One unique scratchpad region: all hintmap labels that share the same scratchbase+size
+  struct hintmap_group_entry {
+    std::vector<std::string>         hintmaps;    // hintmap labels sharing this scratchpad
+    std::pair<std::string,std::string> labels;    // shared save/restore label pair
+    uint64_t                         scratchbase;
+    uint64_t                         size;
+  };
+
+  // Group hintmap labels by (scratchbase, size) and assign unique save/restore labels.
+  std::vector<hintmap_group_entry> build_hintmap_groups(int group,
+                                                        const std::vector<std::string>& hintmap_labels,
+                                                        int group_index);
+
+  // Register scratchpad and inject patched save/restore asm for one hintmap group.
+  void inject_hintmap_save_restore(int col,
+                                   const std::string& save_file,
+                                   const std::string& restore_file,
+                                   const std::vector<uint8_t>& save_data,
+                                   const std::vector<uint8_t>& restore_data,
+                                   const std::pair<std::string,std::string>& template_labels,
+                                   const hintmap_group_entry& grp,
+                                   const std::vector<std::string>& save_bd,
+                                   const std::vector<std::string>& restore_bd,
+                                   const std::vector<std::string>& save_membd,
+                                   const std::vector<std::string>& restore_membd);
+
+  // Walk column col and update PREEMPT opcode args to reflect shared labels.
+  void update_preempt_opcodes(int col);
+
+  // Inject default (no-hintmap) save/restore asm into column col.
+  void inject_default_save_restore(int col,
+                                   const std::string& save_file,
+                                   const std::string& restore_file,
+                                   const std::vector<uint8_t>& save_data,
+                                   const std::vector<uint8_t>& restore_data,
+                                   const std::vector<std::string>& save_bd,
+                                   const std::vector<std::string>& restore_bd,
+                                   const std::vector<std::string>& save_membd,
+                                   const std::vector<std::string>& restore_membd);
+
+  // Orchestrate all PREEMPT injections (hintmap + default) for one group.
+  void process_preempt_group(int group,
+                             int group_index,
+                             const std::string& save_file,
+                             const std::string& restore_file,
+                             const std::vector<uint8_t>& save_data,
+                             const std::vector<uint8_t>& restore_data,
+                             const std::vector<std::string>& save_bd,
+                             const std::vector<std::string>& restore_bd,
+                             const std::vector<std::string>& save_membd,
+                             const std::vector<std::string>& restore_membd);
 
 public:
   asm_parser(const std::vector<char>& data, const std::vector<std::string>& include_list, const std::string& target_type, const file_artifact* artifacts = nullptr)
@@ -381,6 +440,28 @@ public:
     }
   }
 
+  // Generate unique save/restore labels for a hintmap
+  // Returns (save_label, restore_label) pair unique to this hintmap
+  // Note: Labels are assigned during finalize_preempt() based on (scratchbase, size)
+  // This function returns temporary labels during parsing, which will be updated later
+  std::pair<std::string, std::string> get_hintmap_save_restore_labels(const std::string& hintmap_label, int group) {
+    // Check if we already have labels for this hintmap (from finalize_preempt)
+    if (m_hintmap_labels.find(hintmap_label) != m_hintmap_labels.end()) {
+      return m_hintmap_labels[hintmap_label];
+    }
+
+    // Generate temporary labels based on group and hintmap index
+    // These will be updated in finalize_preempt() based on (scratchbase, size)
+    auto hintmap_index = static_cast<int>(m_preempt_hintmaps[group].size());
+    int group_index = group / 2 + 1;
+    std::string save_label = "save_" + std::to_string(group_index) + "_" + std::to_string(hintmap_index);
+    std::string restore_label = "restore_" + std::to_string(group_index) + "_" + std::to_string(hintmap_index);
+
+    std::pair<std::string, std::string> labels = {save_label, restore_label};
+    // Don't store in m_hintmap_labels yet - will be updated in finalize_preempt() based on (scratchbase, size)
+    return labels;
+  }
+
   const std::map<int, std::pair<std::string, std::string>>& get_preempt_labels() const { return m_preempt_labels; }
 
   // Verify that all columns have the same PREEMPT opcode count as column 0.
@@ -420,8 +501,32 @@ public:
   }
 
   std::pair<std::vector<uint8_t>, std::vector<uint8_t>> get_preempt_save_restore(uint32_t key) const;
+  std::pair<std::vector<std::string>, std::vector<std::string>> get_preempt_save_restore_bd(uint32_t key) const;
+  std::pair<std::vector<std::string>, std::vector<std::string>> get_preempt_save_restore_shimbd(uint32_t key) const;
+  std::pair<std::vector<std::string>, std::vector<std::string>> get_preempt_save_restore_membd(uint32_t key) const;
 
   void finalize_preempt();  // Called after parsing to inject actual save/restore code
+
+  // Parse hintmap data and calculate scratchbase and size.
+  // label_context: the label scope to search within (e.g. "default", "default:pdi").
+  // Find which label scope inside column 'group' contains 'hintmap_label'.
+  // If search_context is non-empty only that scope is checked.  Throws when not found.
+  std::string find_hintmap_context(int group,
+                                   const std::string& search_context,
+                                   const std::string& hintmap_label);
+
+  // When empty the label is resolved by scanning all scopes (only used for the
+  // no-hintmap default case where hintmap_label is also empty).
+  std::pair<uint64_t, uint64_t> parse_hintmap_and_calculate_scratchpad(int group,
+                                                                         const std::string& label_context,
+                                                                         const std::string& hintmap_label);
+
+  // Replace save/restore labels in template code label/.endl label
+  std::vector<char> replace_save_restore_labels(const std::vector<uint8_t>& template_data,
+                                                 const std::string& old_save_label,
+                                                 const std::string& old_restore_label,
+                                                 const std::string& new_save_label,
+                                                 const std::string& new_restore_label);
   void insert_annotation(int annotation_index);
 
   std::vector<annotation_type> get_annotations() { return std::move(m_annotation_list); }
