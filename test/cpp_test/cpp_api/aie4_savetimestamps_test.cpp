@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: MIT
 // Copyright (C) 2026 Advanced Micro Devices, Inc.
 
-// Sample test for aiebu_assembler::get_save_timestamps()
+// Sample test for aiebu_assembler::get_op_locations()
 //
 // Two modes, selected by the first argument:
 //
 //   config <path>   — Assemble a config ELF (aie4_config, config.json driven)
-//                     and call get_save_timestamps("DPU").
+//                     and call get_op_locations(op_code::save_timestamps, "DPU").
 //                     The directory must contain:
 //                       config.json, test.asm, aie_runtime_control.asm,
 //                       pdi.asm, aie_asm_elfs.asm, aie_asm_enable.asm,
 //                       aie_asm_init.asm
 //
 //   target <path>   — Assemble a standalone target ELF (asm_aie4, single ASM
-//                     buffer) and call get_save_timestamps("") (empty kernel).
+//                     buffer) and call get_op_locations(op_code::save_timestamps).
 //                     The directory must contain test.asm (and its includes).
 
 #include "aiebu/aiebu_assembler.h"
@@ -36,23 +36,23 @@ static void read_file(const std::string& path, std::vector<char>& buf)
   f.read(buf.data(), static_cast<std::streamsize>(sz));
 }
 
-static void print_results(const aiebu::aiebu_assembler::savetimestamp_tbl& tbl,
+static void print_results(const aiebu::aiebu_assembler::op_tbl& tbl,
                           const std::string& label)
 {
   const auto& locs = tbl.get_line_info();
 
   if (locs.empty()) {
-    std::cout << "No save_timestamps opcodes found" << (label.empty() ? "" : " for " + label) << "\n";
+    std::cout << "No opcodes found" << (label.empty() ? "" : " for " + label) << "\n";
     return;
   }
 
-  std::cout << "save_timestamps locations" << (label.empty() ? "" : " for " + label) << ":\n";
+  std::cout << "opcode locations" << (label.empty() ? "" : " for " + label) << ":\n";
   for (const auto& loc : locs) {
     if (!loc.inst_name.empty())
       std::cout << "  instance: " << loc.inst_name << "\n";
-    for (const auto& ts : loc.ts_line_info) {
-      std::cout << "    col=" << ts.col << "\n";
-      for (const auto& [linenum, filename] : ts.entries)
+    for (const auto& li : loc.line_info) {
+      std::cout << "    col=" << li.col << "\n";
+      for (const auto& [linenum, filename] : li.entries)
         std::cout << "      line=" << linenum << "  file=" << filename << "\n";
     }
   }
@@ -75,7 +75,7 @@ static int test_config(const std::string& dir)
       {dir},
       config_json);
 
-  auto tbl = as.get_save_timestamps("DPU");
+  auto tbl = as.get_op_locations(aiebu::aiebu_assembler::op_code::save_timestamps, "DPU");
   if (tbl.get_line_info().empty()) {
     std::cerr << "FAIL: no save_timestamps found for kernel DPU\n";
     return 1;
@@ -101,9 +101,9 @@ static int test_target(const std::string& dir)
       std::vector<std::string>{} /* no flags */,
       std::vector<std::string>{dir} /* search path for .include */);
 
-  // Empty kernel name → non-config ELF path: scans .dump section directly
+  // No kernel name → non-config ELF path: scans .dump section directly
   // without group-based kernel:instance filtering.
-  auto tbl = as.get_save_timestamps();
+  auto tbl = as.get_op_locations(aiebu::aiebu_assembler::op_code::save_timestamps);
   if (tbl.get_line_info().empty()) {
     std::cerr << "FAIL: no save_timestamps found\n";
     return 1;

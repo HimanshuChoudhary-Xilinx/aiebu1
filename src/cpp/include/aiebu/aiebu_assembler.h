@@ -128,7 +128,7 @@ class aiebu_assembler
     buffer_type m_type;
     buffer_type m_output_type;
     class argtbl_impl;  // Forward declaration
-    class savetimestamp_tbl_impl; // Forward declaration
+    class op_tbl_impl;  // Forward declaration
     file_artifact artifacts;
   public:
     /*
@@ -237,107 +237,142 @@ class aiebu_assembler
     explicit aiebu_assembler(const std::vector<char>& buffer);
 
     /*!
-     * @struct save_timestamp_loc
+     * @enum op_code
      *
      * @brief
-     * save_timestamp_loc groups all save_timestamps opcodes found across
-     * the .dump section of one kernel instance.
-     *   - an outer identifier  (inst_name — instance name)
-     *   - an inner struct      (ts_lineinfo — col, linenumber, filename per opcode)
-     *   - a vector of entries  (ts_line_info)
+     * Opcodes that can be queried from the .dump section JSON.
      */
-    struct save_timestamp_loc {
+    enum class op_code {
+      start_job,
+      uc_dma_write_des,
+      wait_uc_dma,
+      mask_write_32,
+      load_cores,
+      write_32,
+      wait_tcts,
+      end_job,
+      yield,
+      uc_dma_write_des_sync,
+      write_32_d,
+      read_32,
+      read_32_d,
+      apply_offset_57,
+      add,
+      mov,
+      local_barrier,
+      remote_barrier,
+      poll_32,
+      mask_poll_32,
+      trace,
+      nop,
+      start_job_deferred,
+      launch_job,
+      preempt,
+      load_pdi,
+      load_last_pdi,
+      save_timestamps,
+      sleep,
+      save_register,
+      start_cond_job_preempt,
+      load_cores_cp,
+      rel_acq_sync,
+      eof,
+    };
+
+    /*!
+     * @struct op_loc
+     *
+     * @brief
+     * op_loc groups all occurrences of a queried opcode found across the
+     * .dump section of one kernel instance.
+     *   - inst_name  — instance name (empty for standalone target ELFs)
+     *   - line_info  — opcode occurrences grouped by column number
+     */
+    struct op_loc {
       /*!
-       * @struct ts_lineinfo
+       * @struct lineinfo
        *
        * @brief
-       * ts_lineinfo groups all save_timestamps opcodes that share the same
-       * column number.
+       * lineinfo groups all opcode occurrences that share the same column.
        *
-       * @col      Column number (e.g. "column" field in the .dump JSON entry)
-       * @entries  One entry per save_timestamps opcode on this column:
+       * @col      AIE column number ("column" field in the .dump JSON entry)
+       * @entries  One entry per opcode occurrence on this column:
        *             first  — linenumber (source line in the .asm file)
        *             second — filename   (source .asm file path)
        */
-      struct ts_lineinfo {
+      struct lineinfo {
         uint32_t col;
         std::vector<std::pair<uint32_t, std::string>> entries;  // linenumber, filename
       };
-      std::string         inst_name;  // kernel instance name
-      std::vector<ts_lineinfo> ts_line_info;    // one entry per col
+      std::string inst_name;   // instance name
+      std::vector<lineinfo> line_info;  // one entry per col
     };
 
     /*!
-     * @class savetimestamp_tbl
+     * @class op_tbl
      *
      * @brief
-     * savetimestamp_tbl is a read-only container that holds all
-     * save_timestamps locations.
+     * op_tbl is a read-only container returned by get_op_locations().
+     * It holds one op_loc per instance that contains at least one
+     * occurrence of the queried opcode.
      */
-    class savetimestamp_tbl
+    class op_tbl
     {
       private:
-        std::shared_ptr<savetimestamp_tbl_impl> handle;
+        std::shared_ptr<op_tbl_impl> handle;
       public:
-        explicit savetimestamp_tbl(std::shared_ptr<savetimestamp_tbl_impl> in_impl);
+        explicit op_tbl(std::shared_ptr<op_tbl_impl> in_impl);
 
-        /*
-         * Return a const reference to the vector of save_timestamp_loc
-         * entries, one per save_timestamps opcode found, in
-         * section-traversal order.
+        /*!
+         * Return a const reference to the vector of op_loc entries, one per
+         * instance, in section-traversal order.
          */
         [[nodiscard]]
-        const std::vector<save_timestamp_loc>& get_line_info() const;
-
+        const std::vector<op_loc>& get_line_info() const;
     };
 
     /*!
      * @brief
-     * Scan the .dump section JSON of every instance of the given kernel
-     * and return a savetimestamp_tbl containing one save_timestamp_loc per
-     * instance that has at least one save_timestamps opcode.
+     * Scan the .dump section JSON of every instance of the given kernel and
+     * return an op_tbl containing one op_loc per instance that has at least
+     * one occurrence of the specified opcode.
      *
      * The .dump section holds the debug JSON written by the encoder at
      * assembly time.  It is present by default and suppressed only when the
      * ELF is assembled with the "disabledump" flag.
      *
-     * Each save_timestamp_loc carries:
-     *   inst_name    — kernel instance name
-     *   ts_line_info — opcodes grouped by column; each ts_lineinfo holds:
+     * Each op_loc carries:
+     *   inst_name  — instance name
+     *   line_info  — occurrences grouped by column; each lineinfo holds:
      *     col     — AIE column number
-     *     entries — one {linenumber, filename} pair per opcode:
-     *                 linenumber  source line number in the .asm file
-     *                 filename    source .asm file path
+     *     entries — one {linenumber, filename} pair per opcode occurrence
      *
      * Applicable to full config ELFs (aie2ps_config / aie4_config).
      *
+     * @param op           Opcode to search for (e.g. op_code::save_timestamps)
      * @param kernel_name  Kernel to scan (e.g. "DPU")
-     * @return             savetimestamp_tbl in instance-traversal order;
-     *                     empty if no .dump section exists or no matching
-     *                     opcodes are found
+     * @return             op_tbl in instance-traversal order; empty if no
+     *                     .dump section exists or no matching opcodes are found
      * @throws aiebu::error  if kernel_name is not found
      */
     [[nodiscard]]
-    savetimestamp_tbl
-    get_save_timestamps(const std::string& kernel_name) const;
+    op_tbl
+    get_op_locations(op_code op, const std::string& kernel_name) const;
 
     /*!
      * @brief
      * Overload for xclbin + elf ELFs.
      *
-     * Scans the single .dump section present in a ELF
-     * (assembled with asm_aie4 / asm_aie2ps) and returns a savetimestamp_tbl
-     * containing one save_timestamp_loc for all save_timestamps opcodes found.
+     * Scans the single .dump section and returns an op_tbl containing one
+     * op_loc for all occurrences of the specified opcode.
      *
-     * inst_name is left empty in the returned save_timestamp_loc because a
-     * standalone ELF has no kernel:instance structure.
-     *
-     * @return savetimestamp_tbl — empty if no .dump section exists
-     *         (e.g. the ELF was assembled with the disabledump flag)
+     * @param op    Opcode to search for (e.g. op_code::save_timestamps)
+     * @return      op_tbl — empty if no .dump section exists or the ELF was
+     *              assembled with the "disabledump" flag
      */
     [[nodiscard]]
-    savetimestamp_tbl
-    get_save_timestamps() const;
+    op_tbl
+    get_op_locations(op_code op) const;
 
     /*!
      * @class argtbl

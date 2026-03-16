@@ -154,17 +154,17 @@ disassemble(const std::filesystem::path &root) const
 
 
 // ---------------------------------------------------------------------------
-// savetimestamp_tbl_impl  (PIMPL, defined in .cpp like argtbl_impl)
+// op_tbl_impl  (PIMPL, defined in .cpp like argtbl_impl)
 // ---------------------------------------------------------------------------
-class aiebu_assembler::savetimestamp_tbl_impl
+class aiebu_assembler::op_tbl_impl
 {
-  std::vector<save_timestamp_loc> m_tbl;
+  std::vector<op_loc> m_tbl;
 
 public:
-  explicit savetimestamp_tbl_impl(std::vector<save_timestamp_loc> tbl)
+  explicit op_tbl_impl(std::vector<op_loc> tbl)
       : m_tbl(std::move(tbl)) {}
 
-  const std::vector<save_timestamp_loc>&
+  const std::vector<op_loc>&
   get() const
   {
     return m_tbl;
@@ -172,36 +172,117 @@ public:
 };
 
 // ---------------------------------------------------------------------------
-// savetimestamp_tbl  (public inner class methods)
+// op_tbl  (public inner class methods)
 // ---------------------------------------------------------------------------
-aiebu_assembler::savetimestamp_tbl::
-savetimestamp_tbl(std::shared_ptr<savetimestamp_tbl_impl> in_impl)
+aiebu_assembler::op_tbl::
+op_tbl(std::shared_ptr<op_tbl_impl> in_impl)
   : handle(std::move(in_impl))
 {}
 
-const std::vector<aiebu_assembler::save_timestamp_loc>&
-aiebu_assembler::savetimestamp_tbl::
+const std::vector<aiebu_assembler::op_loc>&
+aiebu_assembler::op_tbl::
 get_line_info() const
 {
   return handle->get();
 }
 
 // ---------------------------------------------------------------------------
-// aiebu_assembler::get_save_timestamps(kernel_name)
+// aiebu_assembler::get_op_locations
 // ---------------------------------------------------------------------------
-// Parse one .dump JSON blob and append grouped ts_lineinfo entries into loc.
+
+// Map op_code enum to the case-insensitive prefix used in .dump JSON entries.
+static std::string_view
+op_code_prefix(aiebu_assembler::op_code op)
+{
+  static const std::string start_job              = "start_job";
+  static const std::string uc_dma_write_des       = "uc_dma_write_des";
+  static const std::string wait_uc_dma            = "wait_uc_dma";
+  static const std::string mask_write_32          = "mask_write_32";
+  static const std::string load_cores             = "load_cores";
+  static const std::string write_32               = "write_32";
+  static const std::string wait_tcts              = "wait_tcts";
+  static const std::string end_job                = "end_job";
+  static const std::string yield                  = "yield";
+  static const std::string uc_dma_write_des_sync  = "uc_dma_write_des_sync";
+  static const std::string write_32_d             = "write_32_d";
+  static const std::string read_32                = "read_32";
+  static const std::string read_32_d              = "read_32_d";
+  static const std::string apply_offset_57        = "apply_offset_57";
+  static const std::string add                    = "add";
+  static const std::string mov                    = "mov";
+  static const std::string local_barrier          = "local_barrier";
+  static const std::string remote_barrier         = "remote_barrier";
+  static const std::string poll_32                = "poll_32";
+  static const std::string mask_poll_32           = "mask_poll_32";
+  static const std::string trace                  = "trace";
+  static const std::string nop                    = "nop";
+  static const std::string start_job_deferred     = "start_job_deferred";
+  static const std::string launch_job             = "launch_job";
+  static const std::string preempt                = "preempt";
+  static const std::string load_pdi               = "load_pdi";
+  static const std::string load_last_pdi          = "load_last_pdi";
+  static const std::string save_timestamps        = "save_timestamps";
+  static const std::string sleep                  = "sleep";
+  static const std::string save_register          = "save_register";
+  static const std::string start_cond_job_preempt = "start_cond_job_preempt";
+  static const std::string load_cores_cp          = "load_cores_cp";
+  static const std::string rel_acq_sync           = "rel_acq_sync";
+  static const std::string eof                    = "eof";
+
+  switch (op) {
+    case aiebu_assembler::op_code::start_job:              return start_job;
+    case aiebu_assembler::op_code::uc_dma_write_des:       return uc_dma_write_des;
+    case aiebu_assembler::op_code::wait_uc_dma:            return wait_uc_dma;
+    case aiebu_assembler::op_code::mask_write_32:          return mask_write_32;
+    case aiebu_assembler::op_code::load_cores:             return load_cores;
+    case aiebu_assembler::op_code::write_32:               return write_32;
+    case aiebu_assembler::op_code::wait_tcts:              return wait_tcts;
+    case aiebu_assembler::op_code::end_job:                return end_job;
+    case aiebu_assembler::op_code::yield:                  return yield;
+    case aiebu_assembler::op_code::uc_dma_write_des_sync:  return uc_dma_write_des_sync;
+    case aiebu_assembler::op_code::write_32_d:             return write_32_d;
+    case aiebu_assembler::op_code::read_32:                return read_32;
+    case aiebu_assembler::op_code::read_32_d:              return read_32_d;
+    case aiebu_assembler::op_code::apply_offset_57:        return apply_offset_57;
+    case aiebu_assembler::op_code::add:                    return add;
+    case aiebu_assembler::op_code::mov:                    return mov;
+    case aiebu_assembler::op_code::local_barrier:          return local_barrier;
+    case aiebu_assembler::op_code::remote_barrier:         return remote_barrier;
+    case aiebu_assembler::op_code::poll_32:                return poll_32;
+    case aiebu_assembler::op_code::mask_poll_32:           return mask_poll_32;
+    case aiebu_assembler::op_code::trace:                  return trace;
+    case aiebu_assembler::op_code::nop:                    return nop;
+    case aiebu_assembler::op_code::start_job_deferred:     return start_job_deferred;
+    case aiebu_assembler::op_code::launch_job:             return launch_job;
+    case aiebu_assembler::op_code::preempt:                return preempt;
+    case aiebu_assembler::op_code::load_pdi:               return load_pdi;
+    case aiebu_assembler::op_code::load_last_pdi:          return load_last_pdi;
+    case aiebu_assembler::op_code::save_timestamps:        return save_timestamps;
+    case aiebu_assembler::op_code::sleep:                  return sleep;
+    case aiebu_assembler::op_code::save_register:          return save_register;
+    case aiebu_assembler::op_code::start_cond_job_preempt: return start_cond_job_preempt;
+    case aiebu_assembler::op_code::load_cores_cp:          return load_cores_cp;
+    case aiebu_assembler::op_code::rel_acq_sync:           return rel_acq_sync;
+    case aiebu_assembler::op_code::eof:                    return eof;
+    default:
+      throw error(error::error_code::invalid_input, "Invalid opcode");
+  }
+}
+
+// Parse one .dump JSON blob and append grouped lineinfo entries into loc,
+// keeping only entries whose "operation" field starts with the given prefix.
 static void
-parse_dump_json(const std::string& dump_json, aiebu_assembler::save_timestamp_loc& loc)
+parse_dump_json(const std::string& dump_json, std::string_view op_prefix,
+                aiebu_assembler::op_loc& loc)
 {
   std::map<uint32_t, size_t> col_index;
-  static constexpr std::string_view save_ts_prefix = "save_timestamps";
 
   auto jdoc = nlohmann::json::parse(dump_json);
   for (const auto& entry : jdoc.at("debug")) {
     std::string op = entry.value("operation", std::string{});
     std::transform(op.begin(), op.end(), op.begin(), ::tolower);
-    if (op.size() < save_ts_prefix.size() ||
-        op.compare(0, save_ts_prefix.size(), save_ts_prefix) != 0)
+    if (op.size() < op_prefix.size() ||
+        op.compare(0, op_prefix.size(), op_prefix) != 0)
       continue;
 
     uint32_t col = entry.at("column").get<uint32_t>();
@@ -210,57 +291,57 @@ parse_dump_json(const std::string& dump_json, aiebu_assembler::save_timestamp_lo
 
     auto it = col_index.find(col);
     if (it == col_index.end()) {
-      col_index[col] = loc.ts_line_info.size();
-      loc.ts_line_info.push_back({col, {{linenum, std::move(filename)}}});
+      col_index[col] = loc.line_info.size();
+      loc.line_info.push_back({col, {{linenum, std::move(filename)}}});
     } else {
-      loc.ts_line_info[it->second].entries.emplace_back(linenum, std::move(filename));
+      loc.line_info[it->second].entries.emplace_back(linenum, std::move(filename));
     }
   }
 }
 
-aiebu_assembler::savetimestamp_tbl
+aiebu_assembler::op_tbl
 aiebu_assembler::
-get_save_timestamps(const std::string& kernel_name) const
+get_op_locations(op_code op, const std::string& kernel_name) const
 {
   transform_manager trans(elf_data);
-  std::vector<save_timestamp_loc> results;
+  std::vector<op_loc> results;
+  const auto prefix = op_code_prefix(op);
 
   if (kernel_name.empty()) {
     // Non-config ELF: single .dump section, no group filtering needed.
     trans.check_aie2ps_aie4_elf();
     std::string dump_json = trans.get_dump_section_json();
     if (!dump_json.empty()) {
-      save_timestamp_loc loc;
-      parse_dump_json(dump_json, loc);
-      if (!loc.ts_line_info.empty())
+      op_loc loc;
+      parse_dump_json(dump_json, prefix, loc);
+      if (!loc.line_info.empty())
         results.push_back(std::move(loc));
     }
   } else {
     // Config ELF: one .dump section per kernel instance, filtered by group.
     trans.check_aie2ps_aie4_fullelf();
     for (const auto& inst_name : trans.get_kernel_instances(kernel_name)) {
-      save_timestamp_loc loc;
+      op_loc loc;
       loc.inst_name = inst_name;
 
       std::string dump_json = trans.get_dump_section_json(kernel_name + ":" + inst_name);
       if (dump_json.empty())
         continue;
 
-      parse_dump_json(dump_json, loc);
-      if (!loc.ts_line_info.empty())
+      parse_dump_json(dump_json, prefix, loc);
+      if (!loc.line_info.empty())
         results.push_back(std::move(loc));
     }
   }
 
-  return savetimestamp_tbl(
-      std::make_shared<savetimestamp_tbl_impl>(std::move(results)));
+  return op_tbl(std::make_shared<op_tbl_impl>(std::move(results)));
 }
 
-aiebu_assembler::savetimestamp_tbl
+aiebu_assembler::op_tbl
 aiebu_assembler::
-get_save_timestamps() const
+get_op_locations(op_code op) const
 {
-  return get_save_timestamps("");
+  return get_op_locations(op, "");
 }
 
 class aiebu_assembler::argtbl_impl
