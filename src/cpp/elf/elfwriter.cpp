@@ -133,7 +133,7 @@ finalize()
 
 std::vector<uint32_t>
 elf_writer::
-add_text_data_section(const std::vector<std::shared_ptr<writer>>& mwriter, std::vector<symbol>& syms, const std::string& index_string, ELFIO::Elf_Word info_index = 0)
+add_text_data_section(const std::vector<std::shared_ptr<writer>>& mwriter, std::vector<symbol>& syms, const std::string& index_string)
 {
   std::vector<uint32_t> section_index_list;
   for(auto element : mwriter)
@@ -146,14 +146,12 @@ add_text_data_section(const std::vector<std::shared_ptr<writer>>& mwriter, std::
     elf_section sec_data;
     sec_data.set_name(buffer->get_name()+index_string);
     sec_data.set_link("");
-    if (buffer->get_type() == code_section::custom) {
+    sec_data.set_info(0);
+    if (buffer->get_type() == code_section::custom)
       sec_data.set_type(SHT_CUSTOM_SECTION);
-      sec_data.set_info(info_index);
-      sec_data.set_link(".symtab");
-    } else {
+    else
       sec_data.set_type(ELFIO::SHT_PROGBITS);
-      sec_data.set_info(0);
-    }
+
     if (buffer->get_type() == code_section::text)
       sec_data.set_flags(ELFIO::SHF_ALLOC | ELFIO::SHF_EXECINSTR);
     else
@@ -265,11 +263,11 @@ init_dynamic_sections()
 
 std::vector<uint32_t>
 elf_writer::
-process_common_helper(const std::vector<std::shared_ptr<writer>>& mwriter, const std::string& index_string, ELFIO::Elf_Word info_index)
+process_common_helper(const std::vector<std::shared_ptr<writer>>& mwriter, const std::string& index_string)
 {
   // add sections
   std::vector<symbol> syms;
-  auto section_index_list = add_text_data_section(mwriter, syms, index_string, info_index);
+  auto section_index_list = add_text_data_section(mwriter, syms, index_string);
   if (syms.size())
   {
     init_dynamic_sections();

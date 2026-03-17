@@ -53,17 +53,10 @@ public:
     {
        auto kernel_index = add_symtab(kernel);
 
-       // Add kernel level custom sections
-       const auto& kernel_sections = mconfig_writer->get_kernel_custom_sections(kernel);
-       if (!kernel_sections.empty()) {
-         std::vector<std::shared_ptr<writer>> kernel_vec(kernel_sections.begin(), kernel_sections.end());
-         process_common_helper(kernel_vec, "", kernel_index);
-       }
-
        for(auto& [iname, instance] : instances)
        {
          auto instance_index = add_symtab_section(iname, kernel_index);
-         std::vector<uint32_t> group_data = process_common_helper(instance, get_section_prefix(index), instance_index);
+         std::vector<uint32_t> group_data = process_common_helper(instance, get_section_prefix(index));
          // first word is GRP_COMDAT
          group_data.insert(group_data.begin(), 1);
          add_group(get_group_name(index), group_data, instance_index);

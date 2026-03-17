@@ -143,8 +143,6 @@ class aie2_config_writer: public writer
   std::shared_ptr<const partition_info> m_partition;
   // Global level custom sections
   std::vector<std::shared_ptr<writer>> m_global_custom_sections;
-  // Kernel level custom sections: kernel_name -> vector of section_writers
-  std::map<std::string, std::vector<std::shared_ptr<writer>>> m_kernel_custom_sections;
 
 public:
   explicit aie2_config_writer(std::shared_ptr<const partition_info> partition): m_partition(std::move(partition)) {}
@@ -170,19 +168,6 @@ public:
   const std::vector<std::shared_ptr<writer>>& get_global_custom_sections() const {
     return m_global_custom_sections;
   }
-
-  // Kernel level custom sections
-  void add_kernel_custom_section(const std::string& kernel, std::shared_ptr<writer> val) {
-    m_kernel_custom_sections[kernel].emplace_back(std::move(val));
-  }
-
-  const std::vector<std::shared_ptr<writer>>& get_kernel_custom_sections(const std::string& kernel) const {
-    static const std::vector<std::shared_ptr<writer>> empty_vec;
-    auto it = m_kernel_custom_sections.find(kernel);
-    if (it != m_kernel_custom_sections.end())
-      return it->second;
-    return empty_vec;
-  }
 };
 
 class config_writer: public writer
@@ -193,8 +178,6 @@ class config_writer: public writer
   std::shared_ptr<const aie_row_topology_info> m_aie_row_topology;
   // Global level custom sections
   std::vector<std::shared_ptr<writer>> m_global_custom_sections;
-  // Kernel level custom sections: kernel_name -> vector of section_writers
-  std::map<std::string, std::vector<std::shared_ptr<writer>>> m_kernel_custom_sections;
 
 public:
   explicit config_writer(std::shared_ptr<const partition_info> partition,
@@ -220,19 +203,6 @@ public:
 
   const std::vector<std::shared_ptr<writer>>& get_global_custom_sections() const {
     return m_global_custom_sections;
-  }
-
-  // Kernel level custom sections
-  void add_kernel_custom_section(const std::string& kernel, std::shared_ptr<writer> val) {
-    m_kernel_custom_sections[kernel].emplace_back(std::move(val));
-  }
-
-  const std::vector<std::shared_ptr<writer>>& get_kernel_custom_sections(const std::string& kernel) const {
-    static const std::vector<std::shared_ptr<writer>> empty_vec;
-    auto it = m_kernel_custom_sections.find(kernel);
-    if (it != m_kernel_custom_sections.end())
-      return it->second;
-    return empty_vec;
   }
 };
 

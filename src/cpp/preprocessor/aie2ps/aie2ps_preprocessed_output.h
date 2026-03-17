@@ -131,10 +131,6 @@ class asm_config_preprocessed_output: public preprocessed_output
   std::map<std::string, std::map<std::string, std::shared_ptr<T>>> m_output;
   // Global level custom sections
   std::map<std::string, std::vector<uint8_t>> m_global_custom_sections;
-  // Kernel level custom sections: kernel_name -> section_name -> data
-  std::map<std::string, std::map<std::string, std::vector<uint8_t>>> m_kernel_custom_sections;
-  // Instance level custom sections: kernel_name -> instance_name -> section_name -> data
-  std::map<std::string, std::map<std::string, std::map<std::string, std::vector<uint8_t>>>> m_instance_custom_sections;
 
 public:
   const std::map<std::string, std::map<std::string, std::shared_ptr<T>>>&
@@ -151,37 +147,6 @@ public:
 
   const std::map<std::string, std::vector<uint8_t>>& get_global_custom_sections() const {
     return m_global_custom_sections;
-  }
-
-  // Kernel level custom sections
-  void set_kernel_custom_sections(const std::string& kernel, const std::map<std::string, std::vector<uint8_t>>& sections) {
-    m_kernel_custom_sections[kernel] = sections;
-  }
-
-  const std::map<std::string, std::vector<uint8_t>>& get_kernel_custom_sections(const std::string& kernel) const {
-    static const std::map<std::string, std::vector<uint8_t>> empty_map;
-    auto it = m_kernel_custom_sections.find(kernel);
-    if (it != m_kernel_custom_sections.end())
-      return it->second;
-    return empty_map;
-  }
-
-  // Instance level custom sections
-  void set_instance_custom_sections(const std::string& kernel, const std::string& instance,
-                                     const std::map<std::string, std::vector<uint8_t>>& sections) {
-    m_instance_custom_sections[kernel][instance] = sections;
-  }
-
-  const std::map<std::string, std::vector<uint8_t>>& get_instance_custom_sections(
-      const std::string& kernel, const std::string& instance) const {
-    static const std::map<std::string, std::vector<uint8_t>> empty_map;
-    auto kit = m_instance_custom_sections.find(kernel);
-    if (kit != m_instance_custom_sections.end()) {
-      auto iit = kit->second.find(instance);
-      if (iit != kit->second.end())
-        return iit->second;
-    }
-    return empty_map;
   }
 };
 

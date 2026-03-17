@@ -177,22 +177,10 @@ public:
     toutput->set_global_custom_sections(rinput->get_global_custom_sections());
 
     for (auto& [kernel, instances] : rinput->get_kernel_map()) {
-      // Pass kernel level custom sections
-      const auto& kernel_sections = rinput->get_kernel_custom_sections(kernel);
-      if (!kernel_sections.empty()) {
-        toutput->set_kernel_custom_sections(kernel, kernel_sections);
-      }
-
       for(auto& [iname, instance] : instances)
       {
         auto val = std::dynamic_pointer_cast<output_tamplete>(m_preprocessor.process(instance));
         toutput->add_kernel_map(kernel, iname, val);
-
-        // Pass instance level custom sections
-        const auto& instance_sections = rinput->get_instance_custom_sections(kernel, iname);
-        if (!instance_sections.empty()) {
-          toutput->set_instance_custom_sections(kernel, iname, instance_sections);
-        }
       }
     }
     return toutput;

@@ -95,13 +95,13 @@ protected:  // NOLINT(cppcoreguidelines-non-private-member-variables-in-classes)
   void add_reldyn_section(std::vector<symbol>& syms);
   void add_dynamic_section();
   std::vector<char> finalize();
-  std::vector<uint32_t> add_text_data_section(const std::vector<std::shared_ptr<writer>>& mwriter, std::vector<symbol>& syms, const std::string& index_string, ELFIO::Elf_Word info_index);
+  std::vector<uint32_t> add_text_data_section(const std::vector<std::shared_ptr<writer>>& mwriter, std::vector<symbol>& syms, const std::string& index_string);
   void add_note(ELFIO::Elf_Word type, const std::string& name, const std::vector<char>& dec);
   ELFIO::Elf_Word add_symtab(const std::string& name);
   ELFIO::Elf_Word add_symtab_section(const std::string& name, ELFIO::Elf_Word index);
   void init_symtab();
   void init_dynamic_sections();
-  std::vector<uint32_t> process_common_helper(const std::vector<std::shared_ptr<writer>>& mwriter, const std::string& index_string, ELFIO::Elf_Word info_index = 0);
+  std::vector<uint32_t> process_common_helper(const std::vector<std::shared_ptr<writer>>& mwriter, const std::string& index_string);
   std::string get_group_name(uint32_t index) {return ".group."+ std::to_string(index); }
   std::string get_section_prefix(uint32_t index) {return "."+ std::to_string(index); }
   void add_group(const std::string& name, const std::vector<uint32_t>& member, ELFIO::Elf_Word info_index);

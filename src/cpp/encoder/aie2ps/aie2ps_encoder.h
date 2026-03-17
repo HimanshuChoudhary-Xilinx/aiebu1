@@ -114,13 +114,6 @@ public:
     }
 
     for (auto& [kernel, instances] : tinput->get_kernel_map()) {
-      // Add kernel level custom sections
-      const auto& kernel_sections = tinput->get_kernel_custom_sections(kernel);
-      for (const auto& [section_name, section_data] : kernel_sections) {
-        output_writer->add_kernel_custom_section(kernel,
-            std::make_shared<section_writer>(section_name, code_section::custom, std::vector<uint8_t>(section_data)));
-      }
-
       for(auto& [iname, instance] : instances)
       {
         T encoder_object;
@@ -128,14 +121,6 @@ public:
         encoder_object.check_target_info(instance->get_target_info(), tinfo_first_instance);
         encoder_object.check_aie_row_topology_info(instance->get_aie_row_topology_info(), rinfo_first_instance);
         auto instance_writers = encoder_object.process(instance);
-
-        // Add instance level custom sections
-        const auto& instance_sections = tinput->get_instance_custom_sections(kernel, iname);
-        for (const auto& [section_name, section_data] : instance_sections) {
-          instance_writers.emplace_back(
-              std::make_shared<section_writer>(section_name, code_section::custom, std::vector<uint8_t>(section_data)));
-        }
-
         output_writer->add_kernel_map(kernel, iname, instance_writers);
       }
     }

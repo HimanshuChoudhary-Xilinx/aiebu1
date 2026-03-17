@@ -373,7 +373,6 @@ class instance_input
   std::map<std::string, std::shared_ptr<aie2_blob_transaction_preprocessor_input>> m_instances;
   std::vector<uint32_t> pm_id_list;
   std::vector<std::string> pdi_id_list;
-  std::map<std::string, std::map<std::string, std::vector<uint8_t>>> m_custom_sections; // instance -> section_name -> data
 public:
 
   const std::map<std::string, std::shared_ptr<aie2_blob_transaction_preprocessor_input>>& get_instance_map() const
@@ -403,20 +402,6 @@ public:
   const std::vector<std::string>& get_pdi_id_list() const { return pdi_id_list; }
 
   void add_pdi_id(std::string val) { pdi_id_list.emplace_back(std::move(val)); }
-
-  void add_custom_section(const std::string& instance, const std::string& section_name, std::vector<uint8_t> data)
-  {
-    m_custom_sections[instance][section_name] = std::move(data);
-  }
-
-  const std::map<std::string, std::vector<uint8_t>>& get_custom_sections(const std::string& instance) const
-  {
-    static const std::map<std::string, std::vector<uint8_t>> empty_map;
-    auto it = m_custom_sections.find(instance);
-    if (it != m_custom_sections.end())
-      return it->second;
-    return empty_map;
-  }
 };
 
 class aie2_config_preprocessor_input : public aie2_blob_transaction_preprocessor_input
@@ -426,8 +411,6 @@ class aie2_config_preprocessor_input : public aie2_blob_transaction_preprocessor
   const file_artifact* m_artifacts = nullptr;
   // Global level custom sections
   std::map<std::string, std::vector<uint8_t>> m_global_custom_sections;
-  // Kernel level custom sections: kernel_name -> section_name -> data
-  std::map<std::string, std::map<std::string, std::vector<uint8_t>>> m_kernel_custom_sections;
 
 protected:
   void readconfigjson(std::istream& patch_json, const std::vector<std::string>& paths);
@@ -444,16 +427,19 @@ protected:
     return ".ctrlpkt.pm." + std::to_string(pdi_id);
   }
 
-  // Helper to parse customer_section array from JSON
-  std::map<std::string, std::vector<uint8_t>> parse_customer_sections(
+  // Helper to parse custom_section array from JSON
+  std::map<std::string, std::vector<uint8_t>> parse_custom_sections(
       const boost::property_tree::ptree& pt,
       const std::vector<std::string>& paths)
   {
     std::map<std::string, std::vector<uint8_t>> custom_sections;
-    const auto& pt_customer_sections = pt.get_child_optional("customer_section");
-    if (pt_customer_sections) {
-      for (const auto& [sec_unused, section] : pt_customer_sections.get()) {
+    const auto& pt_custom_sections = pt.get_child_optional("custom_section");
+    if (pt_custom_sections) {
+      for (const auto& [sec_unused, section] : pt_custom_sections.get()) {
         auto section_name = section.get<std::string>("section_name");
+        if (custom_sections.count(section_name))
+          throw error(error::error_code::invalid_input,
+                     "custom_section: duplicate section_name \"" + section_name + "\"");
         auto section_path = section.get<std::string>("path");
         auto section_data = readfile(section_path, paths);
         custom_sections[section_name] = std::vector<uint8_t>(section_data.begin(), section_data.end());
@@ -487,15 +473,6 @@ public:
   const std::map<std::string, std::vector<uint8_t>>& get_global_custom_sections() const
   {
     return m_global_custom_sections;
-  }
-
-  const std::map<std::string, std::vector<uint8_t>>& get_kernel_custom_sections(const std::string& kernel) const
-  {
-    static const std::map<std::string, std::vector<uint8_t>> empty_map;
-    auto it = m_kernel_custom_sections.find(kernel);
-    if (it != m_kernel_custom_sections.end())
-      return it->second;
-    return empty_map;
   }
 };
 

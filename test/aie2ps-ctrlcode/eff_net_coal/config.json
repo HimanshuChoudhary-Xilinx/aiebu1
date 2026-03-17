@@ -31,29 +31,9 @@
             },
             {
               "id" : "va123",
-              "ctrl_code_file" : "./ml_asm/merged_control.asm",
-              "customer_section": [
-                {
-                  "section_name": "dv1",
-                  "path": "./asm/aie_asm_elfs.asm"
-                },
-                {
-                  "section_name": "dv2",
-                  "path": "./asm/aie_asm_enable.asm"
-                }
-              ]
+              "ctrl_code_file" : "./ml_asm/merged_control.asm"
             }
-        ],
-        "customer_section": [
-              {
-              "section_name": "d1",
-              "path": "./ml_asm/merged_control.asm"
-              },
-              {
-              "section_name": "d2",
-              "path": "./asm/aie_asm_enable.asm"
-              }
-          ]
+        ]
       },
       {
        "name" : "RESNET",
@@ -82,37 +62,17 @@
         "instance" : [
             {
               "id" : "rescc",
-              "ctrl_code_file" : "./ml_asm/merged_control.asm",
-              "customer_section": [
-              {
-              "section_name": "rr1",
-              "path": "./ml_asm/merged_control.asm"
-              },
-              {
-              "section_name": "rr2",
-              "path": "./asm/aie_asm_init.asm"
-              }
-          ]
+              "ctrl_code_file" : "./ml_asm/merged_control.asm"
             },
             {
               "id" : "res123",
               "ctrl_code_file" : "./ml_asm/merged_control.asm"
 
             }
-        ],
-        "customer_section": [
-           {
-             "section_name": "r1",
-             "path": "./ml_asm/merged_control.asm"
-           },
-           {
-             "section_name": "r2",
-             "path": "./asm/aie_asm_init.asm"
-           }
         ]
       }
     ],
-    "customer_section": [
+    "custom_section": [
       {
        "section_name": "ALL",
        "path": "./asm/pdi.asm"
