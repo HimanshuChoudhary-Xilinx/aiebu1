@@ -32,7 +32,6 @@ class aie2ps_preprocessed_output : public preprocessed_output
   std::shared_ptr<const aie_row_topology_info> m_aie_row_topology;
   std::map<std::string, std::vector<char>> m_ctrlpkt;
   std::map<uint32_t, std::string> m_ctrlpkt_id_map;
-  std::map<std::string, std::vector<uint8_t>> m_custom_sections;
 public:
 
   explicit aie2ps_preprocessed_output(std::shared_ptr<const partition_info> partition,
@@ -107,21 +106,6 @@ public:
   void set_ctrlpkt_id_map( std::map<uint32_t, std::string>& ctrlpkt_id_map)
   {
     m_ctrlpkt_id_map = ctrlpkt_id_map;
-  }
-
-  void set_custom_sections(const std::map<std::string, std::vector<uint8_t>>& custom_sections)
-  {
-    m_custom_sections = custom_sections;
-  }
-
-  const std::map<std::string, std::vector<uint8_t>>& get_custom_sections() const
-  {
-    return m_custom_sections;
-  }
-
-  bool has_custom_sections() const
-  {
-    return !m_custom_sections.empty();
   }
 };
 

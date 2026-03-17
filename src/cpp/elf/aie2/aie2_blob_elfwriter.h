@@ -55,7 +55,6 @@ public:
     {
        auto kernel_index = add_symtab(kernel);
        std::vector<uint32_t> common_data = process_common_helper(instances.get_common(), "");
-
        for(auto& [iname, instance] : instances.get_instance_map())
        {
          auto instance_index = add_symtab_section(iname, kernel_index);

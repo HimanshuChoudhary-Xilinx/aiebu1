@@ -987,7 +987,6 @@ add_preemption_code(uint32_t col)
         ctrl_pkt_code =  m_artifacts->get(pic.get<std::string>("ctrl_packet_file"), paths);
       if (!pic.get<std::string>("patch_info_file", "").empty())
         jdata = m_artifacts->get(pic.get<std::string>("patch_info_file"), paths);
-
       auto instance = std::make_shared<aie2_blob_transaction_preprocessor_input>();
 
       kernel_map[kernel].add_instance(tname, instance);

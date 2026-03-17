@@ -21,7 +21,6 @@ class aie2_blob_preprocessed_output : public preprocessed_output
   std::map<std::string, std::vector<uint8_t>> m_data;
   std::vector<symbol> m_sym;
   std::shared_ptr<const partition_info> m_partition;
-  std::map<std::string, std::vector<uint8_t>> m_custom_sections;
 public:
   explicit aie2_blob_preprocessed_output(std::shared_ptr<const partition_info> partition): m_partition(std::move(partition)) {}
 
@@ -61,21 +60,6 @@ public:
     if (it == m_data.end())
       throw error(error::error_code::internal_error, "Key (" + key + ") not found!!!");
     return m_data[key];
-  }
-
-  void set_custom_sections(const std::map<std::string, std::vector<uint8_t>>& custom_sections)
-  {
-    m_custom_sections = custom_sections;
-  }
-
-  const std::map<std::string, std::vector<uint8_t>>& get_custom_sections() const
-  {
-    return m_custom_sections;
-  }
-
-  bool has_custom_sections() const
-  {
-    return !m_custom_sections.empty();
   }
 };
 

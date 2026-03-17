@@ -52,7 +52,6 @@ public:
     for( auto& [kernel, instances] : mconfig_writer->get_kernel_map())
     {
        auto kernel_index = add_symtab(kernel);
-
        for(auto& [iname, instance] : instances)
        {
          auto instance_index = add_symtab_section(iname, kernel_index);
