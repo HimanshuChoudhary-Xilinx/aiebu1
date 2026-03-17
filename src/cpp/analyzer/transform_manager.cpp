@@ -66,7 +66,7 @@ load_elf(const std::vector<char>& elf_data)
 
   // Only AIE2PS/AIE4 legacy ELF and group ELF formats are supported
   auto os_abi = m_elfio.get_os_abi();
-  if (os_abi != elf_amd_aie2ps_group)
+  if (os_abi != elf_amd_aie2ps_abi)
     throw error(error::error_code::invalid_input, "Only aie2ps/aie4 config elf supported\n");
 }
 
@@ -978,16 +978,16 @@ update_rela_sections(const std::vector<arginfo>& entries, const std::string& ker
  std::vector<char>
  transform_manager::
  update_kernel_name(const std::string& orig_name, const std::string& new_name) {
-   // Validate ELF format: only support OS ABI 0x46 (elf_amd_aie2ps_group) and ABI version 0x3
+   // Validate ELF format: only support OS ABI 0x46 (elf_amd_aie2ps_abi) and ABI version 0x3
    auto os_abi = m_elfio.get_os_abi();
    auto abi_version = m_elfio.get_abi_version();
 
-   if (os_abi != 0x46)
+   if (os_abi != elf_amd_aie2ps_abi)
      throw error(error::error_code::invalid_input,
                  "update_kernel_name only supports OS ABI 0x46 (AIE2PS/AIE4 group), got: 0x"
                  + ELFIO::to_hex_string(os_abi));
 
-   if (abi_version != 0x3)
+   if (abi_version != elf_amd_aie2ps_aie4_config_elf_version)
      throw error(error::error_code::invalid_input,
                  "update_kernel_name only supports ABI version 0x3, got: 0x"
                  + ELFIO::to_hex_string(abi_version));
@@ -1170,6 +1170,100 @@ get_kernel_instances(const std::string& kernel_name)
   }
 
   return instances;
+}
+
+std::string
+transform_manager::
+get_dump_section_json()
+{
+  static constexpr std::string_view dump_prefix = ".dump";
+
+  for (const auto& section_ptr : m_elfio.sections) {
+    const ELFIO::section* sec = section_ptr.get();
+
+    if (sec->get_type() != ELFIO::SHT_PROGBITS)
+      continue;
+
+    const std::string& name = sec->get_name();
+    if (name.size() < dump_prefix.size() ||
+        name.compare(0, dump_prefix.size(), dump_prefix) != 0)
+      continue;
+
+    return std::string(sec->get_data(), static_cast<size_t>(sec->get_size()));
+  }
+
+  return {};
+}
+
+std::string
+transform_manager::
+get_dump_section_json(const std::string& kernel_instance_filter)
+{
+  auto section_indices = get_filtered_section_indices(kernel_instance_filter);
+
+  static constexpr std::string_view dump_prefix = ".dump";
+
+  for (const auto& section_ptr : m_elfio.sections) {
+    const ELFIO::section* sec = section_ptr.get();
+
+    if (sec->get_type() != ELFIO::SHT_PROGBITS)
+      continue;
+    if (section_indices.find(sec->get_index()) == section_indices.end())
+      continue;
+
+    const std::string& name = sec->get_name();
+    if (name.size() < dump_prefix.size() ||
+        name.compare(0, dump_prefix.size(), dump_prefix) != 0)
+      continue;
+
+    return std::string(sec->get_data(), static_cast<size_t>(sec->get_size()));
+  }
+
+  return {};
+}
+
+/**
+ * @brief Validate standalone target ELF (os_abi=0x46, abi_version=0x02).
+ * @throws error (invalid_input) on mismatch
+ */
+void
+transform_manager::
+check_aie2ps_aie4_elf()
+{
+  auto os_abi      = m_elfio.get_os_abi();
+  auto abi_version = m_elfio.get_abi_version();
+
+  if (os_abi != elf_amd_aie2ps_abi)
+    throw error(error::error_code::invalid_input,
+                "Expected aie2ps/aie4 ELF (os_abi=0x46), got os_abi=0x"
+                + ELFIO::to_hex_string(os_abi) + "\n");
+
+  if (abi_version != elf_amd_aie2ps_aie4_legacy_elf_version)
+    throw error(error::error_code::invalid_input,
+                "Expected legacy ELF abi_version=0x02, got 0x"
+                + ELFIO::to_hex_string(abi_version) + "\n");
+}
+
+/**
+ * @brief Validate config (full) ELF (os_abi=0x46, abi_version=0x03).
+ * @throws error (invalid_input) on mismatch
+ */
+void
+transform_manager::
+check_aie2ps_aie4_fullelf()
+{
+  auto os_abi      = m_elfio.get_os_abi();
+  auto abi_version = m_elfio.get_abi_version();
+
+  if (os_abi != elf_amd_aie2ps_abi)
+    throw error(error::error_code::invalid_input,
+                "Expected aie2ps/aie4 ELF (os_abi=0x46), got os_abi=0x"
+                + ELFIO::to_hex_string(os_abi) + "\n");
+
+  if (abi_version != elf_amd_aie2ps_aie4_config_elf_version)
+    throw error(error::error_code::invalid_input,
+                "Expected config ELF abi_version=0x03, got 0x"
+                + ELFIO::to_hex_string(abi_version) + "\n");
 }
 
 } // End of Namespace aiebu

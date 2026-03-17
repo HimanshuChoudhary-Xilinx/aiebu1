@@ -14,7 +14,10 @@
 #include "aiebu/aiebu.h"
 #include "aiebu/aiebu_assembler.h"
 #include "aiebu/aiebu_error.h"
+#include "json/nlohmann/json.hpp"
 
+#include <algorithm>
+#include <cctype>
 #include <map>
 #include <string>
 #include <limits>
@@ -147,6 +150,135 @@ disassemble(const std::filesystem::path &root) const
 {
   reporter rep(m_output_type, elf_data);
   rep.disassemble(root, true);
+}
+
+
+// ---------------------------------------------------------------------------
+// op_tbl_impl  (PIMPL, defined in .cpp like argtbl_impl)
+// ---------------------------------------------------------------------------
+class aiebu_assembler::op_tbl_impl
+{
+  std::vector<op_loc> m_tbl;
+
+public:
+  explicit op_tbl_impl(std::vector<op_loc> tbl)
+      : m_tbl(std::move(tbl)) {}
+
+  const std::vector<op_loc>&
+  get() const
+  {
+    return m_tbl;
+  }
+};
+
+// ---------------------------------------------------------------------------
+// op_tbl  (public inner class methods)
+// ---------------------------------------------------------------------------
+aiebu_assembler::op_tbl::
+op_tbl(std::shared_ptr<op_tbl_impl> in_impl)
+  : handle(std::move(in_impl))
+{}
+
+std::vector<aiebu_assembler::op_loc>
+aiebu_assembler::op_tbl::
+get_line_info() const
+{
+  return handle->get();
+}
+
+// ---------------------------------------------------------------------------
+// aiebu_assembler::get_op_locations
+// ---------------------------------------------------------------------------
+
+// Look up the ISA name for a raw opcode value using the isa_disassembler map.
+// The returned string_view points into the stable isa_disassembler instance.
+static std::string_view
+opcode_to_name(uint8_t opcode)
+{
+  static const isa_disassembler s_isa;
+  const auto* isa_map = s_isa.get_isa_map();
+
+  auto it = isa_map->find(opcode);
+  if (it == isa_map->end())
+    throw error(error::error_code::invalid_input,
+                "Unknown opcode: 0x" + ELFIO::to_hex_string(opcode) + "\n");
+
+  return it->second.get_code_name();
+}
+
+// Parse one .dump JSON blob and append grouped lineinfo entries into loc,
+// keeping only entries whose "operation" field starts with the given prefix.
+static void
+parse_dump_json(const std::string& dump_json, std::string_view op_prefix,
+                aiebu_assembler::op_loc& loc)
+{
+  std::map<uint32_t, size_t> col_index;
+
+  auto jdoc = nlohmann::json::parse(dump_json);
+  for (const auto& entry : jdoc.at("debug")) {
+    std::string op = entry.value("operation", std::string{});
+    std::transform(op.begin(), op.end(), op.begin(), ::tolower);
+    if (op.size() < op_prefix.size() ||
+        op.compare(0, op_prefix.size(), op_prefix) != 0)
+      continue;
+
+    uint32_t col = entry.at("column").get<uint32_t>();
+    uint32_t linenum = entry.at("line").get<uint32_t>();
+    std::string filename = entry.value("file", std::string{});
+
+    auto it = col_index.find(col);
+    if (it == col_index.end()) {
+      col_index[col] = loc.line_info.size();
+      loc.line_info.push_back({col, {{linenum, std::move(filename)}}});
+    } else {
+      loc.line_info[it->second].entries.emplace_back(linenum, std::move(filename));
+    }
+  }
+}
+
+aiebu_assembler::op_tbl
+aiebu_assembler::
+get_op_locations(uint8_t opcode, const std::string& kernel_name) const
+{
+  transform_manager trans(elf_data);
+  std::vector<op_loc> results;
+  const auto prefix = opcode_to_name(opcode);
+
+  if (kernel_name.empty()) {
+    // Non-config ELF: single .dump section, no group filtering needed.
+    trans.check_aie2ps_aie4_elf();
+    std::string dump_json = trans.get_dump_section_json();
+    if (!dump_json.empty()) {
+      op_loc loc;
+      parse_dump_json(dump_json, prefix, loc);
+      if (!loc.line_info.empty())
+        results.push_back(std::move(loc));
+    }
+  } else {
+    // Config ELF: one .dump section per kernel instance, filtered by group.
+    trans.check_aie2ps_aie4_fullelf();
+    for (const auto& inst_name : trans.get_kernel_instances(kernel_name)) {
+      op_loc loc;
+      loc.inst_name = inst_name;
+
+      std::string dump_json = trans.get_dump_section_json(kernel_name + ":" + inst_name);
+      if (dump_json.empty())
+        continue;
+
+      parse_dump_json(dump_json, prefix, loc);
+      if (!loc.line_info.empty())
+        results.push_back(std::move(loc));
+    }
+  }
+
+  return op_tbl(std::make_shared<op_tbl_impl>(std::move(results)));
+}
+
+aiebu_assembler::op_tbl
+aiebu_assembler::
+get_op_locations(uint8_t opcode) const
+{
+  return get_op_locations(opcode, "");
 }
 
 class aiebu_assembler::argtbl_impl

@@ -44,7 +44,9 @@ class transform_manager {
   static constexpr size_t ctrlcode_string_length = 13;     // Length of "control-code" prefix
 
   // AIE ELF OS ABI identifiers
-  static constexpr uint8_t elf_amd_aie2ps_group = 70;      // AIE2PS/AIE4 group ELF format
+  static constexpr uint8_t elf_amd_aie2ps_abi = 0x46;      // AIE2PS/AIE4 group ELF format
+  static constexpr uint8_t elf_amd_aie2ps_aie4_legacy_elf_version = 0x2;    // AIE2PS/AIE4 target ELF format
+  static constexpr uint8_t elf_amd_aie2ps_aie4_config_elf_version = 0x3;    // AIE2PS/AIE4 config ELF format
 
   // Register offset multiplier (2 for 32-bit registers = 64-bit offset)
   static constexpr uint8_t num_32bit_register = 2;
@@ -315,6 +317,47 @@ public:
    * @throws error if kernel not found or required sections missing
    */
    std::vector<std::string> get_kernel_instances(const std::string& kernel_name);
+
+  /**
+   * @brief Return the content of the .dump section belonging to a given
+   *        kernel:instance pair as a UTF-8 JSON string
+   * @param kernel_instance_filter  Filter in format "kernel:instance"
+   *                                (e.g. "DPU:dpu")
+   * @return JSON string written to the .dump section by the aie2ps encoder,
+   *         or an empty string if no .dump section exists for this instance
+   *         (e.g. the ELF was assembled with the disabledump flag)
+   *
+   * @throws error if the filter is malformed, or the kernel / instance is
+   *         not found in .symtab
+   */
+  std::string
+  get_dump_section_json(const std::string& kernel_instance_filter);
+
+  /**
+   * @brief Return the content of the single .dump section from a non-config
+   *        ELF (no group filtering) as a UTF-8 JSON string
+   * @return JSON string from the .dump section, or empty string if absent
+   */
+  std::string
+  get_dump_section_json();
+
+  /**
+   * @brief Validate that the loaded ELF is an aie2ps/aie4 standalone target
+   *        ELF (os_abi=0x46, abi_version=0x02).
+   *
+   * @throws aiebu::error (invalid_input) if the ELF header does not match
+   *         a target ELF produced by aie2ps_elf_writer / aie4_elf_writer
+   */
+  void check_aie2ps_aie4_elf();
+
+  /**
+   * @brief Validate that the loaded ELF is an aie2ps/aie4 config (full) ELF
+   *        (os_abi=0x46, abi_version=0x03).
+   *
+   * @throws aiebu::error (invalid_input) if the ELF header does not match
+   *         a config ELF produced by aie2ps_config_elf_writer / aie4_config_elf_writer
+   */
+  void check_aie2ps_aie4_fullelf();
 };
 
 }

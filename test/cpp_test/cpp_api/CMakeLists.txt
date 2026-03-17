@@ -18,6 +18,14 @@ add_executable(${AIE2_FULLELF_TESTNAME} aie2_full_elf_test.cpp)
 target_link_libraries(${AIE2_FULLELF_TESTNAME} PRIVATE aiebu_static)
 target_include_directories(${AIE2_FULLELF_TESTNAME} PRIVATE ${AIEBU_SOURCE_DIR}/src/cpp/include)
 
+set(AIE4_SAVETIMESTAMPS_TESTNAME "aie4_savetimestamps_cpp")
+add_executable(${AIE4_SAVETIMESTAMPS_TESTNAME} aie4_savetimestamps_test.cpp)
+target_link_libraries(${AIE4_SAVETIMESTAMPS_TESTNAME} PRIVATE aiebu_static)
+target_include_directories(${AIE4_SAVETIMESTAMPS_TESTNAME} PRIVATE ${AIEBU_SOURCE_DIR}/src/cpp/include)
+if (NOT WIN32)
+  target_link_libraries(${AIE4_SAVETIMESTAMPS_TESTNAME} PRIVATE pthread)
+endif()
+
 
 if (NOT WIN32)
   target_link_libraries(${AIE2_TESTNAME} PRIVATE pthread)
@@ -88,3 +96,11 @@ add_test(NAME "aie2_cpp_4x8"
 
 set_tests_properties("aie2_cpp_4x4" PROPERTIES LABELS memcheck)
 set_tests_properties("aie2_cpp_4x8" PROPERTIES LABELS memcheck)
+
+add_test(NAME "aie4_1col_preempt_savetimestamps_config"
+  COMMAND ${AIE4_SAVETIMESTAMPS_TESTNAME} "config" "${AIEBU_SOURCE_DIR}/test/aie4-ctrlcode/1col_preempt"
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+add_test(NAME "aie4_1col_preempt_savetimestamps_target"
+  COMMAND ${AIE4_SAVETIMESTAMPS_TESTNAME} "target" "${AIEBU_SOURCE_DIR}/test/aie4-ctrlcode/1col_preempt"
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})

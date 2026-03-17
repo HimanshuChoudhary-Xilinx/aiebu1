@@ -128,6 +128,7 @@ class aiebu_assembler
     buffer_type m_type;
     buffer_type m_output_type;
     class argtbl_impl;  // Forward declaration
+    class op_tbl_impl;  // Forward declaration
     file_artifact artifacts;
   public:
     /*
@@ -234,6 +235,102 @@ class aiebu_assembler
      * @buffers:     ELF buffers
      */
     explicit aiebu_assembler(const std::vector<char>& buffer);
+
+    /*!
+     * @struct op_loc
+     *
+     * @brief
+     * op_loc groups all occurrences of a queried opcode found across the
+     * .dump section of one kernel instance.
+     *   - inst_name  — instance name (empty for standalone target ELFs)
+     *   - line_info  — opcode occurrences grouped by column number
+     */
+    struct op_loc {
+      /*!
+       * @struct lineinfo
+       *
+       * @brief
+       * lineinfo groups all opcode occurrences that share the same column.
+       *
+       * @col      AIE column number ("column" field in the .dump JSON entry)
+       * @entries  One entry per opcode occurrence on this column:
+       *             first  — linenumber (source line in the .asm file)
+       *             second — filename   (source .asm file path)
+       */
+      struct lineinfo {
+        uint32_t col;
+        std::vector<std::pair<uint32_t, std::string>> entries;  // linenumber, filename
+      };
+      std::string inst_name;   // instance name
+      std::vector<lineinfo> line_info;  // one entry per col
+    };
+
+    /*!
+     * @class op_tbl
+     *
+     * @brief
+     * op_tbl is a read-only container returned by get_op_locations().
+     * It holds one op_loc per instance that contains at least one
+     * occurrence of the queried opcode.
+     */
+    class op_tbl
+    {
+      private:
+        std::shared_ptr<op_tbl_impl> handle;
+      public:
+        explicit op_tbl(std::shared_ptr<op_tbl_impl> in_impl);
+
+        /*!
+         * Return a const reference to the vector of op_loc entries, one per
+         * instance, in section-traversal order.
+         */
+        [[nodiscard]]
+        std::vector<op_loc> get_line_info() const;
+    };
+
+    /*!
+     * @brief
+     * Scan the .dump section JSON of every instance of the given kernel and
+     * return an op_tbl containing one op_loc per instance that has at least
+     * one occurrence of the specified opcode.
+     *
+     * The .dump section holds the debug JSON written by the encoder at
+     * assembly time.  It is present by default and suppressed only when the
+     * ELF is assembled with the "disabledump" flag.
+     *
+     * Each op_loc carries:
+     *   inst_name  — instance name
+     *   line_info  — occurrences grouped by column; each lineinfo holds:
+     *     col     — AIE column number
+     *     entries — one {linenumber, filename} pair per opcode occurrence
+     *
+     * Applicable to full config ELFs (aie2ps_config / aie4_config).
+     *
+     * @param opcode       Raw ISA opcode value (e.g. OPCODE_SAVE_TIMESTAMPS = 0x1c)
+     * @param kernel_name  Kernel to scan (e.g. "DPU")
+     * @return             op_tbl in instance-traversal order; empty if no
+     *                     .dump section exists or no matching opcodes are found
+     * @throws aiebu::error  if kernel_name is not found or opcode is unknown
+     */
+    [[nodiscard]]
+    op_tbl
+    get_op_locations(uint8_t opcode, const std::string& kernel_name) const;
+
+    /*!
+     * @brief
+     * Overload for xclbin + elf ELFs.
+     *
+     * Scans the single .dump section and returns an op_tbl containing one
+     * op_loc for all occurrences of the specified opcode.
+     *
+     * @param opcode  Raw ISA opcode value (e.g. OPCODE_SAVE_TIMESTAMPS = 0x1c)
+     * @return        op_tbl — empty if no .dump section exists or the ELF was
+     *                assembled with the "disabledump" flag
+     * @throws aiebu::error  if opcode is unknown
+     */
+    [[nodiscard]]
+    op_tbl
+    get_op_locations(uint8_t opcode) const;
 
     /*!
      * @class argtbl
