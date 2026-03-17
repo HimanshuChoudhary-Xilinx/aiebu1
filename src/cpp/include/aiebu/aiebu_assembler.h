@@ -237,49 +237,6 @@ class aiebu_assembler
     explicit aiebu_assembler(const std::vector<char>& buffer);
 
     /*!
-     * @enum op_code
-     *
-     * @brief
-     * Opcodes that can be queried from the .dump section JSON.
-     */
-    enum class op_code {
-      start_job,
-      uc_dma_write_des,
-      wait_uc_dma,
-      mask_write_32,
-      load_cores,
-      write_32,
-      wait_tcts,
-      end_job,
-      yield,
-      uc_dma_write_des_sync,
-      write_32_d,
-      read_32,
-      read_32_d,
-      apply_offset_57,
-      add,
-      mov,
-      local_barrier,
-      remote_barrier,
-      poll_32,
-      mask_poll_32,
-      trace,
-      nop,
-      start_job_deferred,
-      launch_job,
-      preempt,
-      load_pdi,
-      load_last_pdi,
-      save_timestamps,
-      sleep,
-      save_register,
-      start_cond_job_preempt,
-      load_cores_cp,
-      rel_acq_sync,
-      eof,
-    };
-
-    /*!
      * @struct op_loc
      *
      * @brief
@@ -328,7 +285,7 @@ class aiebu_assembler
          * instance, in section-traversal order.
          */
         [[nodiscard]]
-        const std::vector<op_loc>& get_line_info() const;
+        std::vector<op_loc> get_line_info() const;
     };
 
     /*!
@@ -349,15 +306,15 @@ class aiebu_assembler
      *
      * Applicable to full config ELFs (aie2ps_config / aie4_config).
      *
-     * @param op           Opcode to search for (e.g. op_code::save_timestamps)
+     * @param opcode       Raw ISA opcode value (e.g. OPCODE_SAVE_TIMESTAMPS = 0x1c)
      * @param kernel_name  Kernel to scan (e.g. "DPU")
      * @return             op_tbl in instance-traversal order; empty if no
      *                     .dump section exists or no matching opcodes are found
-     * @throws aiebu::error  if kernel_name is not found
+     * @throws aiebu::error  if kernel_name is not found or opcode is unknown
      */
     [[nodiscard]]
     op_tbl
-    get_op_locations(op_code op, const std::string& kernel_name) const;
+    get_op_locations(uint8_t opcode, const std::string& kernel_name) const;
 
     /*!
      * @brief
@@ -366,13 +323,14 @@ class aiebu_assembler
      * Scans the single .dump section and returns an op_tbl containing one
      * op_loc for all occurrences of the specified opcode.
      *
-     * @param op    Opcode to search for (e.g. op_code::save_timestamps)
-     * @return      op_tbl — empty if no .dump section exists or the ELF was
-     *              assembled with the "disabledump" flag
+     * @param opcode  Raw ISA opcode value (e.g. OPCODE_SAVE_TIMESTAMPS = 0x1c)
+     * @return        op_tbl — empty if no .dump section exists or the ELF was
+     *                assembled with the "disabledump" flag
+     * @throws aiebu::error  if opcode is unknown
      */
     [[nodiscard]]
     op_tbl
-    get_op_locations(op_code op) const;
+    get_op_locations(uint8_t opcode) const;
 
     /*!
      * @class argtbl

@@ -179,7 +179,7 @@ op_tbl(std::shared_ptr<op_tbl_impl> in_impl)
   : handle(std::move(in_impl))
 {}
 
-const std::vector<aiebu_assembler::op_loc>&
+std::vector<aiebu_assembler::op_loc>
 aiebu_assembler::op_tbl::
 get_line_info() const
 {
@@ -190,83 +190,20 @@ get_line_info() const
 // aiebu_assembler::get_op_locations
 // ---------------------------------------------------------------------------
 
-// Map op_code enum to the case-insensitive prefix used in .dump JSON entries.
+// Look up the ISA name for a raw opcode value using the isa_disassembler map.
+// The returned string_view points into the stable isa_disassembler instance.
 static std::string_view
-op_code_prefix(aiebu_assembler::op_code op)
+opcode_to_name(uint8_t opcode)
 {
-  static const std::string start_job              = "start_job";
-  static const std::string uc_dma_write_des       = "uc_dma_write_des";
-  static const std::string wait_uc_dma            = "wait_uc_dma";
-  static const std::string mask_write_32          = "mask_write_32";
-  static const std::string load_cores             = "load_cores";
-  static const std::string write_32               = "write_32";
-  static const std::string wait_tcts              = "wait_tcts";
-  static const std::string end_job                = "end_job";
-  static const std::string yield                  = "yield";
-  static const std::string uc_dma_write_des_sync  = "uc_dma_write_des_sync";
-  static const std::string write_32_d             = "write_32_d";
-  static const std::string read_32                = "read_32";
-  static const std::string read_32_d              = "read_32_d";
-  static const std::string apply_offset_57        = "apply_offset_57";
-  static const std::string add                    = "add";
-  static const std::string mov                    = "mov";
-  static const std::string local_barrier          = "local_barrier";
-  static const std::string remote_barrier         = "remote_barrier";
-  static const std::string poll_32                = "poll_32";
-  static const std::string mask_poll_32           = "mask_poll_32";
-  static const std::string trace                  = "trace";
-  static const std::string nop                    = "nop";
-  static const std::string start_job_deferred     = "start_job_deferred";
-  static const std::string launch_job             = "launch_job";
-  static const std::string preempt                = "preempt";
-  static const std::string load_pdi               = "load_pdi";
-  static const std::string load_last_pdi          = "load_last_pdi";
-  static const std::string save_timestamps        = "save_timestamps";
-  static const std::string sleep                  = "sleep";
-  static const std::string save_register          = "save_register";
-  static const std::string start_cond_job_preempt = "start_cond_job_preempt";
-  static const std::string load_cores_cp          = "load_cores_cp";
-  static const std::string rel_acq_sync           = "rel_acq_sync";
-  static const std::string eof                    = "eof";
+  static const isa_disassembler s_isa;
+  const auto* isa_map = s_isa.get_isa_map();
 
-  switch (op) {
-    case aiebu_assembler::op_code::start_job:              return start_job;
-    case aiebu_assembler::op_code::uc_dma_write_des:       return uc_dma_write_des;
-    case aiebu_assembler::op_code::wait_uc_dma:            return wait_uc_dma;
-    case aiebu_assembler::op_code::mask_write_32:          return mask_write_32;
-    case aiebu_assembler::op_code::load_cores:             return load_cores;
-    case aiebu_assembler::op_code::write_32:               return write_32;
-    case aiebu_assembler::op_code::wait_tcts:              return wait_tcts;
-    case aiebu_assembler::op_code::end_job:                return end_job;
-    case aiebu_assembler::op_code::yield:                  return yield;
-    case aiebu_assembler::op_code::uc_dma_write_des_sync:  return uc_dma_write_des_sync;
-    case aiebu_assembler::op_code::write_32_d:             return write_32_d;
-    case aiebu_assembler::op_code::read_32:                return read_32;
-    case aiebu_assembler::op_code::read_32_d:              return read_32_d;
-    case aiebu_assembler::op_code::apply_offset_57:        return apply_offset_57;
-    case aiebu_assembler::op_code::add:                    return add;
-    case aiebu_assembler::op_code::mov:                    return mov;
-    case aiebu_assembler::op_code::local_barrier:          return local_barrier;
-    case aiebu_assembler::op_code::remote_barrier:         return remote_barrier;
-    case aiebu_assembler::op_code::poll_32:                return poll_32;
-    case aiebu_assembler::op_code::mask_poll_32:           return mask_poll_32;
-    case aiebu_assembler::op_code::trace:                  return trace;
-    case aiebu_assembler::op_code::nop:                    return nop;
-    case aiebu_assembler::op_code::start_job_deferred:     return start_job_deferred;
-    case aiebu_assembler::op_code::launch_job:             return launch_job;
-    case aiebu_assembler::op_code::preempt:                return preempt;
-    case aiebu_assembler::op_code::load_pdi:               return load_pdi;
-    case aiebu_assembler::op_code::load_last_pdi:          return load_last_pdi;
-    case aiebu_assembler::op_code::save_timestamps:        return save_timestamps;
-    case aiebu_assembler::op_code::sleep:                  return sleep;
-    case aiebu_assembler::op_code::save_register:          return save_register;
-    case aiebu_assembler::op_code::start_cond_job_preempt: return start_cond_job_preempt;
-    case aiebu_assembler::op_code::load_cores_cp:          return load_cores_cp;
-    case aiebu_assembler::op_code::rel_acq_sync:           return rel_acq_sync;
-    case aiebu_assembler::op_code::eof:                    return eof;
-    default:
-      throw error(error::error_code::invalid_input, "Invalid opcode");
-  }
+  auto it = isa_map->find(opcode);
+  if (it == isa_map->end())
+    throw error(error::error_code::invalid_input,
+                "Unknown opcode: 0x" + ELFIO::to_hex_string(opcode) + "\n");
+
+  return it->second.get_code_name();
 }
 
 // Parse one .dump JSON blob and append grouped lineinfo entries into loc,
@@ -301,11 +238,11 @@ parse_dump_json(const std::string& dump_json, std::string_view op_prefix,
 
 aiebu_assembler::op_tbl
 aiebu_assembler::
-get_op_locations(op_code op, const std::string& kernel_name) const
+get_op_locations(uint8_t opcode, const std::string& kernel_name) const
 {
   transform_manager trans(elf_data);
   std::vector<op_loc> results;
-  const auto prefix = op_code_prefix(op);
+  const auto prefix = opcode_to_name(opcode);
 
   if (kernel_name.empty()) {
     // Non-config ELF: single .dump section, no group filtering needed.
@@ -339,9 +276,9 @@ get_op_locations(op_code op, const std::string& kernel_name) const
 
 aiebu_assembler::op_tbl
 aiebu_assembler::
-get_op_locations(op_code op) const
+get_op_locations(uint8_t opcode) const
 {
-  return get_op_locations(op, "");
+  return get_op_locations(opcode, "");
 }
 
 class aiebu_assembler::argtbl_impl

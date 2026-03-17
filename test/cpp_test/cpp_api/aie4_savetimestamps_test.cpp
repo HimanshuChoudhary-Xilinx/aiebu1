@@ -6,14 +6,14 @@
 // Two modes, selected by the first argument:
 //
 //   config <path>   — Assemble a config ELF (aie4_config, config.json driven)
-//                     and call get_op_locations(op_code::save_timestamps, "DPU").
+//                     and call get_op_locations(0x1c, "DPU").
 //                     The directory must contain:
 //                       config.json, test.asm, aie_runtime_control.asm,
 //                       pdi.asm, aie_asm_elfs.asm, aie_asm_enable.asm,
 //                       aie_asm_init.asm
 //
 //   target <path>   — Assemble a standalone target ELF (asm_aie4, single ASM
-//                     buffer) and call get_op_locations(op_code::save_timestamps).
+//                     buffer) and call get_op_locations(0x1c).
 //                     The directory must contain test.asm (and its includes).
 
 #include "aiebu/aiebu_assembler.h"
@@ -75,7 +75,7 @@ static int test_config(const std::string& dir)
       {dir},
       config_json);
 
-  auto tbl = as.get_op_locations(aiebu::aiebu_assembler::op_code::save_timestamps, "DPU");
+  auto tbl = as.get_op_locations(0x1c, "DPU");  // 0x1c = SAVE_TIMESTAMPS
   if (tbl.get_line_info().empty()) {
     std::cerr << "FAIL: no save_timestamps found for kernel DPU\n";
     return 1;
@@ -103,7 +103,7 @@ static int test_target(const std::string& dir)
 
   // No kernel name → non-config ELF path: scans .dump section directly
   // without group-based kernel:instance filtering.
-  auto tbl = as.get_op_locations(aiebu::aiebu_assembler::op_code::save_timestamps);
+  auto tbl = as.get_op_locations(0x1c);  // 0x1c = SAVE_TIMESTAMPS
   if (tbl.get_line_info().empty()) {
     std::cerr << "FAIL: no save_timestamps found\n";
     return 1;
