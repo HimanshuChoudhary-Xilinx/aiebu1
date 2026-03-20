@@ -21,7 +21,9 @@ target_include_directories(${AIE2_FULLELF_TESTNAME} PRIVATE ${AIEBU_SOURCE_DIR}/
 set(AIE4_SAVETIMESTAMPS_TESTNAME "aie4_savetimestamps_cpp")
 add_executable(${AIE4_SAVETIMESTAMPS_TESTNAME} aie4_savetimestamps_test.cpp)
 target_link_libraries(${AIE4_SAVETIMESTAMPS_TESTNAME} PRIVATE aiebu_static)
-target_include_directories(${AIE4_SAVETIMESTAMPS_TESTNAME} PRIVATE ${AIEBU_SOURCE_DIR}/src/cpp/include)
+target_include_directories(${AIE4_SAVETIMESTAMPS_TESTNAME} PRIVATE
+  ${AIEBU_SOURCE_DIR}/src/cpp/include
+  ${AIEBU_ELFIO_SRC_DIR})
 if (NOT WIN32)
   target_link_libraries(${AIE4_SAVETIMESTAMPS_TESTNAME} PRIVATE pthread)
 endif()
