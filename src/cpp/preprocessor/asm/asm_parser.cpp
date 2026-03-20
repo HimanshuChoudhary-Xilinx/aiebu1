@@ -15,11 +15,15 @@
 // Provide portable replacements when compiling with MSVC.
 // ---------------------------------------------------------------------------
 #if defined(_MSC_VER)
-#include <intrin.h>
-static inline int aiebu_popcount(unsigned int x)
-{
-  return static_cast<int>(__popcnt(x));
+static inline int aiebu_popcount(unsigned int x) {
+  int count = 0;
+  while (x) {
+      count += x & 1;
+      x >>= 1;
+  }
+  return count;
 }
+
 static inline int aiebu_ctz(unsigned int x)
 {
   // _BitScanForward: index of lowest set bit; x must be non-zero (caller guarantees w != 0)

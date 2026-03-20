@@ -10,9 +10,40 @@
 
 #ifdef _WIN32
 #include <windows.h>
-#define dlopen(lib, flags) LoadLibrary(lib)
-#define dlsym(handle, symbol) GetProcAddress((HMODULE)(handle), (symbol))
-#define dlclose(handle) FreeLibrary((HMODULE)(handle))
+// UNICODE builds map LoadLibrary -> LoadLibraryW; use LoadLibraryA for const char* paths.
+#ifndef RTLD_LAZY
+#define RTLD_LAZY 0
+#endif
+
+static inline void*
+aiebu_dlopen(const char* path, int /*flags*/)
+{
+  return reinterpret_cast<void*>(LoadLibraryA(path));
+}
+
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wcast-function-type-mismatch"
+#endif
+template<typename T>
+static inline T
+aiebu_dlsym(void* handle, const char* symbol)
+{
+  FARPROC p = GetProcAddress(static_cast<HMODULE>(handle), symbol);
+  return reinterpret_cast<T>(p);
+}
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
+
+static inline void
+aiebu_dlclose(void* handle)
+{
+  FreeLibrary(static_cast<HMODULE>(handle));
+}
+
+#define dlopen(path, flags) aiebu_dlopen((path), (flags))
+#define dlclose(handle)       aiebu_dlclose((handle))
 #else
 #include <dlfcn.h>
 #endif
@@ -44,16 +75,29 @@ run_dtrace_test(const std::string& dtrace_lib_path, const std::string& script_fi
     }
 
     // load and check functions from dtrace compiler
-    auto create_dtrace_handle = 
+#ifdef _WIN32
+    auto create_dtrace_handle =
+        aiebu_dlsym<create_dtrace_handle_t>(dtrace_lib_handle, "create_dtrace_handle");
+    auto get_dtrace_col_numbers =
+        aiebu_dlsym<get_dtrace_col_numbers_t>(dtrace_lib_handle, "get_dtrace_col_numbers");
+    auto get_dtrace_buffer_size =
+        aiebu_dlsym<get_dtrace_buffer_size_t>(dtrace_lib_handle, "get_dtrace_buffer_size");
+    auto populate_dtrace_buffer =
+        aiebu_dlsym<populate_dtrace_buffer_t>(dtrace_lib_handle, "populate_dtrace_buffer");
+    auto destroy_dtrace_handle =
+        aiebu_dlsym<destroy_dtrace_handle_t>(dtrace_lib_handle, "destroy_dtrace_handle");
+#else
+    auto create_dtrace_handle =
         reinterpret_cast<create_dtrace_handle_t>(dlsym(dtrace_lib_handle, "create_dtrace_handle"));
-    auto get_dtrace_col_numbers = 
+    auto get_dtrace_col_numbers =
         reinterpret_cast<get_dtrace_col_numbers_t>(dlsym(dtrace_lib_handle, "get_dtrace_col_numbers"));
-    auto get_dtrace_buffer_size = 
+    auto get_dtrace_buffer_size =
         reinterpret_cast<get_dtrace_buffer_size_t>(dlsym(dtrace_lib_handle, "get_dtrace_buffer_size"));
-    auto populate_dtrace_buffer = 
+    auto populate_dtrace_buffer =
         reinterpret_cast<populate_dtrace_buffer_t>(dlsym(dtrace_lib_handle, "populate_dtrace_buffer"));
-    auto destroy_dtrace_handle = 
+    auto destroy_dtrace_handle =
         reinterpret_cast<destroy_dtrace_handle_t>(dlsym(dtrace_lib_handle, "destroy_dtrace_handle"));
+#endif
     if (!create_dtrace_handle || !get_dtrace_col_numbers || !get_dtrace_buffer_size || 
         !populate_dtrace_buffer || !destroy_dtrace_handle) 
     {
