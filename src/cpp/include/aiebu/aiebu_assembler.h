@@ -8,6 +8,10 @@
 #include <string>
 #include <vector>
 
+namespace ELFIO {
+class elfio;
+}
+
 namespace aiebu {
 
 /*!
@@ -235,6 +239,13 @@ class aiebu_assembler
      * @buffers:     ELF buffers
      */
     explicit aiebu_assembler(const std::vector<char>& buffer);
+
+    /*
+     * Construct aiebu_assembler from an ELFIO in-memory ELF object.
+     *
+     * @param elf  Non-null pointer to ELFIO::elfio; nullptr throws aiebu::error.
+     */
+    explicit aiebu_assembler(ELFIO::elfio* elf);
 
     /*!
      * @struct op_loc

@@ -21,6 +21,8 @@
 #include <map>
 #include <string>
 #include <limits>
+#include <iterator>
+#include <sstream>
 
 namespace aiebu {
 
@@ -413,6 +415,20 @@ aiebu_assembler(const std::string& elf_fnm)
 
 aiebu_assembler::
 aiebu_assembler(const std::vector<char>& buffer): elf_data(buffer) { }
+
+aiebu_assembler::
+aiebu_assembler(ELFIO::elfio* elf)
+{
+  if (!elf)
+    throw error(error::error_code::invalid_input, "elf pointer is null");
+
+  std::stringstream stream;
+  stream << std::noskipws;
+  elf->save(stream);
+  std::copy(std::istream_iterator<char>(stream),
+            std::istream_iterator<char>(),
+            std::back_inserter(elf_data));
+}
 
 class file_artifact_impl
 {
