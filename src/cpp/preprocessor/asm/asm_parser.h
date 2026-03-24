@@ -592,8 +592,13 @@ public:
   void parse_lines(const std::vector<char>& data, std::string& file);
 
   std::vector<char> get_asm_data(const std::string& name);
-  void set_current_col(int col) { m_current_col = col;
-    m_col[m_current_col] = col_data();
+  // Switch active column for subsequent opcodes. Do not replace existing col_data:
+  // the same column may be selected again after .include; wiping
+  // would drop earlier subgraphs' asm for that column.
+  void set_current_col(int col) {
+    m_current_col = col;
+    if (m_col.find(col) == m_col.end())
+      m_col[col] = col_data();
   }
 
   std::map<std::string, uint32_t>& getcollabelpageindex(int col) { return m_col[col].get_labelpageindex(); }
