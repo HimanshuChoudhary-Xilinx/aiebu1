@@ -108,29 +108,7 @@ class asm_config_preprocessor_input : public preprocessor_input
   const file_artifact* m_artifacts = nullptr;
 protected: // NOLINT
   std::map<std::string, std::map<std::string, std::shared_ptr<asm_preprocessor_input>>> m_preprocessor_input;
-  // Global level custom sections
-  std::map<std::string, std::vector<uint8_t>> m_global_custom_sections;
-
-  // Helper to parse custom_section array from JSON
-  std::map<std::string, std::vector<uint8_t>> parse_custom_sections(
-      const boost::property_tree::ptree& pt,
-      const std::vector<std::string>& paths)
-  {
-    std::map<std::string, std::vector<uint8_t>> custom_sections;
-    const auto& pt_custom_sections = pt.get_child_optional("custom_section");
-    if (pt_custom_sections) {
-      for (const auto& [sec_unused, section] : pt_custom_sections.get()) {
-        auto section_name = section.get<std::string>("section_name");
-        if (custom_sections.count(section_name))
-          throw error(error::error_code::invalid_input,
-                     "custom_section: duplicate section_name \"" + section_name + "\"");
-        auto section_path = section.get<std::string>("path");
-        auto section_data = readfile(section_path, paths);
-        custom_sections[section_name] = std::vector<uint8_t>(section_data.begin(), section_data.end());
-      }
-    }
-    return custom_sections;
-  }
+  global_custom_section_storage m_global_custom_sections;
 
 public:
   const std::map<std::string, std::map<std::string, std::shared_ptr<asm_preprocessor_input>>>&
@@ -138,7 +116,7 @@ public:
 
   const std::map<std::string, std::vector<uint8_t>>& get_global_custom_sections() const
   {
-    return m_global_custom_sections;
+    return m_global_custom_sections.map();
   }
 
   void add_instance(const std::string& kernel,
@@ -171,7 +149,7 @@ public:
     boost::property_tree::read_json(patch_json, pt);
 
     // Parse global-level custom_section
-    m_global_custom_sections = parse_custom_sections(pt, paths);
+    m_global_custom_sections.assign(parse_custom_sections(pt, paths));
 
     const auto& pt_xrt_kernel_instance = pt.get_child_optional("xrt-kernels");
     if (!pt_xrt_kernel_instance) {

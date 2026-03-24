@@ -6,14 +6,27 @@
 #include "symbol.h"
 #include "aiebu/aiebu_error.h"
 #include "aiebu/aiebu_assembler.h"
+#include "file_utils.h"
+
+#include <boost/property_tree/ptree.hpp>
 
 #include <algorithm>
+#include <cstdint>
 #include <map>
 #include <vector>
 #include <unordered_map>
 #include <string>
 
 namespace aiebu {
+
+class global_custom_section_storage
+{
+  std::map<std::string, std::vector<uint8_t>> m_map;
+
+public:
+  const std::map<std::string, std::vector<uint8_t>>& map() const { return m_map; }
+  void assign(std::map<std::string, std::vector<uint8_t>> parsed) { m_map = std::move(parsed); }
+};
 
 class preprocessor_input
 {
@@ -58,6 +71,26 @@ protected:
         }
     }
     return mangled_name;
+  }
+
+  std::map<std::string, std::vector<uint8_t>> parse_custom_sections(
+      const boost::property_tree::ptree& pt,
+      const std::vector<std::string>& paths)
+  {
+    std::map<std::string, std::vector<uint8_t>> custom_sections;
+    const auto& pt_custom_sections = pt.get_child_optional("custom_section");
+    if (pt_custom_sections) {
+      for (const auto& [sec_unused, section] : pt_custom_sections.get()) {
+        auto section_name = section.get<std::string>("section_name");
+        if (custom_sections.count(section_name))
+          throw error(error::error_code::invalid_input,
+                     "custom_section: duplicate section_name \"" + section_name + "\"");
+        auto section_path = section.get<std::string>("path");
+        auto section_data = readfile(section_path, paths);
+        custom_sections[section_name] = std::vector<uint8_t>(section_data.begin(), section_data.end());
+      }
+    }
+    return custom_sections;
   }
 
 public:

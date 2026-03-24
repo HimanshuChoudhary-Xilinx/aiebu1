@@ -106,12 +106,7 @@ public:
     auto output_writer = std::make_shared<config_writer>(pinfo_first_instance);
     twriter.push_back(output_writer);
 
-    // Add global level custom sections
-    const auto& global_sections = tinput->get_global_custom_sections();
-    for (const auto& [section_name, section_data] : global_sections) {
-      output_writer->add_global_custom_section(
-          std::make_shared<section_writer>(section_name, code_section::custom, std::vector<uint8_t>(section_data)));
-    }
+    output_writer->add_section_writers_from_custom_section_map(tinput->get_global_custom_sections());
 
     for (auto& [kernel, instances] : tinput->get_kernel_map()) {
       for(auto& [iname, instance] : instances)

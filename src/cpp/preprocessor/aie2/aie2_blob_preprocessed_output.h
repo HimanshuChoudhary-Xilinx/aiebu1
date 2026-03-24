@@ -90,11 +90,9 @@ public:
   }
 };
 
-class aie2_config_preprocessed_output: public preprocessed_output
+class aie2_config_preprocessed_output: public config_preprocessed_output_base
 {
   std::map<std::string, instance_output> m_output;
-  // Global level custom sections
-  std::map<std::string, std::vector<uint8_t>> m_global_custom_sections;
 
 public:
 
@@ -107,15 +105,6 @@ public:
 
   void add_kernel_common_data(const std::string& kernel, const std::string& dname, std::vector<uint8_t> val) {
     m_output[kernel].add_common_data(dname, std::move(val));
-  }
-
-  // Global level custom sections
-  void set_global_custom_sections(const std::map<std::string, std::vector<uint8_t>>& sections) {
-    m_global_custom_sections = sections;
-  }
-
-  const std::map<std::string, std::vector<uint8_t>>& get_global_custom_sections() const {
-    return m_global_custom_sections;
   }
 };
 

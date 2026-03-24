@@ -409,8 +409,7 @@ class aie2_config_preprocessor_input : public aie2_blob_transaction_preprocessor
   static constexpr const char* pm_ctrlpkt_type = "pmctrlpkt";
   std::map<std::string, instance_input> kernel_map;
   const file_artifact* m_artifacts = nullptr;
-  // Global level custom sections
-  std::map<std::string, std::vector<uint8_t>> m_global_custom_sections;
+  global_custom_section_storage m_global_custom_sections;
 
 protected:
   void readconfigjson(std::istream& patch_json, const std::vector<std::string>& paths);
@@ -425,27 +424,6 @@ protected:
   std::string get_pmctrlpkt_name(uint32_t pdi_id)
   {
     return ".ctrlpkt.pm." + std::to_string(pdi_id);
-  }
-
-  // Helper to parse custom_section array from JSON
-  std::map<std::string, std::vector<uint8_t>> parse_custom_sections(
-      const boost::property_tree::ptree& pt,
-      const std::vector<std::string>& paths)
-  {
-    std::map<std::string, std::vector<uint8_t>> custom_sections;
-    const auto& pt_custom_sections = pt.get_child_optional("custom_section");
-    if (pt_custom_sections) {
-      for (const auto& [sec_unused, section] : pt_custom_sections.get()) {
-        auto section_name = section.get<std::string>("section_name");
-        if (custom_sections.count(section_name))
-          throw error(error::error_code::invalid_input,
-                     "custom_section: duplicate section_name \"" + section_name + "\"");
-        auto section_path = section.get<std::string>("path");
-        auto section_data = readfile(section_path, paths);
-        custom_sections[section_name] = std::vector<uint8_t>(section_data.begin(), section_data.end());
-      }
-    }
-    return custom_sections;
   }
 
 public:
@@ -472,7 +450,7 @@ public:
 
   const std::map<std::string, std::vector<uint8_t>>& get_global_custom_sections() const
   {
-    return m_global_custom_sections;
+    return m_global_custom_sections.map();
   }
 };
 

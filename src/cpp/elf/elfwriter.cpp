@@ -278,6 +278,15 @@ process_common_helper(const std::vector<std::shared_ptr<writer>>& mwriter, const
   return section_index_list;
 }
 
+void
+elf_writer::
+process_global_custom_sections_if_any(const std::vector<std::shared_ptr<writer>>& global_sections)
+{
+  if (global_sections.empty())
+    return;
+  process_common_helper(global_sections, "");
+}
+
 std::vector<char>
 elf_writer::
 process(std::vector<std::shared_ptr<writer>>& mwriter)

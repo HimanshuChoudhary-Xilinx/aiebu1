@@ -42,12 +42,7 @@ public:
     init_symtab();
     uint32_t index=0;
 
-    // Add global level custom sections first
-    const auto& global_sections = mconfig_writer->get_global_custom_sections();
-    if (!global_sections.empty()) {
-      std::vector<std::shared_ptr<writer>> global_vec(global_sections.begin(), global_sections.end());
-      process_common_helper(global_vec, "");
-    }
+    process_global_custom_sections_if_any(mconfig_writer->get_global_custom_sections());
 
     for( auto& [kernel, instances] : mconfig_writer->get_kernel_map())
     {

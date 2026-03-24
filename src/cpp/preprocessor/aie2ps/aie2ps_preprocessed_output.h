@@ -110,11 +110,9 @@ public:
 };
 
 template <typename T>
-class asm_config_preprocessed_output: public preprocessed_output
+class asm_config_preprocessed_output: public config_preprocessed_output_base
 {
   std::map<std::string, std::map<std::string, std::shared_ptr<T>>> m_output;
-  // Global level custom sections
-  std::map<std::string, std::vector<uint8_t>> m_global_custom_sections;
 
 public:
   const std::map<std::string, std::map<std::string, std::shared_ptr<T>>>&
@@ -122,15 +120,6 @@ public:
 
   void add_kernel_map(const std::string& kernel, const std::string& instance, std::shared_ptr<T> val) {
     m_output[kernel][instance] = val;
-  }
-
-  // Global level custom sections
-  void set_global_custom_sections(const std::map<std::string, std::vector<uint8_t>>& sections) {
-    m_global_custom_sections = sections;
-  }
-
-  const std::map<std::string, std::vector<uint8_t>>& get_global_custom_sections() const {
-    return m_global_custom_sections;
   }
 };
 
