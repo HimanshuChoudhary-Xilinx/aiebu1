@@ -271,6 +271,10 @@ parse_lines(const std::vector<char>& data, std::string& file)
           if (!hintmap_label.empty() && hintmap_label[0] == '@') {
             hintmap_label = hintmap_label.substr(1);
           }
+          if (!hintmap_label.empty()) {
+            std::transform(hintmap_label.begin(), hintmap_label.end(), hintmap_label.begin(),
+                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+          }
         }
 
         // Get save/restore labels - specific to hintmap if present, otherwise use group labels
