@@ -11,7 +11,7 @@ elf_writer::
 add_section(const elf_section& data)
 {
   // add section
-  ELFIO::section* sec = m_elfio.sections.add(data.get_name());
+  ELFIO::section* sec = add_section_by_name(data.get_name());
   sec->set_type(data.get_type());
   sec->set_flags(data.get_flags());
   sec->set_addr_align(data.get_align());
@@ -106,7 +106,7 @@ void
 elf_writer::
 add_note(ELFIO::Elf_Word type, const std::string& name, const std::vector<char>& dec)
 {
-  ELFIO::section* note_sec = m_elfio.sections.add( name.c_str() );
+  ELFIO::section* note_sec = add_section_by_name(name);
   note_sec->set_type( ELFIO::SHT_NOTE );
   note_sec->set_addr_align( 1 );
 
@@ -193,10 +193,10 @@ void
 elf_writer::
 init_symtab()
 {
-  str_sec = m_elfio.sections.add(".strtab");
+  str_sec = add_section_by_name(".strtab");
   str_sec->set_type(ELFIO::SHT_STRTAB);
   str_sec->set_entry_size(0);
-  sym_sec = m_elfio.sections.add(".symtab");
+  sym_sec = add_section_by_name(".symtab");
   sym_sec->set_type(ELFIO::SHT_SYMTAB);
   sym_sec->set_info(1);
   sym_sec->set_addr_align(0x4);
@@ -233,12 +233,12 @@ elf_writer::
 init_dynamic_sections()
 {
   std::call_once(dynamic_flag, [this] {
-    dstr_sec = m_elfio.sections.add( ".dynstr" );
+    dstr_sec = add_section_by_name( ".dynstr" );
     dstr_sec->set_type( ELFIO::SHT_STRTAB );
     dstr_sec->set_entry_size( 0 );
     ELFIO::string_section_accessor stra( dstr_sec );
 
-    dsym_sec = m_elfio.sections.add(".dynsym");
+    dsym_sec = add_section_by_name(".dynsym");
     dsym_sec->set_type( ELFIO::SHT_DYNSYM );
     dsym_sec->set_addr_align( phdr_align );
     dsym_sec->set_entry_size(m_elfio.get_default_entry_size(ELFIO::SHT_SYMTAB));
@@ -246,13 +246,13 @@ init_dynamic_sections()
     dsym_sec->set_info( 1 );
 
 
-    rel_sec = m_elfio.sections.add( ".rela.dyn" );
+    rel_sec = add_section_by_name( ".rela.dyn" );
     rel_sec->set_type( ELFIO::SHT_RELA );
     rel_sec->set_addr_align(phdr_align);
     rel_sec->set_entry_size(m_elfio.get_default_entry_size(ELFIO::SHT_RELA));
     rel_sec->set_link( dsym_sec->get_index() );
 
-    dynamic_sec = m_elfio.sections.add( ".dynamic" );
+    dynamic_sec = add_section_by_name( ".dynamic" );
     dynamic_sec->set_type( ELFIO::SHT_DYNAMIC );
     dynamic_sec->set_addr_align( phdr_align );
     dynamic_sec->set_link( dstr_sec->get_index() );
@@ -302,7 +302,7 @@ elf_writer::
 add_group(const std::string& name, const std::vector<uint32_t>& member, ELFIO::Elf_Word info_index)
 {
   // add section
-  ELFIO::section* sec = m_elfio.sections.add(name);
+  ELFIO::section* sec = add_section_by_name(name);
   sec->set_type(ELFIO::SHT_GROUP);
   sec->set_addr_align(align);
   sec->set_info(info_index);
