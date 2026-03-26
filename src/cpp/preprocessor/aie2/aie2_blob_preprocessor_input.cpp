@@ -496,8 +496,8 @@ add_preemption_code(uint32_t col)
           if (std::find(pm_id_list.begin(), pm_id_list.end(), pm_id) == pm_id_list.end())
           {
             pm_exist = false;
-            std::cout << "PM id:" << std::hex << pm_id << std::dec
-                      << " has no corresponding pm control packet given by user!!!\n";
+            log_info() << "PM id:" << std::hex << pm_id << std::dec
+                       << " has no corresponding pm control packet given by user!!!\n";
           }
           ptr += sizeof(XAie_PmLoadHdr);
           break;
@@ -664,8 +664,8 @@ add_preemption_code(uint32_t col)
           if (std::find(pm_id_list.begin(), pm_id_list.end(), pm_id) == pm_id_list.end())
           {
             pm_exist = false;
-            std::cout << "PM id:" << std::hex << pm_id << std::dec
-                      << " has no corresponding pm control packet given by user!!!\n";
+            log_info() << "PM id:" << std::hex << pm_id << std::dec
+                       << " has no corresponding pm control packet given by user!!!\n";
           }
           ptr += sizeof(XAie_PmLoadHdr);
           break;
