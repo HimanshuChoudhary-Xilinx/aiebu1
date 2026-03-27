@@ -206,10 +206,13 @@ public:
   aie_row_topology_directive& operator=(aie_row_topology_directive&&) = default;
 };
 
-// Filename intern table: maps each unique source-file name to a compact 16-bit index.
-// thread_local keeps concurrent parse jobs on different threads isolated.
+// Filename intern table: maps each unique source-file name to a compact 32-bit index.
+// thread_local: It means each thread gets its own separate copy of the table,
+// which keeps concurrent parse jobs on different threads isolated.
 // The table is never cleared; indices remain valid as long as the thread is alive,
 // which always outlives any asm_data objects created on that thread.
+// inline: This global variable can be defined in multiple translation units without
+// violating the One Definition Rule (ODR).
 namespace detail {
   inline thread_local std::vector<std::string> g_filename_table;
 
