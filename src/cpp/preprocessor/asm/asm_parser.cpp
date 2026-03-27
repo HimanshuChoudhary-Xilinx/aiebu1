@@ -1081,7 +1081,7 @@ asm_parser::update_preempt_opcodes(int col)
                    << " to @" << new_lbl.first << "/@" << new_lbl.second << std::endl;
 
         entry->set_operation(operation("preempt", new_args));
-        entry->set_line("preempt\t" + new_args);
+        // set_line() removed: get_line() now reconstructs from the operation on demand.
       }
     }
   } catch (...) {

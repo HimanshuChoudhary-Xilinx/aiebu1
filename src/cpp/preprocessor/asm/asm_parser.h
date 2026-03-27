@@ -72,6 +72,8 @@ public:
   }
 
   const std::string& get_name() const { return m_name; }
+  // Raw (lowercased) args string — used to reconstruct the assembly line on demand.
+  const std::string& get_args_str() const { return m_args_str; }
 
   // Splits m_args_str on whitespace (comma-trimmed) and returns the result.
   // Returning by value avoids storing a heap vector on every asm_data object;
@@ -212,7 +214,8 @@ class asm_data
   offset_type m_size;
   pageid_type m_pagenum;
   uint32_t m_linenumber;
-  std::string m_line;
+  // m_line removed: the assembly text is reconstructed on demand via get_line()
+  // from the operation's name and args_str, saving ~2.7 GB for 41M objects.
   std::string m_file;
   int m_annotation_index = -1;
 
@@ -220,9 +223,9 @@ public:
   asm_data() = default;
   asm_data(operation op, operation_type optype,
            code_section sec, offset_type size, uint32_t pgnum,
-           uint32_t ln, std::string line, std::string file)
+           uint32_t ln, std::string /*line*/, std::string file)
            :m_op(std::move(op)), m_optype(optype), m_section(sec), m_size(size),
-            m_pagenum(pgnum), m_linenumber(ln), m_line(std::move(line)), m_file(std::move(file)) {}
+            m_pagenum(pgnum), m_linenumber(ln), m_file(std::move(file)) {}
 
   asm_data( asm_data* a)
   {
@@ -232,7 +235,6 @@ public:
     a->m_size = m_size;
     a->m_pagenum = m_pagenum;
     a->m_linenumber = m_linenumber;
-    a->m_line = m_line;
     a->m_file = m_file;
   }
 
@@ -241,7 +243,16 @@ public:
   HEADER_ACCESS_GET_SET(pageid_type, pagenum);
   HEADER_ACCESS_GET_SET(uint32_t, linenumber);
   HEADER_ACCESS_GET_SET(std::string, file);
-  HEADER_ACCESS_GET_SET(std::string, line);
+
+  // Reconstructs the assembly line text from the stored operation on demand.
+  // Returns lowercased text (e.g. "vldr\tr0, [sp, #4]"); no heap copy is stored.
+  std::string get_line() const {
+    const auto& n = m_op.get_name();
+    const auto& a = m_op.get_args_str();
+    if (a.empty()) return n;
+    return n + '\t' + a;
+  }
+
   bool isLabel() { return m_optype == operation_type::label; }
   bool isOpcode() { return m_optype == operation_type::op; }
   bool isAnnotation() { return m_optype == operation_type::annotation; }
