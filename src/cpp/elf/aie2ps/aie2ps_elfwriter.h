@@ -38,13 +38,6 @@ public:
   std::vector<char>
   process(std::vector<std::shared_ptr<writer>>& mwriter) override
   {
-
-    {
-      using namespace std::chrono;
-      auto now = system_clock::now();
-      std::time_t now_c = system_clock::to_time_t(now);
-      log_info() << "ELFWRITER Wall clock time: " << std::put_time(std::localtime(&now_c), "%Y-%m-%d %H:%M:%S") << "\n";
-  }
     auto mconfig_writer = std::dynamic_pointer_cast<config_writer>(mwriter[0]);
     init_symtab();
     uint32_t index=0;

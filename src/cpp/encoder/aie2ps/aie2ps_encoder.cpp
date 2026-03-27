@@ -64,13 +64,7 @@ process(std::shared_ptr<preprocessed_output> input)
   auto& ctrlpkt = tinput->get_ctrlpkt();
   auto& ctrlpkt_id_map = tinput->get_ctrlpkt_id_map();
   m_dump_flag = tinput->get_debug();
-  {
-    using namespace std::chrono;
-    auto now = system_clock::now();
-    std::time_t now_c = system_clock::to_time_t(now);
-    log_info() << "ENCODER Wall clock time: " << std::put_time(std::localtime(&now_c), "%Y-%m-%d %H:%M:%S") << "\n";
-    sleep(10);
-  }
+
   // for each colnum encode each page
   for (const auto& coldata: totalcoldata) {
     auto colnum = coldata.first;

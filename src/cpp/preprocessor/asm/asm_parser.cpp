@@ -155,13 +155,6 @@ void
 asm_parser::
 parse_lines(const std::vector<char>& data, std::string& file)
 {
-  {
-    using namespace std::chrono;
-    auto now = system_clock::now();
-    std::time_t now_c = system_clock::to_time_t(now);
-    log_info() << "parse_lines Wall clock time: " << std::put_time(std::localtime(&now_c), "%Y-%m-%d %H:%M:%S") << "\n";
-    sleep(10);
-  }
   //parse asm code
   const static regex COMMENT_REGEX("^;(.*)$");
   const static regex LABEL_REGEX("^([a-zA-Z0-9_]+):$");
