@@ -27,29 +27,7 @@ public:
   Line(uint32_t linenumber, offset_type high_pc, offset_type low_pc, const std::string& opcode, int annotation_index)
       : m_linenumber(linenumber), m_highpc(high_pc), m_lowpc(low_pc), m_opcode(opcode), m_annotation_index(annotation_index) {}
 
-  json to_json(int sno, uint32_t column, pageid_type page_num, const std::string& filename, const std::vector<annotation_type>& annotations) const {
-    json j = {
-             {"sno", sno},
-             {"operation", m_opcode},
-             {"opcode_size", m_highpc - m_lowpc + 1},
-             {"column", column},
-             {"page_index", page_num},
-             {"page_offset", m_lowpc},
-             {"line", m_linenumber},
-             {"file", filename}
-        };
-
-    if (m_annotation_index != -1 && m_annotation_index < static_cast<int>(annotations.size())) {
-      j["annotation"] = {
-                {"id", annotations[m_annotation_index].get_id()},
-                {"name", annotations[m_annotation_index].get_name()},
-                {"description", annotations[m_annotation_index].get_description()}
-        };
-    }
-    return j;
-  }
-
-  // Streaming variant: writes JSON directly to out, avoiding a per-line heap allocation.
+  // Writes JSON directly to out, avoiding a per-line heap allocation.
   void write_json(std::ostream& out, int sno, uint32_t column, pageid_type page_num,
                   const std::string& filename, const std::vector<annotation_type>& annotations) const {
     out << "{\"sno\":" << sno
@@ -132,23 +110,8 @@ public:
     functions.at(func)->add_dataline(std::make_shared<Line>(line, hi, lo, opcode, ann));
   }
 
-  json to_json() const {
-    json lines_json = json::array();
-    int sno = 1;
-    for (const auto& key : insertion_order) {
-      const auto& func = functions.at(key);
-      for (const auto& line : func->get_textlines()) {
-        lines_json.push_back(line->to_json(sno++, func->get_column(), func->get_pagenum(), func->get_filename(), m_annotation_list));
-      }
-      for (const auto& line : func->get_datalines()) {
-        lines_json.push_back(line->to_json(sno++, func->get_column(), func->get_pagenum(), func->get_filename(), m_annotation_list));
-      }
-    }
-    return {{"debug", lines_json}};
-  }
-
-  // Streaming variant: serialises the entire debug array directly into out,
-  // never building the 22 GB in-memory JSON tree.
+  // Serialises the entire debug array directly into out,
+  // never building a large in-memory JSON tree.
   void write_json(std::ostream& out) const {
     out << "{\"debug\":[";
     bool first = true;
@@ -195,22 +158,6 @@ class asm_report {
         : m_colnum(colnum), m_pagenum(pagenum), m_textsize(textsize), m_datasize(datasize),
           m_jobids(jobids), m_localbarriermap(barriermap), m_joblaunchmap(launchmap) {}
 
-    json to_json() const {
-      json j;
-      j["column"] = m_colnum;
-      j["page_index"] = m_pagenum;
-      j["text_size"] = m_textsize;
-      j["data_size"] = m_datasize;
-      j["job_ids"] = m_jobids;
-
-      for (const auto& [bid, jobs] : m_localbarriermap) {
-        j["local_barriers"][std::to_string(bid)] = jobs;
-      }
-      for (const auto& [jid, deps] : m_joblaunchmap) {
-        j["launch_dependencies"][jid] = deps;
-      }
-      return j;
-    }
   };
 
   std::string m_build_id = aiebu_build_version_hash;
@@ -219,23 +166,6 @@ public:
   void addpage(page& lpage, std::shared_ptr<assembler_state> page_state, offset_type textsize, offset_type datasize); // Implementation assumed
 
   void summary(std::ostream& output);
-
-  json to_json() const {
-    json j;
-    j["build_id"] = m_build_id;
-    json colpages_json;
-
-    for (const auto& [col, pages] : m_colpages) {
-      json pages_array = json::array();
-      for (const auto& pg : pages) {
-        pages_array.push_back(pg.to_json());
-      }
-      colpages_json[std::to_string(col)] = pages_array;
-    }
-
-    j["columns"] = colpages_json;
-    return j;
-  }
 };
 
 }

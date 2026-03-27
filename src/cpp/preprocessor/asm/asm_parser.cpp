@@ -172,8 +172,7 @@ parse_lines(const std::vector<char>& data, std::string& file)
       str += c;
     }
   }
-  // Scan str for newlines directly instead of copying it into an istringstream,
-  // saving ~1.2 GB of peak RSS.
+  // Scan str for newlines directly instead of copying it into an istringstream
   size_t pos = 0;
   const size_t str_len = str.size();
   auto read_next_line = [&](std::string& out) -> bool {

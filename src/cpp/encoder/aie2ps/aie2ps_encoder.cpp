@@ -90,17 +90,14 @@ process(std::shared_ptr<preprocessed_output> input)
     m_report.summary(std::cout);
 
   if (m_dump_flag == asm_dump_flag::full) {
-    // Report
-    m_report.summary(std::cout);
-    // Write to debug_map.json using streaming serialisation (no 22 GB tree)
+    // Write to debug_map.json using streaming serialisation.
     std::ofstream file("debug_map.json");
     m_debug.write_json(file);
     file.close();
   }
 
   // Optional binary dump if debug flag is not disabled.
-  // Stream JSON directly into the section vector via a thin streambuf shim,
-  // avoiding both the 22 GB nlohmann tree and the extra 8 GB string copy.
+  // Stream JSON directly into the section vector via a thin streambuf shim.
   if (m_dump_flag != asm_dump_flag::disable) {
     auto dumpwriter = std::make_shared<section_writer>(".dump", code_section::data);
     std::vector<uint8_t> dump_data;
