@@ -179,35 +179,30 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
   std::string fid;
   for (const auto& text : lpage.m_text)
   {
-    //TODO add debug info
-    std::string name = text->get_operation()->get_name();
-    offset_type pc_low, pc_high;
+    const std::string& name = text->get_operation()->get_name();
+    auto args = text->get_operation()->get_args();
 
     // Text section debug info is only collected when it will actually be serialised.
     if (m_dump_flag != asm_dump_flag::disable) {
+      offset_type pc_low = pagenum * PAGE_SIZE + textwriter->tell();
+      offset_type pc_high;
       if (name == "start_job" || name == "start_job_deferred" || name == "start_cond_job_preempt") {
-        pc_low = pagenum * PAGE_SIZE + textwriter->tell();
         // Note: eopnum=0 passed since makeunique=false means eopnum is not used
         pc_high = pc_low + page_state->m_jobmap[page_state->gen_job_name(false, text, 0)]->get_size() - 1;
         fid = m_debug.add_function(text->get_file_idx(), name + "_" + page_state->gen_job_name(false, text, 0), pc_high, pc_low, colnum, pagenum);
       }
-    }
-    pc_low = pagenum * PAGE_SIZE + textwriter->tell();
-    {
-      auto args = text->get_operation()->get_args();  // split once, reuse below
       pc_high = pc_low + (*m_isa)[name]->serializer(args)->size(*page_state) - 1;
-      if (m_dump_flag != asm_dump_flag::disable)
-        m_debug.add_textline(fid, text->get_linenumber(), pc_high, pc_low, text->get_line(), text->get_annotation_index());
-
-      if (text->isOpcode())
-      {
-        page_state->set_pos(textwriter->tell() - offset);
-        std::vector<uint8_t> ret = (*m_isa)[name]->serializer(args)
-                                                 ->serialize(page_state, tsym, colnum, pagenum);
-        textwriter->write_bytes(ret);
-      } else
-        throw error(error::error_code::internal_error, "Invalid operation: " + name + " in TEXT section !!!");
+      m_debug.add_textline(fid, text->get_linenumber(), pc_high, pc_low, text->get_line(), text->get_annotation_index());
     }
+
+    if (text->isOpcode())
+    {
+      page_state->set_pos(textwriter->tell() - offset);
+      std::vector<uint8_t> ret = (*m_isa)[name]->serializer(args)
+                                                 ->serialize(page_state, tsym, colnum, pagenum);
+      textwriter->write_bytes(ret);
+    } else
+        throw error(error::error_code::internal_error, "Invalid operation: " + name + " in TEXT section !!!");
   }
 
   std::vector<symbol> dsym;

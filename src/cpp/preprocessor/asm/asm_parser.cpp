@@ -239,7 +239,7 @@ parse_lines(const std::vector<char>& data, std::string& file)
       } else
         insert_col_asmdata(std::make_shared<asm_data>(operation(sm[1].str(), ""),
                                                       operation_type::label, code_section::unknown, 0,
-                                                      (uint32_t)-1, linenumber, line, file));
+                                                      (uint32_t)-1, linenumber, file));
       continue;
     }
     // check for operation
@@ -327,7 +327,7 @@ parse_lines(const std::vector<char>& data, std::string& file)
 
       insert_col_asmdata(std::make_shared<asm_data>(operation(op_name, arg_str),
                                                     operation_type::op, code_section::unknown, 0, (uint32_t)-1,
-                                                    linenumber, line, file));
+                                                    linenumber, file));
       if (!op_name.compare("eof"))
         set_data_state(true);
     }
@@ -1236,7 +1236,7 @@ operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm)
   // dummy eof added if col change happens before eof
   m_parserptr->insert_col_asmdata(std::make_shared<asm_data>(operation("eof", ""),
                                                     operation_type::op, code_section::unknown, 0, (uint32_t)-1,
-                                                    0, "eof", "default"));
+                                                    0, "default"));
   m_parserptr->set_current_col(std::stoi(sm[2].str()));
   m_parserptr->set_data_state(false);
 }

@@ -234,9 +234,8 @@ class asm_data
   offset_type m_size;
   pageid_type m_pagenum;
   uint32_t m_linenumber;
-   // m_line removed: assembly text is reconstructed on demand via get_line().
-  // m_file replaced with a 2-byte index into a thread_local intern table,
-  // shrinking asm_data from ~128B to ~96B and saving ~1.3 GB for 41M objects.
+  // m_line removed: assembly text is reconstructed on demand via get_line().
+  // m_file replaced with a 32-bit index into a thread_local intern table.
   uint32_t m_file_idx;
   int m_annotation_index = -1;
 
@@ -244,7 +243,7 @@ public:
   asm_data() = default;
   asm_data(operation op, operation_type optype,
            code_section sec, offset_type size, uint32_t pgnum,
-           uint32_t ln, std::string /*line*/, const std::string& file)
+           uint32_t ln, const std::string& file)
            :m_op(std::move(op)), m_optype(optype), m_section(sec), m_size(size),
             m_pagenum(pgnum), m_linenumber(ln),
             m_file_idx(detail::intern_filename(file)) {}
