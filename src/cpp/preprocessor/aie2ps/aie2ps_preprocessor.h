@@ -82,9 +82,21 @@ public:
     }
     
     std::shared_ptr<asm_parser> parser(new asm_parser(tinput->get_ctrlcode_data(), tinput->get_include_paths(), get_target_name(), tinput->get_artifacts()));
-
+    {
+      using namespace std::chrono;
+      auto now = system_clock::now();
+      std::time_t now_c = system_clock::to_time_t(now);
+      log_info() << "PREPROCESSOR bEFORe Wall clock time: " << std::put_time(std::localtime(&now_c), "%Y-%m-%d %H:%M:%S") << "\n";
+  }
+    sleep(10);
     parser->parse_lines();
-
+    sleep(10);
+    {
+      using namespace std::chrono;
+      auto now = system_clock::now();
+      std::time_t now_c = system_clock::to_time_t(now);
+      log_info() << "PREPROCESSOR AFTER Wall clock time: " << std::put_time(std::localtime(&now_c), "%Y-%m-%d %H:%M:%S") << "\n";
+  }
     // Verify PREEMPT opcode count is equal across all columns in the control code.
     // All controllers must have the same number of preemption points to ensure consistent
     // in cert, as cert synchronize preemption points at runtime and mismatch may lead to hang.

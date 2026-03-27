@@ -48,6 +48,27 @@ public:
     return j;
   }
 
+  // Streaming variant: writes JSON directly to out, avoiding a per-line heap allocation.
+  void write_json(std::ostream& out, int sno, uint32_t column, pageid_type page_num,
+                  const std::string& filename, const std::vector<annotation_type>& annotations) const {
+    out << "{\"sno\":" << sno
+        << ",\"operation\":" << json(m_opcode).dump()
+        << ",\"opcode_size\":" << (m_highpc - m_lowpc + 1)
+        << ",\"column\":" << column
+        << ",\"page_index\":" << page_num
+        << ",\"page_offset\":" << m_lowpc
+        << ",\"line\":" << m_linenumber
+        << ",\"file\":" << json(filename).dump();
+    if (m_annotation_index != -1 && m_annotation_index < static_cast<int>(annotations.size())) {
+      out << ",\"annotation\":{"
+          << "\"id\":"          << json(annotations[m_annotation_index].get_id()).dump()
+          << ",\"name\":"       << json(annotations[m_annotation_index].get_name()).dump()
+          << ",\"description\":" << json(annotations[m_annotation_index].get_description()).dump()
+          << '}';
+    }
+    out << '}';
+  }
+
 private:
   uint32_t m_linenumber;
   offset_type m_highpc;
@@ -119,6 +140,28 @@ public:
       }
     }
     return {{"debug", lines_json}};
+  }
+
+  // Streaming variant: serialises the entire debug array directly into out,
+  // never building the 22 GB in-memory JSON tree.
+  void write_json(std::ostream& out) const {
+    out << "{\"debug\":[";
+    bool first = true;
+    int sno = 1;
+    for (const auto& key : insertion_order) {
+      const auto& func = functions.at(key);
+      for (const auto& line : func->get_textlines()) {
+        if (!first) out << ',';
+        first = false;
+        line->write_json(out, sno++, func->get_column(), func->get_pagenum(), func->get_filename(), m_annotation_list);
+      }
+      for (const auto& line : func->get_datalines()) {
+        if (!first) out << ',';
+        first = false;
+        line->write_json(out, sno++, func->get_column(), func->get_pagenum(), func->get_filename(), m_annotation_list);
+      }
+    }
+    out << "]}";
   }
 
 private:

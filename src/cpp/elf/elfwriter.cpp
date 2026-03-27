@@ -120,6 +120,13 @@ finalize()
 {
   add_note(NT_XRT_UID, ".note.xrt.UID", m_uid.calculate());
   log_info() << "UID:" << m_uid.str() << "\n";
+  {
+    using namespace std::chrono;
+    auto now = system_clock::now();
+    std::time_t now_c = system_clock::to_time_t(now);
+    log_info() << "FINALIZE Wall clock time: " << std::put_time(std::localtime(&now_c), "%Y-%m-%d %H:%M:%S") << "\n";
+    sleep(10);
+  }
   std::stringstream stream;
   stream << std::noskipws;
   //m_elfio.save( "hello_32" );

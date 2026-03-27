@@ -55,25 +55,44 @@ const std::string R_BRACK_RE("[[:space:]]*\\)[[:space:]]*");
 class operation
 {
   std::string m_name;
-  std::vector<std::string> m_args;
+  // Store the lowercased args string as-is (no eager split).
+  // Most instructions have short arg lists that fit in SSO (≤15 chars),
+  // eliminating the heap vector block that the old std::vector<std::string>
+  // required on every construction. The vector is built on demand in get_args().
+  std::string m_args_str;
 public:
+
+  operation() = default;
 
   operation(const std::string& name, std::string sargs): m_name(name)
   {
     std::transform(m_name.begin(), m_name.end(), m_name.begin(), [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
     std::transform(sargs.begin(), sargs.end(), sargs.begin(), [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
-
-    std::string s;
-    std::stringstream ss(sargs);
-    while (std::getline(ss, s, ' ')) {
-      if (s.size() == 0)
-        continue;
-      m_args.emplace_back(s.substr(0, s.find_last_not_of(",")+1));
-    }
+    m_args_str = std::move(sargs);
   }
 
   const std::string& get_name() const { return m_name; }
-  const std::vector<std::string>& get_args() const { return m_args; }
+
+  // Splits m_args_str on whitespace (comma-trimmed) and returns the result.
+  // Returning by value avoids storing a heap vector on every asm_data object;
+  // callers that need the vector more than once should capture it in a local.
+  std::vector<std::string> get_args() const {
+    std::vector<std::string> result;
+    size_t i = 0;
+    const size_t len = m_args_str.size();
+    while (i < len) {
+      while (i < len && m_args_str[i] == ' ') ++i;
+      if (i >= len) break;
+      size_t j = i;
+      while (j < len && m_args_str[j] != ' ') ++j;
+      // trim trailing comma(s)
+      size_t k = j;
+      while (k > i && m_args_str[k - 1] == ',') --k;
+      if (k > i) result.emplace_back(m_args_str, i, k - i);
+      i = j;
+    }
+    return result;
+  }
 };
 
 class asm_parser;
@@ -187,7 +206,7 @@ public:
 
 class asm_data
 {
-  std::shared_ptr<operation> m_op;
+  operation m_op;
   operation_type m_optype;
   code_section m_section;
   offset_type m_size;
@@ -199,11 +218,11 @@ class asm_data
 
 public:
   asm_data() = default;
-  asm_data(std::shared_ptr<operation> op, operation_type optype,
+  asm_data(operation op, operation_type optype,
            code_section sec, offset_type size, uint32_t pgnum,
            uint32_t ln, std::string line, std::string file)
-           :m_op(op), m_optype(optype), m_section(sec), m_size(size),
-            m_pagenum(pgnum), m_linenumber(ln), m_line(line), m_file(file) {}
+           :m_op(std::move(op)), m_optype(optype), m_section(sec), m_size(size),
+            m_pagenum(pgnum), m_linenumber(ln), m_line(std::move(line)), m_file(std::move(file)) {}
 
   asm_data( asm_data* a)
   {
@@ -226,8 +245,10 @@ public:
   bool isLabel() { return m_optype == operation_type::label; }
   bool isOpcode() { return m_optype == operation_type::op; }
   bool isAnnotation() { return m_optype == operation_type::annotation; }
-  std::shared_ptr<operation> get_operation() { return m_op; }
-  void set_operation(std::shared_ptr<operation> op) { m_op = op; }
+  // Returns a raw pointer to the inline operation — always non-null.
+  operation* get_operation() { return &m_op; }
+  const operation* get_operation() const { return &m_op; }
+  void set_operation(operation op) { m_op = std::move(op); }
   int get_annotation_index() { return m_annotation_index; }
   void set_annotation_index(int annotation_index) { m_annotation_index = annotation_index; }
 };

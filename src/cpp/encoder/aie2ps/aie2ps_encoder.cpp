@@ -6,6 +6,7 @@
 #include "logger.h"
 
 #include <cassert>
+#include <fstream>
 #include <iostream>
 
 namespace aiebu {
@@ -63,7 +64,13 @@ process(std::shared_ptr<preprocessed_output> input)
   auto& ctrlpkt = tinput->get_ctrlpkt();
   auto& ctrlpkt_id_map = tinput->get_ctrlpkt_id_map();
   m_dump_flag = tinput->get_debug();
-
+  {
+    using namespace std::chrono;
+    auto now = system_clock::now();
+    std::time_t now_c = system_clock::to_time_t(now);
+    log_info() << "ENCODER Wall clock time: " << std::put_time(std::localtime(&now_c), "%Y-%m-%d %H:%M:%S") << "\n";
+    sleep(10);
+  }
   // for each colnum encode each page
   for (const auto& coldata: totalcoldata) {
     auto colnum = coldata.first;
@@ -84,28 +91,43 @@ process(std::shared_ptr<preprocessed_output> input)
       twriter.push_back(ctrlpktwriter); 
     }
   }
-
   // Report (only if log level is info or higher)
   if (get_log_level() >= log_level::info)
     m_report.summary(std::cout);
 
-  // Debug JSON serialization
-  json dbg_json = m_debug.to_json();
-
   if (m_dump_flag == asm_dump_flag::full) {
     // Report
     m_report.summary(std::cout);
-    // Write to debug_map.json
+    // Write to debug_map.json using streaming serialisation (no 22 GB tree)
     std::ofstream file("debug_map.json");
-    file << dbg_json.dump(4);  // pretty print with 4-space indent
+    m_debug.write_json(file);
     file.close();
   }
 
   // Optional binary dump if debug flag is not disabled.
+  // Stream JSON directly into the section vector via a thin streambuf shim,
+  // avoiding both the 22 GB nlohmann tree and the extra 8 GB string copy.
   if (m_dump_flag != asm_dump_flag::disable) {
     auto dumpwriter = std::make_shared<section_writer>(".dump", code_section::data);
-    std::string dbg_str = dbg_json.dump(); // no indent for compact output
-    dumpwriter->write_bytes(dbg_str);
+    std::vector<uint8_t> dump_data;
+    {
+      struct vec_streambuf : std::streambuf {
+        std::vector<uint8_t>& buf;
+        explicit vec_streambuf(std::vector<uint8_t>& b) : buf(b) {}
+        std::streamsize xsputn(const char* s, std::streamsize n) override {
+          buf.insert(buf.end(), reinterpret_cast<const uint8_t*>(s),
+                     reinterpret_cast<const uint8_t*>(s) + n);
+          return n;
+        }
+        int overflow(int c) override {
+          if (c != EOF) buf.push_back(static_cast<uint8_t>(c));
+          return c;
+        }
+      } vsb(dump_data);
+      std::ostream os(&vsb);
+      m_debug.write_json(os);
+    }
+    dumpwriter->set_data(dump_data);
     twriter.push_back(dumpwriter);
   }
   return twriter;
@@ -174,17 +196,20 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
       fid = m_debug.add_function(text->get_file(), name + "_" + page_state->gen_job_name(false, text, 0), pc_high, pc_low, colnum, pagenum);
     }
     pc_low = pagenum * PAGE_SIZE + textwriter->tell();
-    pc_high = pc_low + (*m_isa)[name]->serializer(text->get_operation()->get_args())->size(*page_state) - 1;
-    m_debug.add_textline(fid, text->get_linenumber(), pc_high, pc_low, text->get_line(), text->get_annotation_index());
-
-    if (text->isOpcode())
     {
-      page_state->set_pos(textwriter->tell() - offset);
-      std::vector<uint8_t> ret = (*m_isa)[name]->serializer(text->get_operation()->get_args())
-                                               ->serialize(page_state, tsym, colnum, pagenum);
-      textwriter->write_bytes(ret);
-    } else 
-      throw error(error::error_code::internal_error, "Invalid operation: " + name + " in TEXT section !!!");
+      auto args = text->get_operation()->get_args();  // split once, reuse below
+      pc_high = pc_low + (*m_isa)[name]->serializer(args)->size(*page_state) - 1;
+      m_debug.add_textline(fid, text->get_linenumber(), pc_high, pc_low, text->get_line(), text->get_annotation_index());
+
+      if (text->isOpcode())
+      {
+        page_state->set_pos(textwriter->tell() - offset);
+        std::vector<uint8_t> ret = (*m_isa)[name]->serializer(args)
+                                                 ->serialize(page_state, tsym, colnum, pagenum);
+        textwriter->write_bytes(ret);
+      } else
+        throw error(error::error_code::internal_error, "Invalid operation: " + name + " in TEXT section !!!");
+    }
   }
 
   std::vector<symbol> dsym;
@@ -200,13 +225,14 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
       // TODO assert
     } else if (data->isOpcode())
     {
+      auto args = data->get_operation()->get_args();  // split once, reuse below
       // data section dump is only generated in case of full dump.
       if (m_dump_flag == asm_dump_flag::full) {
         offset_type pc_low = pagenum * PAGE_SIZE + textwriter->tell() + datawriter->tell();
-        offset_type pc_high = pc_low + (*m_isa)[name]->serializer(data->get_operation()->get_args())->size(*page_state) - 1;
+        offset_type pc_high = pc_low + (*m_isa)[name]->serializer(args)->size(*page_state) - 1;
         m_debug.add_dataline(fid, data->get_linenumber(), pc_high, pc_low, data->get_line(), data->get_annotation_index());
       }
-      std::vector<uint8_t> ret = (*m_isa)[name]->serializer(data->get_operation()->get_args())
+      std::vector<uint8_t> ret = (*m_isa)[name]->serializer(args)
                                                ->serialize(page_state, dsym, colnum, pagenum);
       datawriter->write_bytes(ret);
     } else 

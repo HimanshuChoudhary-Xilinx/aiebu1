@@ -280,7 +280,7 @@ assignpagenumber(assembler_state& state, uint32_t colnum,
   auto aligner = dsize ? datasectionaligner(tsize) : 0;
   // add align for data section
   if (aligner)
-    lpage.m_text.emplace_back(std::make_shared<asm_data>(std::make_shared<operation>(".align", "16"),
+    lpage.m_text.emplace_back(std::make_shared<asm_data>(operation(".align", "16"),
                                                     operation_type::op, code_section::text, 0,
                                                     (uint32_t)-1, 0, ".align 16", "default"));
   uint32_t cur_page_len = PAGE_HEADER_SIZE + tsize + EOF_SIZE + aligner + dsize;
