@@ -136,7 +136,7 @@ public:
     return 0;
   }
 
-  virtual void process_outstanding_ext_op(const std::shared_ptr<operation> op) {
+  virtual void process_outstanding_ext_op(const operation* op) {
     const std::vector<std::string>& args = op->get_args();
     throw error(error::error_code::internal_error, opcode_table.at(m_code) +
                     " does not require extended operands" + args[0]);
@@ -221,7 +221,7 @@ public:
     return static_cast<unsigned int>((get_op_size() - get_op_base_size()) / sizeof(uint32_t));
   }
 
-  void process_outstanding_ext_op(const std::shared_ptr<operation> op) override {
+  void process_outstanding_ext_op(const operation* op) override {
     if (outstanding_extended_operand_count == 0)
       throw error(error::error_code::invalid_asm, "This instance of " + get_mnemonic() +
                       " cannot have more than " + std::to_string(total_extended_operand_count()) + " operands");
@@ -562,7 +562,7 @@ aie2_asm_preprocessor_input::aie2_asm_preprocessor_input() {
   m_mnemonic_table.emplace("xaie_io_custom_op_record_timer", std::make_unique<aie2_isa_op_factory<XAIE_IO_CUSTOM_OP_RECORD_TIMER_op>>());
 }
 
-std::unique_ptr<aie2_isa_op> aie2_asm_preprocessor_input::assemble_operation(std::shared_ptr<operation> op)
+std::unique_ptr<aie2_isa_op> aie2_asm_preprocessor_input::assemble_operation(const operation* op)
 {
   auto iter  = m_mnemonic_table.find(op->get_name());
 

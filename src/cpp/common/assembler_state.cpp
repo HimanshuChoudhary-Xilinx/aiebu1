@@ -120,7 +120,7 @@ process(bool makeunique)
       // only used in pager
       // since label are after control code ops we need to record intermediately and resolve it later
       if (!name.compare("apply_offset_57") && makeunique)
-        apply_label_map[data->get_file() + ":" + data->get_operation()->get_args()[0].substr(1)]
+        apply_label_map[std::to_string(data->get_file_idx()) + ":" + data->get_operation()->get_args()[0].substr(1)]
                  = std::stoul(data->get_operation()->get_args()[1]);
     } else {
       throw error(error::error_code::internal_error, "Unknown type found!!!");
