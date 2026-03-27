@@ -127,6 +127,7 @@ process(std::shared_ptr<preprocessed_output> input)
       std::ostream os(&vsb);
       m_debug.write_json(os);
     }
+    log_info() << ".dump JSON size: " << dump_data.size() << " bytes\n";
     dumpwriter->set_data(dump_data);
     twriter.push_back(dumpwriter);
   }
@@ -194,7 +195,7 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
         pc_low = pagenum * PAGE_SIZE + textwriter->tell();
         // Note: eopnum=0 passed since makeunique=false means eopnum is not used
         pc_high = pc_low + page_state->m_jobmap[page_state->gen_job_name(false, text, 0)]->get_size() - 1;
-        fid = m_debug.add_function(text->get_file(), name + "_" + page_state->gen_job_name(false, text, 0), pc_high, pc_low, colnum, pagenum);
+        fid = m_debug.add_function(text->get_file_idx(), name + "_" + page_state->gen_job_name(false, text, 0), pc_high, pc_low, colnum, pagenum);
       }
     }
     pc_low = pagenum * PAGE_SIZE + textwriter->tell();

@@ -13,6 +13,7 @@
 #include "json/nlohmann/json.hpp"
 #include "utils.h"
 #include "assembler_state.h"
+#include "asm/asm_parser.h"
 #include "asm/page.h"
 #include "version.h"
 
@@ -81,8 +82,10 @@ private:
 class Function {
 public:
 
-  Function(const std::string& filename, const std::string& name, offset_type high_pc, offset_type low_pc, uint32_t col, pageid_type pagenum)
-        : m_filename(filename), m_name(name), m_colnum(col), m_pagenum(pagenum), m_highpc(high_pc), m_lowpc(low_pc) {}
+  // Takes a file index instead of the filename
+  // string, avoiding a heap allocation per Function object.
+  Function(uint32_t file_idx, const std::string& name, offset_type high_pc, offset_type low_pc, uint32_t col, pageid_type pagenum)
+        : m_file_idx(file_idx), m_name(name), m_colnum(col), m_pagenum(pagenum), m_highpc(high_pc), m_lowpc(low_pc) {}
 
   void add_textline(std::shared_ptr<Line> line) { m_textlines.push_back(std::move(line)); }
   void add_dataline(std::shared_ptr<Line> line) { m_datalines.push_back(std::move(line)); }
@@ -90,7 +93,8 @@ public:
   const std::vector<std::shared_ptr<Line>>& get_textlines() const { return m_textlines; }
   const std::vector<std::shared_ptr<Line>>& get_datalines() const { return m_datalines; }
 
-  const std::string& get_filename() const { return m_filename; }
+  // Looks up the filename string on demand from the intern table.
+  const std::string& get_filename() const { return detail::lookup_filename(m_file_idx); }
   const std::string& get_name() const { return m_name; }
   uint32_t get_column() const { return m_colnum; }
   pageid_type get_pagenum() const { return m_pagenum; }
@@ -98,7 +102,8 @@ public:
   offset_type get_lowPc() const { return m_lowpc; }
 
 private:
-  std::string m_filename, m_name;
+  uint32_t m_file_idx;
+  std::string m_name;
   uint32_t m_colnum;
   pageid_type m_pagenum;
   offset_type m_highpc, m_lowpc;
@@ -112,9 +117,9 @@ public:
     m_annotation_list = std::move(annotations);
   }
 
-  std::string add_function(const std::string& filename, const std::string& name, offset_type high_pc, offset_type low_pc, uint32_t col, pageid_type pagenum) {
-    std::string key = filename + std::to_string(col) + name;
-    functions[key] = std::make_shared<Function>(filename, name, high_pc, low_pc, col, pagenum);
+  std::string add_function(uint32_t file_idx, const std::string& name, offset_type high_pc, offset_type low_pc, uint32_t col, pageid_type pagenum) {
+    std::string key = std::to_string(file_idx) + "_" + std::to_string(col) + "_" + name;
+    functions[key] = std::make_shared<Function>(file_idx, name, high_pc, low_pc, col, pagenum);
     insertion_order.push_back(key);
     return key;
   }

@@ -266,6 +266,7 @@ public:
   HEADER_ACCESS_GET_SET(uint32_t, linenumber);
   const std::string& get_file() const { return detail::lookup_filename(m_file_idx); }
   void set_file(const std::string& val) { m_file_idx = detail::intern_filename(val); }
+  uint32_t get_file_idx() const { return m_file_idx; }
 
   // Reconstructs the assembly line text from the stored operation on demand.
   // Returns lowercased text (e.g. "vldr\tr0, [sp, #4]"); no heap copy is stored.

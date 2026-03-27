@@ -122,7 +122,7 @@ extractlabels(assembler_state& state, std::shared_ptr<asm_data> token)
       auto lb = arg.substr(1);
       if (state.containscratchpads(lb))
         continue;
-      lb = token->get_file() + ":" + lb;
+      lb = std::to_string(token->get_file_idx()) + ":" + lb;
       if (state.m_labelmap.find(lb) == state.m_labelmap.end())
       {
         throw error(error::error_code::internal_error, "Label not found " + lb);
@@ -162,7 +162,7 @@ extract_externallabels(assembler_state& /*state*/, std::shared_ptr<asm_data> tok
       continue;
 
     auto lb = arg.substr(1);
-    lb = token->get_file() + ":" + lb;
+    lb = std::to_string(token->get_file_idx()) + ":" + lb;
     std::vector<std::string> vlb {lb};
     labels = union_of_lists_inorder<std::string>(labels, vlb);
   }

@@ -115,7 +115,7 @@ protected:
   std::set<std::string> m_opt_opcodes;
   inline std::string gen_label_name(bool makeunique, const std::shared_ptr<asm_data> data)
   {
-    return makeunique ? data->get_file() + ":" + data->get_operation()->get_name() : data->get_operation()->get_name();
+    return makeunique ? std::to_string(data->get_file_idx()) + ":" + data->get_operation()->get_name() : data->get_operation()->get_name();
   }
 
   inline std::string gen_eop_name(uint32_t eopnum)
@@ -167,7 +167,7 @@ public:
     // Include eopnum in job name to allow same job ID across page boundaries in single file
     // Format: file:eopN:jobid (e.g., "default:eop0:0", "default:eop1:0")
     if (makeunique)
-      return data->get_file() + ":eop" + std::to_string(eopnum) + ":" + data->get_operation()->get_args()[0];
+      return std::to_string(data->get_file_idx()) + ":eop" + std::to_string(eopnum) + ":" + data->get_operation()->get_args()[0];
     else
       return data->get_operation()->get_args()[0];
   }
