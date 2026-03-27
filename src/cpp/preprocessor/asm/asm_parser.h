@@ -206,6 +206,26 @@ public:
   aie_row_topology_directive& operator=(aie_row_topology_directive&&) = default;
 };
 
+// Filename intern table: maps each unique source-file name to a compact 16-bit index.
+// thread_local keeps concurrent parse jobs on different threads isolated.
+// The table is never cleared; indices remain valid as long as the thread is alive,
+// which always outlives any asm_data objects created on that thread.
+namespace detail {
+  inline thread_local std::vector<std::string> g_filename_table;
+
+  inline uint32_t intern_filename(const std::string& fname) {
+    auto& tbl = g_filename_table;
+    for (uint32_t i = 0; i < static_cast<uint32_t>(tbl.size()); ++i)
+      if (tbl[i] == fname) return i;
+    tbl.push_back(fname);
+    return static_cast<uint32_t>(tbl.size() - 1);
+  }
+
+  inline const std::string& lookup_filename(uint32_t idx) {
+    return g_filename_table[idx];
+  }
+} // namespace detail
+
 class asm_data
 {
   operation m_op;
@@ -214,18 +234,20 @@ class asm_data
   offset_type m_size;
   pageid_type m_pagenum;
   uint32_t m_linenumber;
-  // m_line removed: the assembly text is reconstructed on demand via get_line()
-  // from the operation's name and args_str, saving ~2.7 GB for 41M objects.
-  std::string m_file;
+   // m_line removed: assembly text is reconstructed on demand via get_line().
+  // m_file replaced with a 2-byte index into a thread_local intern table,
+  // shrinking asm_data from ~128B to ~96B and saving ~1.3 GB for 41M objects.
+  uint32_t m_file_idx;
   int m_annotation_index = -1;
 
 public:
   asm_data() = default;
   asm_data(operation op, operation_type optype,
            code_section sec, offset_type size, uint32_t pgnum,
-           uint32_t ln, std::string /*line*/, std::string file)
+           uint32_t ln, std::string /*line*/, const std::string& file)
            :m_op(std::move(op)), m_optype(optype), m_section(sec), m_size(size),
-            m_pagenum(pgnum), m_linenumber(ln), m_file(std::move(file)) {}
+            m_pagenum(pgnum), m_linenumber(ln),
+            m_file_idx(detail::intern_filename(file)) {}
 
   asm_data( asm_data* a)
   {
@@ -235,14 +257,15 @@ public:
     a->m_size = m_size;
     a->m_pagenum = m_pagenum;
     a->m_linenumber = m_linenumber;
-    a->m_file = m_file;
+    a->m_file_idx = m_file_idx;
   }
 
   HEADER_ACCESS_GET_SET(code_section, section);
   HEADER_ACCESS_GET_SET(offset_type, size);
   HEADER_ACCESS_GET_SET(pageid_type, pagenum);
   HEADER_ACCESS_GET_SET(uint32_t, linenumber);
-  HEADER_ACCESS_GET_SET(std::string, file);
+  const std::string& get_file() const { return detail::lookup_filename(m_file_idx); }
+  void set_file(const std::string& val) { m_file_idx = detail::intern_filename(val); }
 
   // Reconstructs the assembly line text from the stored operation on demand.
   // Returns lowercased text (e.g. "vldr\tr0, [sp, #4]"); no heap copy is stored.
