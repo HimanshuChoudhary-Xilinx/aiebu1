@@ -64,12 +64,46 @@ process(std::shared_ptr<preprocessed_output> input)
   auto& ctrlpkt_id_map = tinput->get_ctrlpkt_id_map();
   m_dump_flag = tinput->get_debug();
 
-  // for each colnum encode each page
+  // For each column, encode all pages into a single merged section (.ctrltext.<col>.0).
+  // Each page occupies exactly PAGE_SIZE bytes: [header 16B][text][data][padding to PAGE_SIZE].
   for (const auto& coldata: totalcoldata) {
     auto colnum = coldata.first;
-    for (auto& lpage : coldata.second->m_pages)
+    auto merged_writer = std::make_shared<section_writer>(get_TextSectionName(colnum), code_section::text);
+
+    // Track the merged section position before each page and the page's symbols.
+    // merged_writer->tell() before page N = N * PAGE_SIZE.
+    struct per_page_sym_info {
+      offset_type pre_tell;
+      std::vector<symbol> syms;
+    };
+    std::vector<per_page_sym_info> all_page_info;
+
+    for (auto& lpage : coldata.second->m_pages) {
+      offset_type pre_tell = merged_writer->tell();
+      std::vector<symbol> page_syms;
       page_writer(lpage, coldata.second->m_scratchpad, coldata.second->m_labelpageindex,
-                                 ctrlpkt_id_map, optimizatiom_level);
+                  ctrlpkt_id_map, optimizatiom_level, merged_writer, page_syms);
+      all_page_info.push_back({pre_tell, std::move(page_syms)});
+    }
+
+    // Correct symbol positions so they are absolute within the merged section.
+    // page_writer encodes into per-page temp writers: symbol pos = T_N + D_bd
+    // (where T_N = text instruction bytes, D_bd = data offset within this page).
+    // In the merged section, the BD is at: pre_tell + 16 + T_N + D_bd.
+    // So correction = pre_tell + 16.
+    std::vector<symbol> merged_syms;
+    for (auto& info : all_page_info) {
+      offset_type correction = info.pre_tell;// + 16;
+      for (auto& sym : info.syms) {
+        sym.set_pos(sym.get_pos() + correction);
+        sym.set_section_name(merged_writer->get_name());
+      }
+      merged_syms.insert(merged_syms.end(), info.syms.begin(), info.syms.end());
+    }
+    if (!merged_syms.empty())
+      merged_writer->add_symbols(merged_syms);
+
+    twriter.push_back(merged_writer);
 
     if (coldata.second->m_scratchpad.size()) {
       auto padwriter = std::make_shared<section_writer>(get_PadSectionName(colnum), code_section::data);
@@ -129,9 +163,10 @@ findKey(const std::map<std::string, std::vector<std::string>>& myMap, const std:
 void
 aie2ps_encoder::
 page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>& scratchpad,
-  std::map<std::string, uint32_t>& labelpageindex, std::map<uint32_t, std::string>& ctrlpkt_id_map, uint32_t optimization_level)
+  std::map<std::string, uint32_t>& labelpageindex, std::map<uint32_t, std::string>& ctrlpkt_id_map,
+  uint32_t optimization_level, std::shared_ptr<section_writer> merged_writer,
+  std::vector<symbol>& page_syms)
 {
-  // encode page
   std::vector<uint8_t> page_header = { 0xFF, 0xFF, 0x00, 0x00,
                                        0x00, 0x00, 0x00, 0x00,
                                        0x00, 0x00, 0x00, 0x00,
@@ -145,31 +180,30 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
 
   auto pagenum = lpage.get_pagenum();
   auto colnum = lpage.get_colnum();
-  // create state
+
+  // Per-page temp writers: encode text and data independently so that patch57
+  // logic (which relies on textwriter->tell() == header+text size) is unchanged.
+  auto textwriter = std::make_shared<section_writer>("", code_section::text);
+  auto datawriter = std::make_shared<section_writer>("", code_section::data);
+
   std::vector<std::shared_ptr<asm_data>> all;
   all.insert(all.end(), lpage.m_text.begin(), lpage.m_text.end());
   all.insert(all.end(), lpage.m_data.begin(), lpage.m_data.end());
-  std::shared_ptr<assembler_state> page_state = create_assembler_state(m_isa, all, scratchpad, labelpageindex, ctrlpkt_id_map, optimization_level,false);
-
-  auto textwriter = std::make_shared<section_writer>(get_TextSectionName(colnum, pagenum), code_section::text);
-  auto datawriter = std::make_shared<section_writer>(get_DataSectionName(colnum, pagenum), code_section::data);
+  std::shared_ptr<assembler_state> page_state = create_assembler_state(m_isa, all, scratchpad, labelpageindex, ctrlpkt_id_map, optimization_level, false);
 
   textwriter->write_bytes(page_header);
 
-  // encode text section
-  offset_type offset = textwriter->tell();
+  // offset_local is the position of the first text instruction in textwriter (= 16)
+  offset_type offset_local = textwriter->tell();
   std::vector<symbol> tsym;
   std::string fid;
   for (const auto& text : lpage.m_text)
   {
-    //TODO add debug info
     std::string name = text->get_operation()->get_name();
     offset_type pc_low, pc_high;
 
-    // Text section dump is default generated
     if (name == "start_job" || name == "start_job_deferred" || name == "start_cond_job_preempt") {
       pc_low = pagenum * PAGE_SIZE + textwriter->tell();
-      // Note: eopnum=0 passed since makeunique=false means eopnum is not used
       pc_high = pc_low + page_state->m_jobmap[page_state->gen_job_name(false, text, 0)]->get_size() - 1;
       fid = m_debug.add_function(text->get_file(), name + "_" + page_state->gen_job_name(false, text, 0), pc_high, pc_low, colnum, pagenum);
     }
@@ -179,7 +213,7 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
 
     if (text->isOpcode())
     {
-      page_state->set_pos(textwriter->tell() - offset);
+      page_state->set_pos(textwriter->tell() - offset_local);
       std::vector<uint8_t> ret = (*m_isa)[name]->serializer(text->get_operation()->get_args())
                                                ->serialize(page_state, tsym, colnum, pagenum);
       textwriter->write_bytes(ret);
@@ -188,10 +222,9 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
   }
 
   std::vector<symbol> dsym;
-  // encode data section
   for (const auto& data : lpage.m_data)
   {
-    page_state->set_pos(datawriter->tell() + textwriter->tell() - offset);
+    page_state->set_pos(datawriter->tell() + textwriter->tell() - offset_local);
     std::string name = data->get_operation()->get_name();
     if (!name.compare("eof"))
       continue;
@@ -200,7 +233,6 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
       // TODO assert
     } else if (data->isOpcode())
     {
-      // data section dump is only generated in case of full dump.
       if (m_dump_flag == asm_dump_flag::full) {
         offset_type pc_low = pagenum * PAGE_SIZE + textwriter->tell() + datawriter->tell();
         offset_type pc_high = pc_low + (*m_isa)[name]->serializer(data->get_operation()->get_args())->size(*page_state) - 1;
@@ -213,25 +245,39 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
       throw error(error::error_code::internal_error, "Invalid operation: " + name + " in DATA section !!!");
   }
 
+  // patch57 uses temp writers: textwriter->tell() = 16 + T_N, so offset - textwriter->tell()
+  // correctly yields the data-relative BD offset.
+  offset_type offset = 0;
   for (auto &spad : page_state->m_patch)
   {
     for (auto& arg : spad.second)
     {
       offset = page_state->parse_num_arg(arg);
-      patch57(textwriter, datawriter, offset + static_cast<offset_type>(page_header.size()),
+      patch57(textwriter, datawriter,
+              offset + static_cast<offset_type>(page_header.size()),
               page_state->m_scratchpad[spad.first.substr(1)]->get_base() + page_state->m_scratchpad[spad.first.substr(1)]->get_offset());
     }
   }
 
-  datawriter->padding(PAGE_SIZE-textwriter->tell());
+  // Verify this page fits within PAGE_SIZE
+  if (textwriter->tell() + datawriter->tell() > PAGE_SIZE)
+    throw error(error::error_code::internal_error, "page content more the pagesize !!!");
 
-  textwriter->add_symbols(tsym);
-  datawriter->add_symbols(dsym);
-  twriter.push_back(textwriter);
-  twriter.push_back(datawriter);
+  // Merge into the single per-column section: [header+text][data][padding to PAGE_SIZE]
+  merged_writer->write_bytes(textwriter->get_data());
+  merged_writer->write_bytes(datawriter->get_data());
+  offset_type padsize = PAGE_SIZE - textwriter->tell() - datawriter->tell();
+  if (padsize > 0) {
+    std::vector<uint8_t> zeros(padsize, 0x00);
+    merged_writer->write_bytes(zeros);
+  }
+
+  // Collect symbols; positions are relative to the temp writers and will be
+  // corrected to absolute merged-section offsets in process().
+  page_syms.insert(page_syms.end(), tsym.begin(), tsym.end());
+  page_syms.insert(page_syms.end(), dsym.begin(), dsym.end());
+
   m_report.addpage(lpage, page_state, textwriter->tell(), datawriter->tell());
-
-  // TODO add size and generate report
 }
 
 void

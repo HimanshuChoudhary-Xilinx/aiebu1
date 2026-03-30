@@ -30,11 +30,12 @@ public:
 
   virtual std::vector<std::shared_ptr<writer>>
   process(std::shared_ptr<preprocessed_output> input) override;
-  virtual std::string get_TextSectionName(uint32_t colnum, pageid_type pagenum) {return ".ctrltext." + std::to_string(colnum) + "." + std::to_string(pagenum); }
-  virtual std::string get_DataSectionName(uint32_t colnum, pageid_type pagenum) {return ".ctrldata." + std::to_string(colnum) + "." + std::to_string(pagenum); }
+  virtual std::string get_TextSectionName(uint32_t colnum) {return ".ctrltext." + std::to_string(colnum) + ".0"; }
   virtual std::string get_PadSectionName(uint32_t colnum) {return ".pad." + std::to_string(colnum); }
   void page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>& scratchpad,
-  std::map<std::string, uint32_t>& labelpageindex, std::map<uint32_t, std::string>& ctrlpkt_id_map, uint32_t optimization_level);
+  std::map<std::string, uint32_t>& labelpageindex, std::map<uint32_t, std::string>& ctrlpkt_id_map,
+  uint32_t optimization_level, std::shared_ptr<section_writer> merged_writer,
+  std::vector<symbol>& page_syms);
 
   virtual void patch57(const std::shared_ptr<section_writer> textwriter, std::shared_ptr<section_writer> datawriter, offset_type offset, uint64_t patch);
   virtual void patch_cp_57(const std::shared_ptr<section_writer> ctrlpktwriter, offset_type offset, uint64_t patch);
