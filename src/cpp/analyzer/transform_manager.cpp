@@ -161,6 +161,73 @@ modify_apply_offset_57(char* text_section_data, size_t text_section_size, uint32
 }
 
 /**
+ * @brief Modify apply_offset_57 opcodes for merged single-section format.
+ *
+ * The merged section contains all pages for a column concatenated.  Each page
+ * occupies exactly PAGE_SIZE bytes with layout:
+ *   [page_header 16B][text instructions][data BDs][zero padding to PAGE_SIZE]
+ *
+ * For each page the text portion is identified via cur_page_len stored in the
+ * page header (bytes 8-9).  An apply_offset_57 instruction stores a table_ptr
+ * field that is relative to its own page's temp encoding (= T_N + D_bd).  To
+ * match the corrected r_offset value written into the ELF relocations we add
+ * (page_start + elf_section_header_size) before looking up xrt_idx_lookup.
+ */
+void
+transform_manager::
+modify_apply_offset_57_merged(char* section_data, size_t section_size, uint32_t section_idx)
+{
+  size_t page_start = 0;
+  while (page_start + elf_section_header_size <= section_size) {
+    // Read cur_page_len from page header bytes 8-9 (little-endian)
+    uint16_t cur_page_len =
+      static_cast<uint8_t>(section_data[page_start + 8]) |
+      (static_cast<uint8_t>(section_data[page_start + 9]) << 8);
+
+    size_t text_start = page_start + elf_section_header_size;
+    size_t text_end   = page_start + cur_page_len;
+
+    if (text_end > section_size || text_end <= text_start) {
+      page_start += PAGE_SIZE;
+      continue;
+    }
+
+    for (size_t offset = text_start; offset < text_end;) {
+      uint8_t opcode = static_cast<uint8_t>(section_data[offset]);
+
+      if (opcode == align_opcode) {
+        ++offset;
+        continue;
+      }
+
+      auto op_it = isa_op_map->find(opcode);
+      if (op_it == isa_op_map->end())
+        throw error(error::error_code::invalid_asm,
+                    "Unknown Opcode:" + std::to_string(opcode) +
+                    " at position " + std::to_string(offset) + "\n");
+
+      if (opcode == OPCODE_APPLY_OFFSET_57) {
+        auto* code = reinterpret_cast<apply_offset_57*>(section_data + offset);
+        // table_ptr is the BD offset within the temp per-page encoding (T_N + D_bd).
+        // The relocation r_offset = page_start + elf_section_header_size + table_ptr,
+        // so adjust table_ptr to build the matching lookup key.
+        uint32_t adjusted_ptr = static_cast<uint32_t>(code->table_ptr) +
+                                static_cast<uint32_t>(page_start) +
+                                static_cast<uint32_t>(elf_section_header_size);
+        auto key = get_key(adjusted_ptr, section_idx);
+        auto lookup_it = xrt_idx_lookup.find(key);
+        if (lookup_it != xrt_idx_lookup.end())
+          code->offset = static_cast<uint16_t>(lookup_it->second * num_32bit_register);
+      }
+
+      offset += size(op_it->second);
+    }
+
+    page_start += PAGE_SIZE;
+  }
+}
+
+/**
  * @brief Process all text sections and modify apply_offset_57 opcodes
  *
  * Iterates through all ELF sections and processes .ctrltext sections
@@ -174,9 +241,12 @@ process_sections() {
     const ELFIO::section* section = section_ptr.get();
     const auto& section_name = section->get_name();
 
-    // Process only .ctrltext sections with PROGBITS type
-    if (is_text_section(section_name) && section->get_type() == ELFIO::SHT_PROGBITS)
-      modify_apply_offset_57(const_cast<char *>(section->get_data()), section->get_size(), num);
+    if (is_text_section(section_name) && section->get_type() == ELFIO::SHT_PROGBITS) {
+      if (is_merged_section_name(section_name))
+        modify_apply_offset_57_merged(const_cast<char*>(section->get_data()), section->get_size(), num);
+      else
+        modify_apply_offset_57(const_cast<char*>(section->get_data()), section->get_size(), num);
+    }
 
     ++num;
   }
@@ -438,25 +508,35 @@ uint64_t
 transform_manager::
 get_controlcode_bd_offset(const std::string& section_name, uint32_t offset, symbol::patch_schema schema)
 {
-  auto [col, page] = get_column_and_page(section_name);
-  auto id = get_grp_id_if_group_elf(section_name);
-  auto ctrltext = m_elfio.sections[get_ctrltext_section_name(col, page, id)];
-  auto ctrldata = m_elfio.sections[get_ctrldata_section_name(col, page, id)];
-  if (!ctrltext || !ctrldata)
-    throw error(error::error_code::internal_error, "ctrltext or ctrldata section for col:"
-                + std::to_string(col) + " page:" + std::to_string(page) + " not found\n");
+  auto ctrltext = m_elfio.sections[section_name];
+  if (!ctrltext)
+    throw error(error::error_code::internal_error, "ctrltext section '" + section_name + "' not found\n");
 
-  if (offset < ctrltext->get_size())
-    throw error(error::error_code::internal_error, "ctrltext size lesser than offset:"
-                + std::to_string(offset) + "\n");
+  const uint32_t* bd_data_ptr = nullptr;
 
-  // Adjust offset to point into ctrldata section
-  offset -= static_cast<uint32_t>(ctrltext->get_size());
-  offset += elf_section_header_size;
+  if (is_merged_section_name(section_name)) {
+    // Merged format (.ctrltext.<col>): offset is the absolute byte position of
+    // the BD within the merged section.
+    if (offset >= ctrltext->get_size())
+      throw error(error::error_code::internal_error, "merged ctrltext offset out of range:"
+                  + std::to_string(offset) + "\n");
+    bd_data_ptr = reinterpret_cast<const uint32_t*>(ctrltext->get_data() + offset);
+  } else {
+    // Per-page format (.ctrltext.<col>.<page>): offset = T_N + D_bd,
+    // ctrltext size = 16 + T_N.  Adjust to index into the paired ctrldata section.
+    auto [col, page] = get_column_and_page(section_name);
+    auto id = get_grp_id_if_group_elf(section_name);
+    auto ctrldata = m_elfio.sections[get_ctrldata_section_name(col, page, id)];
+    if (!ctrldata)
+      throw error(error::error_code::internal_error, "ctrldata section for col:"
+                  + std::to_string(col) + " page:" + std::to_string(page) + " not found\n");
+    if (offset < ctrltext->get_size())
+      throw error(error::error_code::internal_error, "ctrltext size lesser than offset:"
+                  + std::to_string(offset) + "\n");
+    uint32_t data_offset = offset - static_cast<uint32_t>(ctrltext->get_size()) + elf_section_header_size;
+    bd_data_ptr = reinterpret_cast<const uint32_t*>(ctrldata->get_data() + data_offset);
+  }
 
-  const auto* bd_data_ptr = reinterpret_cast<const uint32_t*>(ctrldata->get_data() + offset);
-
-  // Read BD based on schema (AIE2PS vs AIE4)
   switch(schema) {
   case symbol::patch_schema::shim_dma_57:
     return read57(bd_data_ptr);
@@ -482,27 +562,37 @@ void
 transform_manager::
 set_controlcode_bd_offset(const std::string& section_name, uint32_t offset, uint64_t bd_offset, symbol::patch_schema schema)
 {
-  auto [col, page] = get_column_and_page(section_name);
-  auto id = get_grp_id_if_group_elf(section_name);
-  auto ctrltext = m_elfio.sections[get_ctrltext_section_name(col, page, id)];
-  auto ctrldata = m_elfio.sections[get_ctrldata_section_name(col, page, id)];
-  if (!ctrltext || !ctrldata)
-    throw error(error::error_code::internal_error, "ctrltext or ctrldata section for col:"
-                + std::to_string(col) + " page:" + std::to_string(page) + " not found\n");
-  if (offset < ctrltext->get_size())
-    throw error(error::error_code::internal_error, "ctrldata size lesser than offset:"
-                + std::to_string(offset) + "\n");
+  auto ctrltext = m_elfio.sections[section_name];
+  if (!ctrltext)
+    throw error(error::error_code::internal_error, "ctrltext section '" + section_name + "' not found\n");
 
-  // Adjust offset to point into ctrldata section
-  offset -= static_cast<uint32_t>(ctrltext->get_size());
-  offset += elf_section_header_size;
-  if (offset > ctrldata->get_size())
-    throw error(error::error_code::internal_error, "ctrltext size lesser than offset:"
-                + std::to_string(offset) + "\n");
+  uint32_t* bd_data_ptr = nullptr;
 
-  auto* bd_data_ptr = reinterpret_cast<uint32_t*>(const_cast<char*>(ctrldata->get_data()) + offset);
+  if (is_merged_section_name(section_name)) {
+    // Merged format (.ctrltext.<col>): offset is the absolute byte position in the section.
+    if (offset >= ctrltext->get_size())
+      throw error(error::error_code::internal_error, "merged ctrltext offset out of range:"
+                  + std::to_string(offset) + "\n");
+    bd_data_ptr = reinterpret_cast<uint32_t*>(const_cast<char*>(ctrltext->get_data()) + offset);
+  } else {
+    // Per-page format (.ctrltext.<col>.<page>): offset = T_N + D_bd.
+    // Adjust to index into the paired ctrldata section.
+    auto [col, page] = get_column_and_page(section_name);
+    auto id = get_grp_id_if_group_elf(section_name);
+    auto ctrldata = m_elfio.sections[get_ctrldata_section_name(col, page, id)];
+    if (!ctrldata)
+      throw error(error::error_code::internal_error, "ctrldata section for col:"
+                  + std::to_string(col) + " page:" + std::to_string(page) + " not found\n");
+    if (offset < ctrltext->get_size())
+      throw error(error::error_code::internal_error, "ctrldata size lesser than offset:"
+                  + std::to_string(offset) + "\n");
+    uint32_t data_offset = offset - static_cast<uint32_t>(ctrltext->get_size()) + elf_section_header_size;
+    if (data_offset > ctrldata->get_size())
+      throw error(error::error_code::internal_error, "ctrldata offset out of range:"
+                  + std::to_string(offset) + "\n");
+    bd_data_ptr = reinterpret_cast<uint32_t*>(const_cast<char*>(ctrldata->get_data()) + data_offset);
+  }
 
-  // Write BD based on schema (AIE2PS vs AIE4)
   switch(schema) {
   case symbol::patch_schema::shim_dma_57:
     write57(bd_data_ptr, bd_offset);

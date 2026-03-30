@@ -75,12 +75,30 @@ class transform_manager {
   uint32_t size(const isa_op_disasm& op) const;
 
   /**
-   * @brief Modify apply_offset_57 opcodes with XRT argument indices
+   * @brief Modify apply_offset_57 opcodes with XRT argument indices (legacy per-page format)
    * @param text_section_data Pointer to text section data
    * @param text_section_size Size of text section
    * @param section_idx Section index in ELF
    */
   void modify_apply_offset_57(char* text_section_data, size_t text_section_size, uint32_t section_idx);
+
+  /**
+   * @brief Modify apply_offset_57 opcodes for the merged single-section format.
+   *
+   * In the merged format a single .ctrltext.<col> section holds all pages
+   * concatenated, each occupying PAGE_SIZE bytes:
+   *   [header 16B][text][data][padding to PAGE_SIZE]
+   *
+   * This function iterates over each page's text portion using cur_page_len
+   * from the page header and adjusts the table_ptr lookup by the page's base
+   * offset (page_index * PAGE_SIZE + 16) so that it matches the corrected
+   * r_offset stored in the ELF relocations.
+   *
+   * @param section_data Pointer to the merged section data (writable)
+   * @param section_size Size of the merged section in bytes
+   * @param section_idx  ELF section index used to build the lookup key
+   */
+  void modify_apply_offset_57_merged(char* section_data, size_t section_size, uint32_t section_idx);
 
   void process_sections();
 
@@ -94,8 +112,9 @@ class transform_manager {
 
   /**
    * @brief Extract column and page from section name
-   * @param name Section name (e.g., ".ctrltext.0.1" or ".ctrltext.0.1.id")
-   * @return Pair of column and page indices
+   * @param name Section name (e.g., ".ctrltext.0.1", ".ctrltext.0.1.id",
+   *             or merged ".ctrltext.0" which returns page=0)
+   * @return Pair of (column, page) indices
    */
   std::pair<uint32_t, uint32_t> get_column_and_page(const std::string& name) const;
 
@@ -146,7 +165,7 @@ class transform_manager {
   std::set<ELFIO::Elf_Half> get_filtered_section_indices(const std::string& kernel_instance_filter);
 
   /**
-   * @brief Generate control text section name
+   * @brief Generate per-page control text section name
    * @param col Column index
    * @param page Page index
    * @param id Group ID (empty for non-group ELF)
@@ -158,6 +177,20 @@ class transform_manager {
       return ".ctrltext." + std::to_string(col) + "." + std::to_string(page);
     else
       return ".ctrltext." + std::to_string(col) + "." + std::to_string(page) + "." + id;
+  }
+
+  /**
+   * @brief Generate merged (all-pages-in-one) control text section name
+   * @param col Column index
+   * @param id Group ID (empty for non-group ELF)
+   * @return Section name like ".ctrltext.col" or ".ctrltext.col.id"
+   */
+  static std::string get_merged_ctrltext_section_name(uint32_t col, const std::string& id)
+  {
+    if (id.empty())
+      return ".ctrltext." + std::to_string(col);
+    else
+      return ".ctrltext." + std::to_string(col) + "." + id;
   }
 
   /**
@@ -173,6 +206,35 @@ class transform_manager {
       return ".ctrldata." + std::to_string(col) + "." + std::to_string(page);
     else
       return ".ctrldata." + std::to_string(col) + "." + std::to_string(page) + "." + id;
+  }
+
+  /**
+   * @brief Check if a section name is the merged (column-level) format
+   *
+   * Merged sections have the form ".ctrltext.<col>" — exactly two numeric
+   * tokens after splitting by '.'.  Per-page sections have the form
+   * ".ctrltext.<col>.<page>" (three tokens) or ".ctrltext.<col>.<page>.<id>"
+   * (four tokens).
+   *
+   * @param name Section name to test
+   * @return true if the name is a merged ctrltext section
+   */
+  static bool is_merged_section_name(const std::string& name)
+  {
+    if (name.size() < ctrltext_string_length ||
+        name.compare(0, ctrltext_string_length, ".ctrltext") != 0)
+      return false;
+    // Count dot-separated non-empty tokens
+    size_t token_count = 0;
+    size_t pos = 0;
+    while (pos < name.size()) {
+      size_t dot = name.find('.', pos + 1);
+      if (dot == std::string::npos) dot = name.size();
+      if (dot > pos + 1) ++token_count;
+      pos = dot;
+    }
+    // ".ctrltext.<col>" has exactly 2 tokens (ctrltext, col)
+    return token_count == 2;
   }
 
   /**

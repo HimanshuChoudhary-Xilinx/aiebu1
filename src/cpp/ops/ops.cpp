@@ -114,8 +114,7 @@ serialize(std::shared_ptr<assembler_state> state, std::vector<symbol>& symbols,
           {
             auto label = state->get_label_at(index);
             symbols.emplace_back(sval, state->parse_num_arg(label),
-                                 colnum, pagenum, 0, 0, ".ctrltext." + std::to_string(colnum)
-                                 + "." + std::to_string(pagenum),
+                                 colnum, pagenum, 0, 0, ".ctrltext." + std::to_string(colnum),
                                  state->get_shim_dma_patching());
             ++index;
           }
