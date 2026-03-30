@@ -247,6 +247,13 @@ class aiebu_assembler
      */
     explicit aiebu_assembler(ELFIO::elfio* elf);
 
+    /*
+     * Construct aiebu_assembler from an const ELFIO in-memory ELF object.
+     *
+     * @param elf  Non-null pointer to ELFIO::elfio; nullptr throws aiebu::error.
+     */
+    explicit aiebu_assembler(const ELFIO::elfio* elf);
+
     /*!
      * @struct op_loc
      *

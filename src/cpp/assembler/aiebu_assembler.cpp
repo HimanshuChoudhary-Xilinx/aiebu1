@@ -430,6 +430,11 @@ aiebu_assembler(ELFIO::elfio* elf)
             std::back_inserter(elf_data));
 }
 
+aiebu_assembler::
+aiebu_assembler(const ELFIO::elfio* elf)
+  : aiebu_assembler(const_cast<ELFIO::elfio*>(elf))
+{ }
+
 class file_artifact_impl
 {
   public:
