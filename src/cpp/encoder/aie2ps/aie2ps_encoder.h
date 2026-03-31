@@ -106,6 +106,8 @@ public:
     auto output_writer = std::make_shared<config_writer>(pinfo_first_instance);
     twriter.push_back(output_writer);
 
+    output_writer->add_section_writers_from_custom_section_map(tinput->get_global_custom_sections());
+
     for (auto& [kernel, instances] : tinput->get_kernel_map()) {
       for(auto& [iname, instance] : instances)
       {
@@ -113,7 +115,8 @@ public:
         encoder_object.check_partition_info(instance->get_partition_info(), output_writer->get_partition_info());
         encoder_object.check_target_info(instance->get_target_info(), tinfo_first_instance);
         encoder_object.check_aie_row_topology_info(instance->get_aie_row_topology_info(), rinfo_first_instance);
-        output_writer->add_kernel_map(kernel, iname, encoder_object.process(instance));
+        auto instance_writers = encoder_object.process(instance);
+        output_writer->add_kernel_map(kernel, iname, instance_writers);
       }
     }
     return twriter;

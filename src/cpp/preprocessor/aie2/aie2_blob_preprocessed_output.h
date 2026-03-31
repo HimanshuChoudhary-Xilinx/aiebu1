@@ -90,9 +90,10 @@ public:
   }
 };
 
-class aie2_config_preprocessed_output: public preprocessed_output
+class aie2_config_preprocessed_output: public config_preprocessed_output_base
 {
   std::map<std::string, instance_output> m_output;
+
 public:
 
   const std::map<std::string, instance_output>&

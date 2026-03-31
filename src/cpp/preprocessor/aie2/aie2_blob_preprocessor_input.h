@@ -409,6 +409,8 @@ class aie2_config_preprocessor_input : public aie2_blob_transaction_preprocessor
   static constexpr const char* pm_ctrlpkt_type = "pmctrlpkt";
   std::map<std::string, instance_input> kernel_map;
   const file_artifact* m_artifacts = nullptr;
+  global_custom_section_storage m_global_custom_sections;
+
 protected:
   void readconfigjson(std::istream& patch_json, const std::vector<std::string>& paths);
   void add_pdi(const std::string& kernel, const boost::property_tree::ptree& pinstance, const std::vector<std::string>& paths);
@@ -423,6 +425,7 @@ protected:
   {
     return ".ctrlpkt.pm." + std::to_string(pdi_id);
   }
+
 public:
   void set_args(const std::vector<char>& /*mc_code*/,
                 const std::vector<char>& patch_json,
@@ -444,6 +447,11 @@ public:
 
   const std::map<std::string, instance_input>&
   get_kernel_map() const { return kernel_map; }
+
+  const std::map<std::string, std::vector<uint8_t>>& get_global_custom_sections() const
+  {
+    return m_global_custom_sections.map();
+  }
 };
 
 }

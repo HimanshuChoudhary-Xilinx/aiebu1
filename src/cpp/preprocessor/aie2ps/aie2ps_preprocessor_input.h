@@ -108,9 +108,16 @@ class asm_config_preprocessor_input : public preprocessor_input
   const file_artifact* m_artifacts = nullptr;
 protected: // NOLINT
   std::map<std::string, std::map<std::string, std::shared_ptr<asm_preprocessor_input>>> m_preprocessor_input;
+  global_custom_section_storage m_global_custom_sections;
+
 public:
   const std::map<std::string, std::map<std::string, std::shared_ptr<asm_preprocessor_input>>>&
   get_kernel_map() const { return m_preprocessor_input; }
+
+  const std::map<std::string, std::vector<uint8_t>>& get_global_custom_sections() const
+  {
+    return m_global_custom_sections.map();
+  }
 
   void add_instance(const std::string& kernel,
                     const boost::property_tree::ptree& pinstance,
@@ -129,6 +136,7 @@ public:
       ccode = m_artifacts->get(ccode_file_name, paths);
       if (!patch_json_file.empty())
         jdata = m_artifacts->get(patch_json_file, paths);
+
       add_preprocessor_input(kernel, tname, ccode, jdata, flags, paths, m_artifacts);
     }
   }
@@ -139,6 +147,9 @@ public:
   {
     boost::property_tree::ptree pt;
     boost::property_tree::read_json(patch_json, pt);
+
+    // Parse global-level custom_section
+    m_global_custom_sections.assign(parse_custom_sections(pt, paths));
 
     const auto& pt_xrt_kernel_instance = pt.get_child_optional("xrt-kernels");
     if (!pt_xrt_kernel_instance) {

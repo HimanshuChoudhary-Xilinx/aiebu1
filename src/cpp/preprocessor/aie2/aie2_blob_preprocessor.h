@@ -64,6 +64,8 @@ public:
     auto routput = std::make_shared<aie2_config_preprocessed_output>();
     aie2_blob_preprocessor preprocessor;
 
+    propagate_global_custom_sections(routput, rinput);
+
     for (auto& [kernel, instances] : rinput->get_kernel_map()) {
       //copy instances->m_data_common
       for(auto& [dname, data] : instances.get_common())

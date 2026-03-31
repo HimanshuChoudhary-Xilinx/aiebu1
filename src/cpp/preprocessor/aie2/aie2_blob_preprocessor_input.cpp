@@ -1001,6 +1001,9 @@ add_preemption_code(uint32_t col)
     boost::property_tree::ptree pt;
     boost::property_tree::read_json(patch_json, pt);
 
+    // Parse global-level custom_section
+    m_global_custom_sections.assign(parse_custom_sections(pt, paths));
+
     const auto& pt_xrt_kernel_instance = pt.get_child_optional("xrt-kernels");
     if (!pt_xrt_kernel_instance)
       throw error(error::error_code::invalid_input, "xrt-kernels not found in config json file");

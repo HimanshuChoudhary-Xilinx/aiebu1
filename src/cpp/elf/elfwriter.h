@@ -20,6 +20,7 @@ constexpr int data_align = 16;
 constexpr int phdr_align = 8;
 constexpr int program_header_static_count = 2;
 constexpr int program_header_dynamic_count = 3;
+constexpr int SHT_CUSTOM_SECTION = ELFIO::SHT_LOUSER + 1;
 
 constexpr ELFIO::Elf_Word NT_XRT_UID = 4;
 constexpr ELFIO::Elf_Word NT_XRT_UUID       = 5;
@@ -101,6 +102,7 @@ protected:  // NOLINT(cppcoreguidelines-non-private-member-variables-in-classes)
   void init_symtab();
   void init_dynamic_sections();
   std::vector<uint32_t> process_common_helper(const std::vector<std::shared_ptr<writer>>& mwriter, const std::string& index_string);
+  void process_global_custom_sections_if_any(const std::vector<std::shared_ptr<writer>>& global_sections);
   std::string get_group_name(uint32_t index) {return ".group."+ std::to_string(index); }
   std::string get_section_prefix(uint32_t index) {return "."+ std::to_string(index); }
   void add_group(const std::string& name, const std::vector<uint32_t>& member, ELFIO::Elf_Word info_index);

@@ -173,6 +173,8 @@ public:
     auto rinput = std::dynamic_pointer_cast<asm_config_preprocessor_input>(input);
     auto toutput = std::make_shared<asm_config_preprocessed_output<output_tamplete>>();
 
+    propagate_global_custom_sections(toutput, rinput);
+
     for (auto& [kernel, instances] : rinput->get_kernel_map()) {
       for(auto& [iname, instance] : instances)
       {

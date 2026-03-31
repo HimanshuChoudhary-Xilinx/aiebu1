@@ -110,7 +110,7 @@ public:
 };
 
 template <typename T>
-class asm_config_preprocessed_output: public preprocessed_output
+class asm_config_preprocessed_output: public config_preprocessed_output_base
 {
   std::map<std::string, std::map<std::string, std::shared_ptr<T>>> m_output;
 

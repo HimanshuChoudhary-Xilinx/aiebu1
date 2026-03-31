@@ -12,7 +12,8 @@ enum class code_section
 {
   text = 1,
   data = 2,
-  unknown = 3
+  custom = 3,
+  unknown = 4
 };
 
 constexpr uint8_t AIE2P_OPT_MAJOR_VER = 1;

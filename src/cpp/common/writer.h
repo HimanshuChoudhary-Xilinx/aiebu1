@@ -4,7 +4,9 @@
 #ifndef _AIEBU_COMMON_WRITER_H_
 #define _AIEBU_COMMON_WRITER_H_
 
+#include <cstdint>
 #include <map>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -136,7 +138,33 @@ public:
   }
 };
 
-class aie2_config_writer: public writer
+class config_writer_base : public writer
+{
+protected:
+  std::vector<std::shared_ptr<writer>> m_global_custom_sections;
+
+public:
+  void add_global_custom_section(std::shared_ptr<writer> val)
+  {
+    m_global_custom_sections.emplace_back(std::move(val));
+  }
+
+  const std::vector<std::shared_ptr<writer>>& get_global_custom_sections() const
+  {
+    return m_global_custom_sections;
+  }
+
+  void add_section_writers_from_custom_section_map(
+      const std::map<std::string, std::vector<uint8_t>>& global_sections)
+  {
+    for (const auto& [section_name, section_data] : global_sections) {
+      add_global_custom_section(
+          std::make_shared<section_writer>(section_name, code_section::custom, std::vector<uint8_t>(section_data)));
+    }
+  }
+};
+
+class aie2_config_writer: public config_writer_base
 {
   // map<kernel, instance_writer>
   std::map<std::string, instance_writer> m_output;
@@ -159,7 +187,7 @@ public:
   std::shared_ptr<const partition_info> get_partition_info() const { return m_partition; }
 };
 
-class config_writer: public writer
+class config_writer: public config_writer_base
 {
   std::map<std::string, std::map<std::string, std::vector<std::shared_ptr<writer>>>> m_output;
   std::shared_ptr<const partition_info> m_partition;
