@@ -21,6 +21,8 @@ constexpr int phdr_align = 8;
 constexpr int program_header_static_count = 2;
 constexpr int program_header_dynamic_count = 3;
 constexpr int SHT_CUSTOM_SECTION = ELFIO::SHT_LOUSER + 1;
+// elfio support max 0xff00 section, beyond that extended section support is needed
+// which elfio dont support.
 constexpr ELFIO::Elf_Word max_sections = 65279; //65280 - 1;
 
 constexpr ELFIO::Elf_Word NT_XRT_UID = 4;
@@ -111,7 +113,7 @@ protected:  // NOLINT(cppcoreguidelines-non-private-member-variables-in-classes)
   uint64_t align_address(uint64_t address);
   // Helper function to return ELFIO::section* and take section name as input
   ELFIO::section* add_section_by_name(const std::string& section_name) {
-    if (m_elfio.sections.size() >= max_sections)
+    if (m_elfio.sections.size() > max_sections)
       throw error(error::error_code::invalid_asm, "Maximum number of sections reached");
 
     return m_elfio.sections.add(section_name);

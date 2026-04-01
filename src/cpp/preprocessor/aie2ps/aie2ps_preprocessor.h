@@ -160,9 +160,10 @@ public:
 
       toutput->set_coldata(col, pages, scratchpad, label_page_index, tinput->get_control_packet_index());
       total_pages += relative_page_index;
+      // TODO: once we support single section elf, this needs to be removed back.
       if (total_pages >= max_pages)
         throw error(error::error_code::invalid_asm,
-          "Maximum number of pages reached: " + std::to_string(total_pages) + "\n");
+          "Maximum pages limit reached beyond which is not supported due to elfio max section limitation\n");
     }
     toutput->add_symbols(tinput->get_symbols());
     return toutput;
