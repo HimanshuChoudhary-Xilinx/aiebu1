@@ -16,6 +16,9 @@
 
 namespace aiebu {
 
+//Max sections is 65280, so max pages is 32640; because each page is 2 sections.
+constexpr uint32_t max_pages = 32640;
+
 class aie2ps_preprocessor: public preprocessor
 {
   const std::string disable_dump_map = "disabledump";
@@ -127,10 +130,11 @@ public:
     toutput->set_ctrlpkt_id_map(ctrlpkt_id_map);
     toutput->set_annotations(parser->get_annotations());
 
+    uint32_t total_pages = 0;
     for (auto col: collist)
     {
       std::vector<page> pages;
-      int relative_page_index = 0;
+      uint32_t relative_page_index = 0;
       int pad_size = 0;
       auto& label_page_index = parser->getcollabelpageindex(col);
       auto& scratchpad = parser->getcolscratchpad(col);
@@ -143,7 +147,7 @@ public:
       // create pages
         pager(PAGE_SIZE).pagify(*state, col, pages, relative_page_index);
         label_page_index[get_pagelabel(label)] = relative_page_index;
-        relative_page_index = static_cast<int>(pages.size());
+        relative_page_index = static_cast<uint32_t>(pages.size());
       }
 
       for (auto& pad : scratchpad)
@@ -155,6 +159,11 @@ public:
       }
 
       toutput->set_coldata(col, pages, scratchpad, label_page_index, tinput->get_control_packet_index());
+      total_pages += relative_page_index;
+      // TODO: once we support single section elf, this needs to be removed back.
+      if (total_pages >= max_pages)
+        throw error(error::error_code::invalid_asm,
+          "Maximum pages limit reached beyond which is not supported due to elfio max section limitation\n");
     }
     toutput->add_symbols(tinput->get_symbols());
     return toutput;
