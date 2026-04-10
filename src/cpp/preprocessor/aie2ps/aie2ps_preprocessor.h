@@ -13,6 +13,7 @@
 #include "aie2ps_preprocessed_output.h"
 #include "specification/aie2ps/isa.h"
 #include "logger.h"
+#include "time_util.h"
 
 namespace aiebu {
 
@@ -50,6 +51,16 @@ public:
   std::shared_ptr<preprocessed_output>
   process_internal(std::shared_ptr<asm_preprocessor_input> tinput)
   {
+    // INSERT_YOUR_CODE
+    // Print the current time for debugging or logging purposes.
+    {
+      std::time_t t = std::time(nullptr);
+      std::tm tm{};
+      localtime_to_tm(t, tm);
+      char time_buf[64];
+      std::strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &tm);
+      std::cout << "preprocessor Current time: " << time_buf << "\n";
+    }
     //auto keys = tinput->get_keys();
     const std::string prefix = "opt_level_";
 

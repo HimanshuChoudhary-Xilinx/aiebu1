@@ -18,6 +18,7 @@
 #include "preprocessor.h"
 
 #include "aiebu/aiebu_error.h"
+#include "time_util.h"
 
 namespace aiebu {
 
@@ -98,6 +99,14 @@ process(const std::vector<char>& buffer1,
   auto ppo = m_preprocessor->process(m_ppi);
   auto w = m_enoder->process(ppo);
   auto u = m_elfwriter->process(w);
+  {
+    std::time_t t = std::time(nullptr);
+    std::tm tm{};
+    localtime_to_tm(t, tm);
+    char time_buf[64];
+    std::strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &tm);
+    std::cout << "End Current time: " << time_buf << "\n";
+  }
   return u;
 }
 

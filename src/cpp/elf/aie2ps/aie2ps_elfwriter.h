@@ -5,6 +5,7 @@
 #define _AIEBU_ELF_AIE2PS_ELF_WRITER_H_
 
 #include <elfwriter.h>
+#include "time_util.h"
 
 namespace aiebu {
 
@@ -38,6 +39,14 @@ public:
   std::vector<char>
   process(std::vector<std::shared_ptr<writer>>& mwriter) override
   {
+    {
+      std::time_t t = std::time(nullptr);
+      std::tm tm{};
+      localtime_to_tm(t, tm);
+      char time_buf[64];
+      std::strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &tm);
+      std::cout << "elfwriter Current time: " << time_buf << "\n";
+    }
     auto mconfig_writer = std::dynamic_pointer_cast<config_writer>(mwriter[0]);
     init_symtab();
     uint32_t index=0;

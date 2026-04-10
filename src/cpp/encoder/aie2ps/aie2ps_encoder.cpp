@@ -9,6 +9,8 @@
 #include <fstream>
 #include <iostream>
 
+#include "time_util.h"
+
 namespace aiebu {
 
 void
@@ -54,6 +56,14 @@ std::vector<std::shared_ptr<writer>>
 aie2ps_encoder::
 process(std::shared_ptr<preprocessed_output> input)
 {
+  {
+    std::time_t t = std::time(nullptr);
+    std::tm tm{};
+    localtime_to_tm(t, tm);
+    char time_buf[64];
+    std::strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &tm);
+    std::cout << "Encoder Current time: " << time_buf << "\n";
+  }
   // encode asm data
   auto tinput = std::static_pointer_cast<aie2ps_preprocessed_output>(input);
 
