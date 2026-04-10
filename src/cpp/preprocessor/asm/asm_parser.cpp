@@ -87,7 +87,7 @@ insert_annotation(int annotation_index)
 
   for (auto it = label_data[m_current_label].text.rbegin(); it != label_data[m_current_label].text.rend(); ++it)
   {
-    if ((*it)->get_operation()->get_name().compare(".eop"))
+    if ((*it)->get_operation().get_name().compare(".eop"))
     {
       (*it)->set_annotation_index(annotation_index);
       break;
@@ -407,8 +407,8 @@ collect_hintmap_words(const std::vector<std::shared_ptr<asm_data>>& entries,
 
   for (const auto& entry : entries) {
     if (entry->isLabel()) {
-      auto op = entry->get_operation();
-      if (op->get_name() == hintmap_label) {
+      const auto& op = entry->get_operation();
+      if (op.get_name() == hintmap_label) {
         in_target = true;
         continue;
       }
@@ -419,10 +419,10 @@ collect_hintmap_words(const std::vector<std::shared_ptr<asm_data>>& entries,
 
     if (!in_target) continue;
 
-    auto op = entry->get_operation();
-    if (op->get_name() != ".long") continue;
+    const auto& op = entry->get_operation();
+    if (op.get_name() != ".long") continue;
 
-    for (const auto& arg : op->get_args()) {
+    for (const auto& arg : op.get_args()) {
       const auto t = trim(arg);
       if (t.empty()) continue;
       try {
@@ -522,8 +522,8 @@ find_hintmap_context(int group,
     const auto it = std::find_if(section_data.data.cbegin(), section_data.data.cend(),
       [&hintmap_label](const auto& entry) {
         if (!entry->isLabel()) return false;
-        auto op = entry->get_operation();
-        return op->get_name() == hintmap_label;
+        const auto& op = entry->get_operation();
+        return op.get_name() == hintmap_label;
       });
     if (it != section_data.data.cend())
       return lname;
@@ -1034,9 +1034,9 @@ asm_parser::update_preempt_opcodes(int col)
     for (auto& [lname, section] : get_col_asmdata(col).get_label_data()) {
       for (auto& entry : section.text) {
         if (!entry->isOpcode()) continue;
-        auto op = entry->get_operation();
-        if (op->get_name() != "preempt") continue;
-        const auto& args = op->get_args();
+        const auto& op = entry->get_operation();
+        if (op.get_name() != "preempt") continue;
+        const auto& args = op.get_args();
         if (args.size() < 3) continue;
 
         // Extract hintmap label (arg 3: "@hintmap_N")
@@ -1072,7 +1072,7 @@ asm_parser::update_preempt_opcodes(int col)
                    << " from @" << args[1] << "/@" << args[2]
                    << " to @" << new_lbl.first << "/@" << new_lbl.second << std::endl;
 
-        entry->set_operation(operation("preempt", new_args));
+        entry->update_operation(operation("preempt", new_args));
         // set_line() removed: get_line() now reconstructs from the operation on demand.
       }
     }

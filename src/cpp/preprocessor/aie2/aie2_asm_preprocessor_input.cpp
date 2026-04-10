@@ -594,10 +594,10 @@ aie2_asm_preprocessor_input::encode(const std::vector<char>& mc_asm_code) {
     // If the previous recorded operation is expecting extension operations continue
     // populating the previous operation.
     if (isa_op_list.size() && isa_op_list.back()->outstanding_ext_op_count()) {
-      isa_op_list.back()->process_outstanding_ext_op(line->get_operation());
+      isa_op_list.back()->process_outstanding_ext_op(&line->get_operation());
       continue;
     }
-    std::unique_ptr<aie2_isa_op> isa_op = assemble_operation(line->get_operation());
+    std::unique_ptr<aie2_isa_op> isa_op = assemble_operation(&line->get_operation());
     isa_op_list.push_back(std::move(isa_op));
   }
 

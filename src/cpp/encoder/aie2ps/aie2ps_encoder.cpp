@@ -176,8 +176,8 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
   std::string fid;
   for (const auto& text : lpage.m_text)
   {
-    const std::string& name = text->get_operation()->get_name();
-    auto args = text->get_operation()->get_args();
+    const std::string& name = text->get_operation().get_name();
+    auto args = text->get_operation().get_args();
 
     // Text section debug info is only collected when it will actually be serialised.
     if (m_dump_flag != asm_dump_flag::disable) {
@@ -207,7 +207,7 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
   for (const auto& data : lpage.m_data)
   {
     page_state->set_pos(datawriter->tell() + textwriter->tell() - offset);
-    std::string name = data->get_operation()->get_name();
+    std::string name = data->get_operation().get_name();
     if (!name.compare("eof"))
       continue;
     if (data->isLabel())
@@ -215,7 +215,7 @@ page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>
       // TODO assert
     } else if (data->isOpcode())
     {
-      auto args = data->get_operation()->get_args();  // split once, reuse below
+      auto args = data->get_operation().get_args();  // split once, reuse below
       // data section dump is only generated in case of full dump.
       if (m_dump_flag == asm_dump_flag::full) {
         offset_type pc_low = pagenum * PAGE_SIZE + textwriter->tell() + datawriter->tell();

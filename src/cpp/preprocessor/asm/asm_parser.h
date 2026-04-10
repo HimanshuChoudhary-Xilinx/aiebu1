@@ -267,8 +267,24 @@ public:
   HEADER_ACCESS_GET_SET(pageid_type, pagenum);
   HEADER_ACCESS_GET_SET(uint32_t, linenumber);
   const std::string& get_file() const { return detail::lookup_filename(m_file_idx); }
-  void set_file(const std::string& val) { m_file_idx = detail::intern_filename(val); }
   uint32_t get_file_idx() const { return m_file_idx; }
+  // Qualify the operation's own name as a label-map key (e.g. "0:start_job").
+  std::string get_qualify_op_name() const {
+    return std::to_string(m_file_idx) + ":" + m_op.get_name();
+  }
+
+  // Qualify an eop+job identifier as a job-map key
+  // (e.g. "0:eop0:42"). eopnum distinguishes preemption points across pages.
+  std::string get_qualify_eop_name(uint32_t eopnum) const {
+    return std::to_string(m_file_idx) + ":eop" + std::to_string(eopnum)
+           + ":" + m_op.get_args().at(0);
+  }
+
+  // Qualify a bare label string as a label-map key (e.g. "0:loop_top").
+  // The caller is responsible for stripping any leading '@' before calling.
+  std::string get_qualify_label(const std::string& lb) const {
+    return std::to_string(m_file_idx) + ":" + lb;
+  }
 
   // Reconstructs the assembly line text from the stored operation on demand.
   // Returns lowercased text (e.g. "vldr\tr0, [sp, #4]"); no heap copy is stored.
@@ -276,16 +292,14 @@ public:
     const auto& n = m_op.get_name();
     const auto& a = m_op.get_args_str();
     if (a.empty()) return n;
-    return n + '\t' + a;
+    return n + ' ' + a;
   }
 
   bool isLabel() { return m_optype == operation_type::label; }
   bool isOpcode() { return m_optype == operation_type::op; }
   bool isAnnotation() { return m_optype == operation_type::annotation; }
-  // Returns a raw pointer to the inline operation — always non-null.
-  operation* get_operation() { return &m_op; }
-  const operation* get_operation() const { return &m_op; }
-  void set_operation(operation op) { m_op = std::move(op); }
+  const operation& get_operation() const { return m_op; }
+  void update_operation(operation op) { m_op = std::move(op); }
   int get_annotation_index() { return m_annotation_index; }
   void set_annotation_index(int annotation_index) { m_annotation_index = annotation_index; }
 };
