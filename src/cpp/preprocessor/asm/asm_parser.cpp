@@ -87,7 +87,7 @@ insert_annotation(int annotation_index)
 
   for (auto it = label_data[m_current_label].text.rbegin(); it != label_data[m_current_label].text.rend(); ++it)
   {
-    if ((*it)->get_operation()->get_name().compare(".eop"))
+    if ((*it)->get_operation().get_name().compare(".eop"))
     {
       (*it)->set_annotation_index(annotation_index);
       break;
@@ -172,11 +172,26 @@ parse_lines(const std::vector<char>& data, std::string& file)
       str += c;
     }
   }
-  std::istringstream isstr(str);
+  // Scan str for newlines directly instead of copying it into an istringstream
+  size_t pos = 0;
+  const size_t str_len = str.size();
+  auto read_next_line = [&](std::string& out) -> bool {
+    if (pos > str_len) return false;
+    const size_t nl = str.find('\n', pos);
+    if (nl == std::string::npos) {
+      if (pos >= str_len) return false;
+      out.assign(str, pos, str_len - pos);
+      pos = str_len + 1;
+    } else {
+      out.assign(str, pos, nl - pos);
+      pos = nl + 1;
+    }
+    return true;
+  };
   std::string line;
   uint32_t linenumber = 0;
 
-  while (std::getline(isstr, line)) {
+  while (read_next_line(line)) {
     ++linenumber;
     line = trim(line);
     if(line.empty())
@@ -196,7 +211,7 @@ parse_lines(const std::vector<char>& data, std::string& file)
       // there are 3 lines for annotation data (id,name,description)
       for (int count = 0 ; count < 3 ; ++count)   // NOLINT
       {
-        std::getline(isstr, aline);
+        read_next_line(aline);
         aline = trim(aline);
         if (!aline.substr(0,3).compare("id:"))                 // NOLINT
           id_line = trim(aline.substr(aline.find(":") + 1));   // NOLINT
@@ -221,9 +236,9 @@ parse_lines(const std::vector<char>& data, std::string& file)
         m_current_label = m_current_label + ":" + sm[1].str();
         set_data_state(false);
       } else
-        insert_col_asmdata(std::make_shared<asm_data>(std::make_shared<operation>(sm[1].str(), ""),
+        insert_col_asmdata(std::make_shared<asm_data>(operation(sm[1].str(), ""),
                                                       operation_type::label, code_section::unknown, 0,
-                                                      (uint32_t)-1, linenumber, line, file));
+                                                      (uint32_t)-1, linenumber, file));
       continue;
     }
     // check for operation
@@ -309,9 +324,9 @@ parse_lines(const std::vector<char>& data, std::string& file)
         line = op_name + "\t" + arg_str;
       }
 
-      insert_col_asmdata(std::make_shared<asm_data>(std::make_shared<operation>(op_name, arg_str),
+      insert_col_asmdata(std::make_shared<asm_data>(operation(op_name, arg_str),
                                                     operation_type::op, code_section::unknown, 0, (uint32_t)-1,
-                                                    linenumber, line, file));
+                                                    linenumber, file));
       if (!op_name.compare("eof"))
         set_data_state(true);
     }
@@ -392,9 +407,8 @@ collect_hintmap_words(const std::vector<std::shared_ptr<asm_data>>& entries,
 
   for (const auto& entry : entries) {
     if (entry->isLabel()) {
-      auto op = entry->get_operation();
-      if (!op) continue;
-      if (op->get_name() == hintmap_label) {
+      const auto& op = entry->get_operation();
+      if (op.get_name() == hintmap_label) {
         in_target = true;
         continue;
       }
@@ -405,10 +419,10 @@ collect_hintmap_words(const std::vector<std::shared_ptr<asm_data>>& entries,
 
     if (!in_target) continue;
 
-    auto op = entry->get_operation();
-    if (!op || op->get_name() != ".long") continue;
+    const auto& op = entry->get_operation();
+    if (op.get_name() != ".long") continue;
 
-    for (const auto& arg : op->get_args()) {
+    for (const auto& arg : op.get_args()) {
       const auto t = trim(arg);
       if (t.empty()) continue;
       try {
@@ -508,8 +522,8 @@ find_hintmap_context(int group,
     const auto it = std::find_if(section_data.data.cbegin(), section_data.data.cend(),
       [&hintmap_label](const auto& entry) {
         if (!entry->isLabel()) return false;
-        auto op = entry->get_operation();
-        return op && op->get_name() == hintmap_label;
+        const auto& op = entry->get_operation();
+        return op.get_name() == hintmap_label;
       });
     if (it != section_data.data.cend())
       return lname;
@@ -1020,9 +1034,9 @@ asm_parser::update_preempt_opcodes(int col)
     for (auto& [lname, section] : get_col_asmdata(col).get_label_data()) {
       for (auto& entry : section.text) {
         if (!entry->isOpcode()) continue;
-        auto op = entry->get_operation();
-        if (!op || op->get_name() != "preempt") continue;
-        const auto& args = op->get_args();
+        const auto& op = entry->get_operation();
+        if (op.get_name() != "preempt") continue;
+        const auto& args = op.get_args();
         if (args.size() < 3) continue;
 
         // Extract hintmap label (arg 3: "@hintmap_N")
@@ -1058,8 +1072,8 @@ asm_parser::update_preempt_opcodes(int col)
                    << " from @" << args[1] << "/@" << args[2]
                    << " to @" << new_lbl.first << "/@" << new_lbl.second << std::endl;
 
-        entry->set_operation(std::make_shared<operation>("preempt", new_args));
-        entry->set_line("preempt\t" + new_args);
+        entry->update_operation(operation("preempt", new_args));
+        // set_line() removed: get_line() now reconstructs from the operation on demand.
       }
     }
   } catch (...) {
@@ -1219,9 +1233,9 @@ operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm)
   verify_match(sm, error::error_code::invalid_asm, "Invalid attach_to_group directive argument\n");
 
   // dummy eof added if col change happens before eof
-  m_parserptr->insert_col_asmdata(std::make_shared<asm_data>(std::make_shared<operation>("eof", ""),
+  m_parserptr->insert_col_asmdata(std::make_shared<asm_data>(operation("eof", ""),
                                                     operation_type::op, code_section::unknown, 0, (uint32_t)-1,
-                                                    0, "eof", "default"));
+                                                    0, "default"));
   m_parserptr->set_current_col(std::stoi(sm[2].str()));
   m_parserptr->set_data_state(false);
 }

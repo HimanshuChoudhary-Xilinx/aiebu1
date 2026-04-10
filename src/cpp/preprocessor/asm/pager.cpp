@@ -53,7 +53,7 @@ getdatasectionsize(assembler_state& state, std::vector<std::string>& labels_list
   for (auto &lb : labels_list)
   {
     auto token = state.m_data[state.m_labelmap[lb]->get_index() + 1];
-    auto &name = token->get_operation()->get_name();
+    auto &name = token->get_operation().get_name();
     if (ALIGNMAP.count(name) > 0)
     {
       if (ALIGNMENT_16 == ALIGNMAP.at(name))
@@ -114,15 +114,15 @@ extractlabels(assembler_state& state, std::shared_ptr<asm_data> token)
     return labels;
 
   auto dependent_labelmap = state.get_dependent_labelmap();
-  for (auto &arg : token->get_operation()->get_args())
+  for (auto &arg : token->get_operation().get_args())
   {
-    auto it = std::find(OOO.begin(), OOO.end(), token->get_operation()->get_name());
+    auto it = std::find(OOO.begin(), OOO.end(), token->get_operation().get_name());
     if (arg.rfind("@") == 0 && it == OOO.end())
     {
       auto lb = arg.substr(1);
       if (state.containscratchpads(lb))
         continue;
-      lb = token->get_file() + ":" + lb;
+      lb = token->get_qualify_label(lb);
       if (state.m_labelmap.find(lb) == state.m_labelmap.end())
       {
         throw error(error::error_code::internal_error, "Label not found " + lb);
@@ -152,17 +152,17 @@ extract_externallabels(assembler_state& /*state*/, std::shared_ptr<asm_data> tok
   if (token->isLabel())
     return labels;
 
-  for (auto &arg : token->get_operation()->get_args())
+  for (auto &arg : token->get_operation().get_args())
   {
     if (arg.rfind("@") != 0)
       continue;
 
-    auto it = std::find(OOO.begin(), OOO.end(), token->get_operation()->get_name());
+    auto it = std::find(OOO.begin(), OOO.end(), token->get_operation().get_name());
     if (it == OOO.end())
       continue;
 
     auto lb = arg.substr(1);
-    lb = token->get_file() + ":" + lb;
+    lb = token->get_qualify_label(lb);
     std::vector<std::string> vlb {lb};
     labels = union_of_lists_inorder<std::string>(labels, vlb);
   }
@@ -208,7 +208,7 @@ labelalignmentsorter(assembler_state& state, std::vector<std::string>& clist)
   {
     auto index = state.m_labelmap[lb]->get_index();
     auto token = state.m_data[index+1];
-    if (ALIGNMENT_16 == ALIGNMAP.at(token->get_operation()->get_name()))
+    if (ALIGNMENT_16 == ALIGNMAP.at(token->get_operation().get_name()))
       labels.emplace_back(lb);
   }
 
@@ -216,7 +216,7 @@ labelalignmentsorter(assembler_state& state, std::vector<std::string>& clist)
   {
     auto index = state.m_labelmap[lb]->get_index();
     auto token = state.m_data[index+1];
-    if (ALIGNMENT_4 == ALIGNMAP.at(token->get_operation()->get_name()))
+    if (ALIGNMENT_4 == ALIGNMAP.at(token->get_operation().get_name()))
       labels.emplace_back(lb);
   }
 
@@ -280,9 +280,9 @@ assignpagenumber(assembler_state& state, uint32_t colnum,
   auto aligner = dsize ? datasectionaligner(tsize) : 0;
   // add align for data section
   if (aligner)
-    lpage.m_text.emplace_back(std::make_shared<asm_data>(std::make_shared<operation>(".align", "16"),
+    lpage.m_text.emplace_back(std::make_shared<asm_data>(operation(".align", "16"),
                                                     operation_type::op, code_section::text, 0,
-                                                    (uint32_t)-1, 0, ".align 16", "default"));
+                                                    (uint32_t)-1, 0, "default"));
   uint32_t cur_page_len = PAGE_HEADER_SIZE + tsize + EOF_SIZE + aligner + dsize;
   cur_page_len = (((cur_page_len + 3) >> 2) << 2); // round off to next multiple of 4
   lpage.set_cur_page_len(cur_page_len);

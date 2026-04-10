@@ -350,7 +350,7 @@ private:
   std::map<std::string, std::unique_ptr<aie2_isa_op_factory_base>> m_mnemonic_table;
 
 protected:
-  std::unique_ptr<aie2_isa_op> assemble_operation(std::shared_ptr<operation> op);
+  std::unique_ptr<aie2_isa_op> assemble_operation(const operation* op);
 
 public:
   aie2_asm_preprocessor_input();

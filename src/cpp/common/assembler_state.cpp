@@ -52,7 +52,7 @@ process(bool makeunique)
       m_labelmap[clabelname] = std::make_shared<label>(clabelname, m_pos, index);
       m_labellist.emplace_back(clabelname);
     } else if (data->isOpcode()){
-      std::string name = data->get_operation()->get_name();
+      std::string name = data->get_operation().get_name();
       if (!name.compare("start_job") || !name.compare("start_job_deferred") || !name.compare("start_cond_job_preempt"))
       {
         clabelname.clear();
@@ -71,7 +71,7 @@ process(bool makeunique)
 
       if ((*m_isa).count(name) > 0)
       {
-        offset_type size = (*m_isa)[name]->serializer(data->get_operation()->get_args())->size(*this);
+        offset_type size = (*m_isa)[name]->serializer(data->get_operation().get_args())->size(*this);
         m_pos += size;
         data->set_size(size);
         if (!name.compare("eof"))
@@ -90,7 +90,7 @@ process(bool makeunique)
 
       if (!name.compare("local_barrier"))
       {
-        barrierid_type lbid = parse_barrier(data->get_operation()->get_args()[0]);
+        barrierid_type lbid = parse_barrier(data->get_operation().get_args()[0]);
         auto it = m_localbarriermap.find(lbid);
         if (it == m_localbarriermap.end())
           m_localbarriermap[lbid] = std::vector<jobid_type>();
@@ -120,16 +120,16 @@ process(bool makeunique)
       // only used in pager
       // since label are after control code ops we need to record intermediately and resolve it later
       if (!name.compare("apply_offset_57") && makeunique)
-        apply_label_map[data->get_file() + ":" + data->get_operation()->get_args()[0].substr(1)]
-                 = std::stoul(data->get_operation()->get_args()[1]);
+        apply_label_map[data->get_qualify_label(data->get_operation().get_args()[0].substr(1))]
+                 = std::stoul(data->get_operation().get_args()[1]);
     } else {
       throw error(error::error_code::internal_error, "Unknown type found!!!");
     }
 
     if (!clabelname.empty()
-        && data->get_operation()->get_name().compare(".align")
-        && data->get_operation()->get_name().compare(".eop")
-        && data->get_operation()->get_name().compare("eof"))
+        && data->get_operation().get_name().compare(".align")
+        && data->get_operation().get_name().compare(".eop")
+        && data->get_operation().get_name().compare("eof"))
     {
       m_labelmap[clabelname]->increment_count(1);
       m_labelmap[clabelname]->increment_size(data->get_size());
