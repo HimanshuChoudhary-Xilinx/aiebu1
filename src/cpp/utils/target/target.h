@@ -6,9 +6,12 @@
 #include "aiebu/aiebu_assembler.h"
 #include "aiebu/aiebu_error.h"
 #include "logger.h"
+#include "utils.h"
 
 #include <filesystem>
 #include <fstream>
+
+#include <iostream>
 
 
 namespace aiebu::utilities {
@@ -45,6 +48,7 @@ class target
     log_info() << "elf size:" << e.size() << "\n";
     std::ofstream output_file(outfile, std::ios_base::binary);
     output_file.write(e.data(), e.size());
+    std::cout << metrics_report() << "\n";
   }
 
   public:
