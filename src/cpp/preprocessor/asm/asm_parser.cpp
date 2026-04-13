@@ -554,7 +554,7 @@ parse_hintmap_and_calculate_scratchpad(int group,
 
   const std::string ctx     = find_hintmap_context(group, search_context, hintmap_label);
   auto& col_data            = get_col_asmdata(static_cast<uint32_t>(group));
-  const auto all_entries    = col_data.get_label_asmdata(ctx);
+  const auto& all_entries   = col_data.get_label_asmdata_data(ctx);
   const auto words          = collect_hintmap_words(all_entries, hintmap_label);
   return hintmap_words_to_scratchpad(words, hintmap_label, group);
 }
