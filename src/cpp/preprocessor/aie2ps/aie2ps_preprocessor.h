@@ -141,12 +141,14 @@ public:
       auto& coldata = parser->get_col_asmdata(col);
       for (auto label : parser->getLabelsforcol(col))
       {
+        log_debug() << "[" << col << "]: Processing label: " << label << " Relative page index: " << relative_page_index<< std::endl;
         // create state
         std::vector<std::shared_ptr<asm_data>> data = coldata.get_label_asmdata(label);
         std::shared_ptr<assembler_state> state = create_assembler_state(m_isa, data, scratchpad, label_page_index, ctrlpkt_id_map, optimize, true);
       // create pages
         pager(PAGE_SIZE).pagify(*state, col, pages, relative_page_index);
         label_page_index[get_pagelabel(label)] = relative_page_index;
+        log_debug() << "num pages: " << pages.size() - relative_page_index << std::endl;
         relative_page_index = static_cast<uint32_t>(pages.size());
       }
 

@@ -57,9 +57,9 @@ insert_col_asmdata(std::shared_ptr<asm_data> data)
   if (m_col.find(m_current_col) == m_col.end())
     m_col[m_current_col] = col_data();
 
-  auto& label_data = m_col[m_current_col].get_label_data();
-  if (label_data.find(m_current_label) == label_data.end())
-    label_data[m_current_label] = section_asmdata();
+  auto& cdata = m_col[m_current_col];
+  cdata.ensure_label(m_current_label);
+  auto& label_data = cdata.get_label_data();
 
   if (get_data_state())
     label_data[m_current_label].data.emplace_back(data);

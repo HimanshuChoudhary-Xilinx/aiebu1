@@ -355,6 +355,8 @@ class annotation_type
 
 class col_data
 {
+  // First time a label scope receives asm_data; map iteration order is order of insertion.
+  std::vector<std::string> m_label_insertion_order;
   std::map<std::string, section_asmdata> m_label_data;
   std::map<std::string, uint32_t> m_labelpageindex;
   std::map<std::string, std::shared_ptr<scratchpad_info>> m_scratchpads;
@@ -362,6 +364,16 @@ class col_data
   // Used to verify all columns have the same number of preempt points.
   uint32_t m_preempt_count = 0;
 public:
+
+  void ensure_label(const std::string& label)
+  {
+    if (m_label_data.find(label) == m_label_data.end()) {
+      m_label_data[label] = section_asmdata();
+      m_label_insertion_order.push_back(label);
+    }
+  }
+
+  const std::vector<std::string>& get_label_insertion_order() const { return m_label_insertion_order; }
 
   std::vector<std::shared_ptr<asm_data>> get_label_asmdata(const std::string& label)
   {
@@ -675,13 +687,9 @@ public:
 
   std::map<std::string, uint32_t>& getcollabelpageindex(int col) { return m_col[col].get_labelpageindex(); }
 
-  std::vector<std::string> getLabelsforcol(uint32_t col)
+  const std::vector<std::string>& getLabelsforcol(uint32_t col)
   {
-    std::vector<std::string> keys;
-    for (const auto& pair : m_col[col].get_label_data()) {
-        keys.push_back(pair.first);
-    }
-    return keys;
+    return m_col[col].get_label_insertion_order();
   }
 
   void insert_scratchpad(std::string& name, offset_type size, std::vector<char>& content);
