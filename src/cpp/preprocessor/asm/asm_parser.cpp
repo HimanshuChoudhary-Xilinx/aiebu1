@@ -152,7 +152,10 @@ parse_lines()
   parse_lines(m_data, file);
 
   // After all parsing is done, inject actual save/restore code
+  const auto finalize_t0 = phase_clock::now();
   finalize_preempt();
+  const double finalize_preempt_ms =
+      std::chrono::duration<double, std::milli>(phase_clock::now() - finalize_t0).count();
 
   const double read_ms =
       std::chrono::duration<double, std::milli>(m_cumulative_file_read_ns).count();
@@ -171,6 +174,7 @@ parse_lines()
   std::cout << "asm_parser cumulative timing: file_read=" << std::fixed << std::setprecision(3)
              << read_ms << " ms (subset of parse wall), parse=" << parse_ms
              << " ms, parse_wo_measured_read=" << parse_excl_read_ms << " ms, hintmap=" << hintmap_ms
+             << " ms, finalize_preempt=" << finalize_preempt_ms
              << " ms, phase_wall=" << phase_wall_ms << " ms, accounted_sum=" << accounted_ms
              << " ms (parse+hintmap), unaccounted=" << unaccounted_ms << " ms" << std::endl;
 }
