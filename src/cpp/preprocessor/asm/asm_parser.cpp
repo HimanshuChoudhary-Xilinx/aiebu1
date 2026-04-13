@@ -5,6 +5,7 @@
 
 #include "aiebu/aiebu_error.h"
 
+#include <algorithm>
 #include <fstream>
 #include <iomanip>
 #include <optional>
@@ -161,12 +162,17 @@ parse_lines()
       std::chrono::duration<double, std::milli>(m_cumulative_hintmap_ns).count();
   const double phase_wall_ms =
       std::chrono::duration<double, std::milli>(phase_clock::now() - phase_t0).count();
-  const double accounted_ms = read_ms + parse_ms + hintmap_ms;
+  // file_read times artifacts->get() during .include/.setpad; that wall time also sits inside
+  // some parse_lines() frame and is part of cumulative parse (exclusive), so do not add both.
+  const double accounted_ms = parse_ms + hintmap_ms;
   const double unaccounted_ms = phase_wall_ms - accounted_ms;
+  const double parse_excl_read_ms =
+      std::max(0.0, parse_ms - read_ms);
   std::cout << "asm_parser cumulative timing: file_read=" << std::fixed << std::setprecision(3)
-             << read_ms << " ms, parse=" << parse_ms << " ms, hintmap=" << hintmap_ms
+             << read_ms << " ms (subset of parse wall), parse=" << parse_ms
+             << " ms, parse_wo_measured_read=" << parse_excl_read_ms << " ms, hintmap=" << hintmap_ms
              << " ms, phase_wall=" << phase_wall_ms << " ms, accounted_sum=" << accounted_ms
-             << " ms, unaccounted=" << unaccounted_ms << " ms" << std::endl;
+             << " ms (parse+hintmap), unaccounted=" << unaccounted_ms << " ms" << std::endl;
 }
 
 void
