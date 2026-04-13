@@ -4,6 +4,8 @@
 #ifndef _AIEBU_PREPROCESSOR_AIE2PS_PREPROCESSOR_H_
 #define _AIEBU_PREPROCESSOR_AIE2PS_PREPROCESSOR_H_
 
+#include <chrono>
+#include <iomanip>
 #include <string>
 #include "preprocessor.h"
 #include "asm/asm_parser.h"
@@ -61,6 +63,7 @@ public:
       std::strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &tm);
       std::cout << "preprocessor Current time: " << time_buf << "\n";
     }
+    const auto preprocess_phase_t0 = std::chrono::steady_clock::now();
     //auto keys = tinput->get_keys();
     const std::string prefix = "opt_level_";
 
@@ -98,7 +101,19 @@ public:
     std::shared_ptr<asm_parser> parser(new asm_parser(tinput->get_ctrlcode_data(), tinput->get_include_paths(), get_target_name(), tinput->get_artifacts()));
 
     parser->parse_lines();
-
+    {
+      const double preprocess_wall_ms =
+          std::chrono::duration<double, std::milli>(
+              std::chrono::steady_clock::now() - preprocess_phase_t0).count();
+      std::time_t t = std::time(nullptr);
+      std::tm tm{};
+      localtime_to_tm(t, tm);
+      char time_buf[64];
+      std::strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &tm);
+      std::cout << "paging Current time: " << time_buf << "\n";
+      std::cout << "preprocessor steady_clock (after preprocessor print -> after parse_lines): "
+                 << std::fixed << std::setprecision(3) << preprocess_wall_ms << " ms\n";
+    }
     // Verify PREEMPT opcode count is equal across all columns in the control code.
     // All controllers must have the same number of preemption points to ensure consistent
     // in cert, as cert synchronize preemption points at runtime and mismatch may lead to hang.

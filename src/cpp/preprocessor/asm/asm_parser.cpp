@@ -136,6 +136,9 @@ void
 asm_parser::
 parse_lines()
 {
+  using phase_clock = std::chrono::steady_clock;
+  const auto phase_t0 = phase_clock::now();
+
   directive_list[".attach_to_group"] = std::make_shared<attach_to_group_directive>();
   directive_list[".include"] = std::make_shared<include_directive>();
   directive_list[".endl"] = std::make_shared<end_of_label_directive>();
@@ -154,8 +157,16 @@ parse_lines()
       std::chrono::duration<double, std::milli>(m_cumulative_file_read_ns).count();
   const double parse_ms =
       std::chrono::duration<double, std::milli>(m_cumulative_parse_ns).count();
-  std::cout() << "asm_parser cumulative timing: file_read=" << std::fixed << std::setprecision(3)
-             << read_ms << " ms, parse=" << parse_ms << " ms" << std::endl;
+  const double hintmap_ms =
+      std::chrono::duration<double, std::milli>(m_cumulative_hintmap_ns).count();
+  const double phase_wall_ms =
+      std::chrono::duration<double, std::milli>(phase_clock::now() - phase_t0).count();
+  const double accounted_ms = read_ms + parse_ms + hintmap_ms;
+  const double unaccounted_ms = phase_wall_ms - accounted_ms;
+  std::cout << "asm_parser cumulative timing: file_read=" << std::fixed << std::setprecision(3)
+             << read_ms << " ms, parse=" << parse_ms << " ms, hintmap=" << hintmap_ms
+             << " ms, phase_wall=" << phase_wall_ms << " ms, accounted_sum=" << accounted_ms
+             << " ms, unaccounted=" << unaccounted_ms << " ms" << std::endl;
 }
 
 void
@@ -917,6 +928,9 @@ asm_parser::build_hintmap_groups(int group,
                                  const std::vector<std::string>& hintmap_labels,
                                  int group_index)
 {
+  using clock = std::chrono::steady_clock;
+  const auto hintmap_t0 = clock::now();
+
   // Map (scratchbase, size) -> index in result vector
   std::map<std::pair<uint64_t,uint64_t>, std::size_t> key_to_idx;
   std::vector<hintmap_group_entry> result;
@@ -961,6 +975,9 @@ asm_parser::build_hintmap_groups(int group,
                  << " / @" << entry.labels.second << std::endl;
     }
   }
+
+  accumulate_hintmap_time(
+      std::chrono::duration_cast<std::chrono::nanoseconds>(clock::now() - hintmap_t0));
   return result;
 }
 
@@ -981,6 +998,9 @@ asm_parser::inject_hintmap_save_restore(int col,
                                         const std::vector<std::string>& save_membd,
                                         const std::vector<std::string>& restore_membd)
 {
+  using clock = std::chrono::steady_clock;
+  const auto inject_prep_t0 = clock::now();
+
   // Bind all hintmaps in this group to the shared labels.
   // Key includes the column so that identical qualified names in different
   // columns never collide in the map.
@@ -1036,6 +1056,9 @@ asm_parser::inject_hintmap_save_restore(int col,
   }
   restore_chars.assign(restore_text.begin(), restore_text.end());
 
+  accumulate_hintmap_time(
+      std::chrono::duration_cast<std::chrono::nanoseconds>(clock::now() - inject_prep_t0));
+
   m_current_col = col;
   set_data_state(false);
   parse_lines(save_chars, save_file_mod);
@@ -1053,6 +1076,9 @@ asm_parser::inject_hintmap_save_restore(int col,
 void
 asm_parser::update_preempt_opcodes(int col)
 {
+  using clock = std::chrono::steady_clock;
+  const auto update_t0 = clock::now();
+
   if (m_col.find(col) == m_col.end())
     return;
 
@@ -1106,9 +1132,13 @@ asm_parser::update_preempt_opcodes(int col)
       }
     }
   } catch (...) {
+    accumulate_hintmap_time(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(clock::now() - update_t0));
     throw error(error::error_code::internal_error, "Error updating PREEMPT opcodes for column "
                                                    + std::to_string(col));
   }
+  accumulate_hintmap_time(
+      std::chrono::duration_cast<std::chrono::nanoseconds>(clock::now() - update_t0));
 }
 
 // ---------------------------------------------------------------------------

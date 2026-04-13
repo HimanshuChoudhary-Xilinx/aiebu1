@@ -422,6 +422,7 @@ class asm_parser: public std::enable_shared_from_this<asm_parser>
 
   std::chrono::nanoseconds m_cumulative_file_read_ns{0};
   std::chrono::nanoseconds m_cumulative_parse_ns{0};
+  std::chrono::nanoseconds m_cumulative_hintmap_ns{0};
   // Per parse_lines frame: sum of wall time spent in nested parse_lines (e.g. .include).
   std::vector<std::chrono::nanoseconds> m_parse_nested_wall_stack;
 
@@ -672,6 +673,8 @@ public:
   void parse_lines(const std::vector<char>& data, std::string& file);
 
   void accumulate_file_read_time(std::chrono::nanoseconds ns) { m_cumulative_file_read_ns += ns; }
+
+  void accumulate_hintmap_time(std::chrono::nanoseconds ns) { m_cumulative_hintmap_ns += ns; }
 
   std::vector<char> get_asm_data(const std::string& name);
   // Switch active column for subsequent opcodes. Do not replace existing col_data:
