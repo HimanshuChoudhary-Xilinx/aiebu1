@@ -382,6 +382,12 @@ public:
     return result;
   }
 
+  const std::vector<std::shared_ptr<asm_data>>&
+  get_label_asmdata_data(const std::string& label) const
+  {
+    return m_label_data.at(label).data;
+  }
+
   std::map<std::string, section_asmdata>& get_label_data() { return m_label_data; }
 
   std::map<std::string, uint32_t>& get_labelpageindex() { return m_labelpageindex; }
