@@ -149,12 +149,36 @@ parse_lines()
 
   // After all parsing is done, inject actual save/restore code
   finalize_preempt();
+
+  const double read_ms =
+      std::chrono::duration<double, std::milli>(m_cumulative_file_read_ns).count();
+  const double parse_ms =
+      std::chrono::duration<double, std::milli>(m_cumulative_parse_ns).count();
+  std::cout() << "asm_parser cumulative timing: file_read=" << std::fixed << std::setprecision(3)
+             << read_ms << " ms, parse=" << parse_ms << " ms" << std::endl;
+}
+
+void
+asm_parser::
+finalize_parse_lines_timing(std::chrono::steady_clock::time_point parse_t0)
+{
+  using clock = std::chrono::steady_clock;
+  const auto wall_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(clock::now() - parse_t0);
+  const auto nested_total = m_parse_nested_wall_stack.back();
+  m_parse_nested_wall_stack.pop_back();
+  if (!m_parse_nested_wall_stack.empty())
+    m_parse_nested_wall_stack.back() += wall_ns;
+  m_cumulative_parse_ns += (wall_ns - nested_total);
 }
 
 void
 asm_parser::
 parse_lines(const std::vector<char>& data, std::string& file)
 {
+  m_parse_nested_wall_stack.push_back(std::chrono::nanoseconds{0});
+  using clock = std::chrono::steady_clock;
+  const auto parse_t0 = clock::now();
+  try {
   //parse asm code
   const static regex COMMENT_REGEX("^;(.*)$");
   const static regex LABEL_REGEX("^([a-zA-Z0-9_]+):$");
@@ -332,6 +356,11 @@ parse_lines(const std::vector<char>& data, std::string& file)
     }
   }
 
+  } catch (...) {
+    finalize_parse_lines_timing(parse_t0);
+    throw;
+  }
+  finalize_parse_lines_timing(parse_t0);
 }
 
 std::pair<std::vector<std::string>, std::vector<std::string>>
@@ -1346,7 +1375,11 @@ read_include_file(std::string filename)
   log_info() << "Reading contents from virtual or disk file:" << filename << "\n";
   try {
     if (!m_parserptr->get_artifacts()) return false;
+    using clock = std::chrono::steady_clock;
+    const auto t0 = clock::now();
     data = m_parserptr->get_artifacts()->get(filename, m_parserptr->get_include_list());
+    m_parserptr->accumulate_file_read_time(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(clock::now() - t0));
   } catch (const std::runtime_error& e) {
     log_error() << "Error reading buffer from artifacts: " << e.what() << "\n";
     return false;
@@ -1437,7 +1470,11 @@ read_pad_file(std::string& name, std::string& filename)
   std::vector<char> data;
   try {
     if (!m_parserptr->get_artifacts()) return false;
+    using clock = std::chrono::steady_clock;
+    const auto t0 = clock::now();
     data = m_parserptr->get_artifacts()->get(filename, m_parserptr->get_include_list());
+    m_parserptr->accumulate_file_read_time(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(clock::now() - t0));
   } catch (const std::runtime_error& e) {
     log_error() << "Error reading buffer from artifacts: " << e.what() << "\n";
     return false;
