@@ -8,7 +8,7 @@
 #include <algorithm>
 #include <cstring>
 #include <iomanip>
-#include <<cstdint>>
+#include <cstdint>
 #include <sstream>
 #include <boost/version.hpp>
 #include <boost/uuid/detail/md5.hpp>
