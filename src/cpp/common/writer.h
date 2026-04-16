@@ -56,6 +56,12 @@ public:
     m_data.insert(m_data.end(), bytes.begin(), bytes.end());
   }
 
+  void
+  write_default_bytes(unsigned int count)
+  {
+    m_data.resize(m_data.size() + count, 0x0);
+  }
+
   virtual void reserve(size_t capacity);
 
   virtual uint32_t read_word(offset_type offset) const;
