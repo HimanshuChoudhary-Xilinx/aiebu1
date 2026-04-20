@@ -35,7 +35,7 @@ public:
                                                  std::map<std::string, uint32_t>& labelpageindex,
                                                  std::map<uint32_t, std::string>& ctrlpkt_id_map, uint32_t optimize_level, bool makeunique)
   {
-    return std::make_shared<assembler_state_aie2ps>(isa, data, scratchpad, labelpageindex, ctrlpkt_id_map, optimize_level, makeunique);
+    return std::make_shared<assembler_state_aie2ps>(isa, data, scratchpad, labelpageindex, ctrlpkt_id_map, optimize_level, makeunique, false);
   }
 
   virtual std::shared_ptr<preprocessed_output>

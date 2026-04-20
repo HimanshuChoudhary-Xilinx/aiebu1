@@ -48,6 +48,7 @@ class transform_manager {
   static constexpr uint8_t elf_amd_aie2ps_abi = 0x46;      // AIE2PS/AIE4 group ELF format
   static constexpr uint8_t elf_amd_aie2ps_aie4_legacy_elf_version = 0x2;    // AIE2PS/AIE4 target ELF format
   static constexpr uint8_t elf_amd_aie2ps_aie4_config_elf_version = 0x3;    // AIE2PS/AIE4 config ELF format
+  static constexpr uint8_t elf_amd_aie2ps_aie4_target_config_elf_version = 0x20;    // AIE2PS/AIE4 config ELF format
 
   // Register offset multiplier (2 for 32-bit registers = 64-bit offset)
   static constexpr uint8_t num_32bit_register = 2;
@@ -70,6 +71,15 @@ class transform_manager {
     return std::to_string(offset) + "_" + std::to_string(section_idx);
   }
 
+  /**
+   * @brief True if this .ctrltext section holds the merged per-column page blob.
+   *
+   * Names with exactly two dot-segments after the prefix match is_merged_section_name.
+   * Config ELFs append a group/instance suffix (get_section_prefix), e.g. ".ctrltext.0.0",
+   * which looks like per-page ".ctrltext.<col>.<page>" but has no paired .ctrldata section.
+   */
+  bool ctrltext_section_uses_merged_payload(const std::string& section_name) const;
+
   // Instruction processing methods
   // Calculate instruction size in bytes
   uint32_t size(const isa_op_disasm& op) const;
@@ -89,8 +99,8 @@ class transform_manager {
    * concatenated, each occupying PAGE_SIZE bytes:
    *   [header 16B][text][data][padding to PAGE_SIZE]
    *
-   * This function iterates over each page's text portion using cur_page_len
-   * from the page header and adjusts the table_ptr lookup by the page's base
+   * This function iterates over each page's text portion (from after the 16B
+   * header through the mandatory eof opcode) and adjusts the table_ptr lookup by the page's base
    * offset (page_index * PAGE_SIZE + 16) so that it matches the corrected
    * r_offset stored in the ELF relocations.
    *

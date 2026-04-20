@@ -159,7 +159,7 @@ namespace aiebu {
 
       // TODO added symbols name hardcoded to ".pad.0" and col 0
       // this will change once compiler decide on how to generate multi col control packet design
-      add_symbol({std::to_string(arg_index + ARG_OFFSET), offset, 0, 0, addend, 0, ".ctrltext.0", control_packet_patching});
+      add_symbol({std::to_string(arg_index + ARG_OFFSET), offset, 0, 0, addend, 0, ".ctrltext.0.0", control_packet_patching});
     }
 
   }

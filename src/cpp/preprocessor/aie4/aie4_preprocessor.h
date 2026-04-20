@@ -31,7 +31,7 @@ public:
                                          std::map<std::string, uint32_t>& labelpageindex,
                                          std::map<uint32_t, std::string>& ctrlpkt_id_map, uint32_t optimize_level, bool makeunique) override
   {
-    return std::make_shared<assembler_state_aie4>(isa, data, scratchpad, labelpageindex, ctrlpkt_id_map, optimize_level, makeunique);
+    return std::make_shared<assembler_state_aie4>(isa, data, scratchpad, labelpageindex, ctrlpkt_id_map, optimize_level, makeunique, false);
   }
 };
 

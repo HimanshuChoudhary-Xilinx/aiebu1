@@ -83,9 +83,11 @@ serialize(std::shared_ptr<assembler_state> state, std::vector<symbol>& symbols,
       try {
         val = state->parse_num_arg(sval);
       } catch (symbol_exception &) {
-        symbols.emplace_back(sval, state->get_pos()+(uint32_t)ret.size(),
-                             colnum, pagenum, 0, 0, ".ctrltext." + std::to_string(colnum)
-                             + "." + std::to_string(pagenum),
+        const std::string scaler_sec =
+            state->merged_ctrltext_elf()
+                ? (".ctrltext." + std::to_string(colnum))
+                : (".ctrltext." + std::to_string(colnum) + "." + std::to_string(pagenum));
+        symbols.emplace_back(sval, state->get_pos() + (uint32_t)ret.size(), colnum, pagenum, 0, 0, scaler_sec,
                              symbol::patch_schema::scaler_32);
       }
 
@@ -110,11 +112,15 @@ serialize(std::shared_ptr<assembler_state> state, std::vector<symbol>& symbols,
 
           size_t index = state->find_label_entry(m_args[0].substr(1));
           auto num_entries = state->parse_num_arg(m_args[1]);
+          const std::string ctrltext_patch_sec_name =
+              state->merged_ctrltext_elf()
+                  ? (".ctrltext." + std::to_string(colnum))
+                  : (".ctrltext." + std::to_string(colnum) + "." + std::to_string(pagenum));
           for (uint32_t numbd = 0; numbd < num_entries; ++numbd)
           {
             auto label = state->get_label_at(index);
             symbols.emplace_back(sval, state->parse_num_arg(label),
-                                 colnum, pagenum, 0, 0, ".ctrltext." + std::to_string(colnum),
+                                 colnum, pagenum, 0, 0, ctrltext_patch_sec_name,
                                  state->get_shim_dma_patching());
             ++index;
           }

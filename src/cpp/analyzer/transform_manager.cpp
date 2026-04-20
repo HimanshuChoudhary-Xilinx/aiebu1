@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (C) 2025-2026 Advanced Micro Devices, Inc. All rights reserved.
 
+#include <algorithm>
 #include <cstdint>
 #include <cctype>
 #include <set>
@@ -80,7 +81,7 @@ load_elf(const std::vector<char>& elf_data)
   } else if (abi_version == elf_version_legacy_config) {
     // Legacy config ELF - only aie2ps_group
     if (os_abi != osabi_aie2ps_group)
-      throw error(error::error_code::invalid_input, "Only aie2ps_group elf supported for ELF version 0x03\n");
+      throw error(error::error_code::invalid_input, "Only aie2ps_group elf supported for ELF version 0x03 and above\n");
   } else if (abi_version == elf_version_aie2p_config) {
     // AIE2P config ELF - only aie2p
     if (os_abi != osabi_aie2p)
@@ -93,7 +94,7 @@ load_elf(const std::vector<char>& elf_data)
         os_abi != osabi_aie4 &&
         os_abi != osabi_aie4a &&
         os_abi != osabi_aie4z)
-      throw error(error::error_code::invalid_input, "Only aie2ps/aie2p/aie4 family elf supported for ELF version 0x20\n");
+      throw error(error::error_code::invalid_input, "Only aie2ps/aie2p/aie4 family elf supported for ELF version 0x20 and above\n");
   } else {
     throw error(error::error_code::invalid_input, "Unsupported ELF ABI version: 0x"
                 + ELFIO::to_hex_string(abi_version) + "\n");
@@ -167,8 +168,11 @@ modify_apply_offset_57(char* text_section_data, size_t text_section_size, uint32
  * occupies exactly PAGE_SIZE bytes with layout:
  *   [page_header 16B][text instructions][data BDs][zero padding to PAGE_SIZE]
  *
- * For each page the text portion is identified via cur_page_len stored in the
- * page header (bytes 8-9).  An apply_offset_57 instruction stores a table_ptr
+ * For each page, bytes 8–9 (cur_page_len) record the used span of the page slot
+ * (header + text + data, before padding).  The ISA scan walks only the serialized
+ * text stream and stops at the mandatory eof opcode (see pager), so buffer-descriptor
+ * bytes in the following data region are never decoded as instructions.  An apply_offset_57
+ * instruction stores a table_ptr
  * field that is relative to its own page's temp encoding (= T_N + D_bd).  To
  * match the corrected r_offset value written into the ELF relocations we add
  * (page_start + elf_section_header_size) before looking up xrt_idx_lookup.
@@ -179,20 +183,17 @@ modify_apply_offset_57_merged(char* section_data, size_t section_size, uint32_t 
 {
   size_t page_start = 0;
   while (page_start + elf_section_header_size <= section_size) {
-    // Read cur_page_len from page header bytes 8-9 (little-endian)
-    uint16_t cur_page_len =
-      static_cast<uint8_t>(section_data[page_start + 8]) |
-      (static_cast<uint8_t>(section_data[page_start + 9]) << 8);
-
     size_t text_start = page_start + elf_section_header_size;
-    size_t text_end   = page_start + cur_page_len;
+    const size_t page_limit =
+        std::min(section_size, page_start + static_cast<size_t>(PAGE_SIZE));
 
-    if (text_end > section_size || text_end <= text_start) {
+    if (text_start > section_size || text_start >= page_limit) {
       page_start += PAGE_SIZE;
       continue;
     }
 
-    for (size_t offset = text_start; offset < text_end;) {
+    // Walk instructions until eof (last opcode in text for each page); do not parse BD data.
+    for (size_t offset = text_start; offset < page_limit;) {
       uint8_t opcode = static_cast<uint8_t>(section_data[offset]);
 
       if (opcode == align_opcode) {
@@ -204,7 +205,7 @@ modify_apply_offset_57_merged(char* section_data, size_t section_size, uint32_t 
       if (op_it == isa_op_map->end())
         throw error(error::error_code::invalid_asm,
                     "Unknown Opcode:" + std::to_string(opcode) +
-                    " at position " + std::to_string(offset) + "\n");
+                    " at position " + std::to_string(offset) + " in single section elf\n");
 
       if (opcode == OPCODE_APPLY_OFFSET_57) {
         auto* code = reinterpret_cast<apply_offset_57*>(section_data + offset);
@@ -220,10 +221,34 @@ modify_apply_offset_57_merged(char* section_data, size_t section_size, uint32_t 
           code->offset = static_cast<uint16_t>(lookup_it->second * num_32bit_register);
       }
 
-      offset += size(op_it->second);
+      const uint32_t inst_sz = size(op_it->second);
+      offset += inst_sz;
+
+      if (opcode == OPCODE_EOF)
+        break;
     }
 
     page_start += PAGE_SIZE;
+  }
+}
+
+bool
+transform_manager::
+ctrltext_section_uses_merged_payload(const std::string& section_name) const
+{
+  if (!is_text_section(section_name))
+    return false;
+  if (is_merged_section_name(section_name))
+    return true;
+  try {
+    const auto col_page = get_column_and_page(section_name);
+    const std::string id = get_grp_id_if_group_elf(section_name);
+    const std::string ctrldata_nm =
+        get_ctrldata_section_name(col_page.first, col_page.second, id);
+    const auto ctrldata = m_elfio.sections[ctrldata_nm];
+    return !ctrldata;
+  } catch (const std::exception&) {
+    return true;
   }
 }
 
@@ -242,7 +267,7 @@ process_sections() {
     const auto& section_name = section->get_name();
 
     if (is_text_section(section_name) && section->get_type() == ELFIO::SHT_PROGBITS) {
-      if (is_merged_section_name(section_name))
+      if (ctrltext_section_uses_merged_payload(section_name))
         modify_apply_offset_57_merged(const_cast<char*>(section->get_data()), section->get_size(), num);
       else
         modify_apply_offset_57(const_cast<char*>(section->get_data()), section->get_size(), num);
@@ -514,7 +539,7 @@ get_controlcode_bd_offset(const std::string& section_name, uint32_t offset, symb
 
   const uint32_t* bd_data_ptr = nullptr;
 
-  if (is_merged_section_name(section_name)) {
+  if (ctrltext_section_uses_merged_payload(section_name)) {
     // Merged format (.ctrltext.<col>): offset is the absolute byte position of
     // the BD within the merged section.
     if (offset >= ctrltext->get_size())
@@ -568,7 +593,7 @@ set_controlcode_bd_offset(const std::string& section_name, uint32_t offset, uint
 
   uint32_t* bd_data_ptr = nullptr;
 
-  if (is_merged_section_name(section_name)) {
+  if (ctrltext_section_uses_merged_payload(section_name)) {
     // Merged format (.ctrltext.<col>): offset is the absolute byte position in the section.
     if (offset >= ctrltext->get_size())
       throw error(error::error_code::internal_error, "merged ctrltext offset out of range:"
@@ -1395,7 +1420,7 @@ check_aie2ps_aie4_elf()
 }
 
 /**
- * @brief Validate config (full) ELF (os_abi=0x46, abi_version=0x03).
+ * @brief Validate full config ELF: legacy group (0x46 + abi>=0x03) or .target family (per-OSABI + abi>=0x20).
  * @throws error (invalid_input) on mismatch
  */
 void
@@ -1405,15 +1430,20 @@ check_aie2ps_aie4_fullelf()
   auto os_abi      = m_elfio.get_os_abi();
   auto abi_version = m_elfio.get_abi_version();
 
-  if (os_abi != elf_amd_aie2ps_abi)
-    throw error(error::error_code::invalid_input,
-                "Expected aie2ps/aie4 ELF (os_abi=0x46), got os_abi=0x"
-                + ELFIO::to_hex_string(os_abi) + "\n");
+  const bool legacy_group_config =
+      (os_abi == osabi_aie2ps_group) && (abi_version >= elf_amd_aie2ps_aie4_config_elf_version);
 
-  if (abi_version != elf_amd_aie2ps_aie4_config_elf_version)
+  const bool targeted_family_config =
+      (os_abi == osabi_aie2ps || os_abi == osabi_aie4 || os_abi == osabi_aie4a || os_abi == osabi_aie4z) &&
+      (abi_version >= elf_amd_aie2ps_aie4_target_config_elf_version);
+
+  if (!legacy_group_config && !targeted_family_config) {
     throw error(error::error_code::invalid_input,
-                "Expected config ELF abi_version=0x03, got 0x"
+                "Expected full config ELF: (os_abi=0x46 and abi_version>=0x03) or "
+                "(os_abi in {0x40,0x4B,0x56,0x69} and abi_version>=0x21); got os_abi=0x"
+                + ELFIO::to_hex_string(os_abi) + " abi_version=0x"
                 + ELFIO::to_hex_string(abi_version) + "\n");
+  }
 }
 
 } // End of Namespace aiebu

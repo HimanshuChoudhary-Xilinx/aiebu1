@@ -22,20 +22,47 @@ class aie2ps_encoder : public encoder
   asm_report m_report;
   Debug m_debug;
   asm_dump_flag m_dump_flag = asm_dump_flag::disable;
+  bool m_merged_ctrltext_elf;
+
+protected:
+  bool use_merged_ctrltext_sections() const { return m_merged_ctrltext_elf; }
+
+  std::string merged_ctrltext_section_name(uint32_t colnum) const
+  {
+    return ".ctrltext." + std::to_string(colnum);
+  }
+
+  /**
+   * Encode one page. If merged_writer is set, append [header+text+data+pad] to that section and
+   * append relocation symbols to *merged_sym (caller adjusts positions). Otherwise
+   * emit per-page .ctrltext.<col>.<page> and .ctrldata.<col>.<page> sections.
+   */
+  void page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>& scratchpad,
+                   std::map<std::string, uint32_t>& labelpageindex,
+                   std::map<uint32_t, std::string>& ctrlpkt_id_map, uint32_t optimization_level,
+                   std::shared_ptr<section_writer> merged_writer, std::vector<symbol>* merged_sym);
+
 public:
-  aie2ps_encoder() {
+  explicit aie2ps_encoder(bool merged_ctrltext_elf = false)
+    : m_merged_ctrltext_elf(merged_ctrltext_elf)
+  {
     isa i;
     m_isa = i.get_isamap();
   }
 
+  void set_merged_ctrltext_elf(bool merged) { m_merged_ctrltext_elf = merged; }
+
   virtual std::vector<std::shared_ptr<writer>>
   process(std::shared_ptr<preprocessed_output> input) override;
-  virtual std::string get_TextSectionName(uint32_t colnum) {return ".ctrltext." + std::to_string(colnum); }
-  virtual std::string get_PadSectionName(uint32_t colnum) {return ".pad." + std::to_string(colnum); }
-  void page_writer(page& lpage, std::map<std::string, std::shared_ptr<scratchpad_info>>& scratchpad,
-  std::map<std::string, uint32_t>& labelpageindex, std::map<uint32_t, std::string>& ctrlpkt_id_map,
-  uint32_t optimization_level, std::shared_ptr<section_writer> merged_writer,
-  std::vector<symbol>& page_syms);
+  virtual std::string get_TextSectionName(uint32_t colnum, pageid_type pagenum)
+  {
+    return ".ctrltext." + std::to_string(colnum) + "." + std::to_string(pagenum);
+  }
+  virtual std::string get_DataSectionName(uint32_t colnum, pageid_type pagenum)
+  {
+    return ".ctrldata." + std::to_string(colnum) + "." + std::to_string(pagenum);
+  }
+  virtual std::string get_PadSectionName(uint32_t colnum) { return ".pad." + std::to_string(colnum); }
 
   virtual void patch57(const std::shared_ptr<section_writer> textwriter, std::shared_ptr<section_writer> datawriter, offset_type offset, uint64_t patch);
   virtual void patch_cp_57(const std::shared_ptr<section_writer> ctrlpktwriter, offset_type offset, uint64_t patch);
@@ -52,7 +79,8 @@ public:
                          std::map<std::string, uint32_t>& labelpageindex,
                          std::map<uint32_t, std::string>& ctrlpkt_id_map, uint32_t optimize_level, bool makeunique)
   {
-    return std::make_shared<assembler_state_aie2ps>(isa, data, scratchpad, labelpageindex, ctrlpkt_id_map, optimize_level, makeunique);
+    return std::make_shared<assembler_state_aie2ps>(isa, data, scratchpad, labelpageindex, ctrlpkt_id_map,
+                                                    optimize_level, makeunique, use_merged_ctrltext_sections());
   }
 
   std::vector<std::shared_ptr<writer>> get_writers() { return twriter; }
@@ -93,8 +121,12 @@ public:
 template <typename T, typename input_tamplete>
 class asm_config_encoder : public encoder
 {
+  bool m_merged_ctrltext_elf;
   std::vector<std::shared_ptr<writer>> twriter;
 public:
+  explicit asm_config_encoder(bool merged_ctrltext_elf = false)
+    : m_merged_ctrltext_elf(merged_ctrltext_elf) {}
+
   std::vector<std::shared_ptr<writer>>
   process(std::shared_ptr<preprocessed_output> input) override
   {
@@ -112,7 +144,7 @@ public:
     for (auto& [kernel, instances] : tinput->get_kernel_map()) {
       for(auto& [iname, instance] : instances)
       {
-        T encoder_object;
+        T encoder_object(m_merged_ctrltext_elf);
         encoder_object.check_partition_info(instance->get_partition_info(), output_writer->get_partition_info());
         encoder_object.check_target_info(instance->get_target_info(), tinfo_first_instance);
         encoder_object.check_aie_row_topology_info(instance->get_aie_row_topology_info(), rinfo_first_instance);

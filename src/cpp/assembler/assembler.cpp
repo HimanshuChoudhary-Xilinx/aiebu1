@@ -126,6 +126,8 @@ configure_elf_for_target(const std::string& parsed_target)
   // Config ELFs with .target use version 0x20 (2.0) and specific OSABI
   m_elfwriter->set_os_abi(os_abi);
   m_elfwriter->set_abi_version(elf_version_config);
+  m_enoder->set_merged_ctrltext_elf(true);
+  std::cout << "merged_ctrltext_elf: true " << std::endl;
 }
 
 void
