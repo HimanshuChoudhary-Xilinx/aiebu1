@@ -50,7 +50,7 @@ public:
     m_isa = i.get_isamap();
   }
 
-  void set_merged_ctrltext_elf(bool merged) { m_merged_ctrltext_elf = merged; }
+  void set_merged_ctrltext_elf(bool merged) override { m_merged_ctrltext_elf = merged; }
 
   virtual std::vector<std::shared_ptr<writer>>
   process(std::shared_ptr<preprocessed_output> input) override;
@@ -126,6 +126,8 @@ class asm_config_encoder : public encoder
 public:
   explicit asm_config_encoder(bool merged_ctrltext_elf = false)
     : m_merged_ctrltext_elf(merged_ctrltext_elf) {}
+
+  void set_merged_ctrltext_elf(bool merged) override { m_merged_ctrltext_elf = merged; }
 
   std::vector<std::shared_ptr<writer>>
   process(std::shared_ptr<preprocessed_output> input) override

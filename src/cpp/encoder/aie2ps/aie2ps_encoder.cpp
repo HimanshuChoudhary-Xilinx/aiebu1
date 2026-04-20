@@ -65,13 +65,6 @@ process(std::shared_ptr<preprocessed_output> input)
   auto& ctrlpkt_id_map = tinput->get_ctrlpkt_id_map();
   m_dump_flag = tinput->get_debug();
 
-  if (!use_merged_ctrltext_sections()) {
-    log_warn() << "This target is not a full config ELF: emitting legacy per-page .ctrltext.<col>.<page> "
-                  "and .ctrldata.<col>.<page> sections. The merged single-section .ctrltext.<col> layout "
-                  "(all pages per column concatenated to PAGE_SIZE boundaries) is used only for "
-                  "aie2ps_config / aie4_config ELFs.\n";
-  }
-
   for (const auto& coldata: totalcoldata) {
     auto colnum = coldata.first;
 

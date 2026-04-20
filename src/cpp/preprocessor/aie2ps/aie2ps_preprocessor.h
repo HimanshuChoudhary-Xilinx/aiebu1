@@ -130,7 +130,6 @@ public:
     toutput->set_ctrlpkt_id_map(ctrlpkt_id_map);
     toutput->set_annotations(parser->get_annotations());
 
-    uint32_t total_pages = 0;
     for (auto col: collist)
     {
       std::vector<page> pages;
@@ -161,11 +160,6 @@ public:
       }
 
       toutput->set_coldata(col, pages, scratchpad, label_page_index, tinput->get_control_packet_index());
-      total_pages += relative_page_index;
-      // TODO: once we support single section elf, this needs to be removed back.
-      if (total_pages >= max_pages)
-        throw error(error::error_code::invalid_asm,
-          "Maximum pages limit reached beyond which is not supported due to elfio max section limitation\n");
     }
     toutput->add_symbols(tinput->get_symbols());
     return toutput;

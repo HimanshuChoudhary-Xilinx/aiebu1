@@ -18,6 +18,10 @@ public:
 
   virtual std::vector<std::shared_ptr<writer>>
   process(std::shared_ptr<preprocessed_output> input) = 0;
+
+  /** Merged single-section .ctrltext.<col>; no-op except aie2ps / asm_config encoders. */
+  virtual void set_merged_ctrltext_elf(bool /*merged*/) {}
+
   virtual ~encoder() = default;
 };
 
