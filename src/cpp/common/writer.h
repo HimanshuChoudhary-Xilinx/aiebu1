@@ -76,6 +76,13 @@ public:
     return m_data;
   }
 
+  // Moves section bytes out for one-shot ELF emission; m_data becomes empty.
+  std::vector<uint8_t>
+  take_data_for_emit()
+  {
+    return std::move(m_data);
+  }
+
   const std::string&
   get_name() const
   {

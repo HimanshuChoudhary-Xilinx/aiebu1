@@ -17,6 +17,7 @@
 #include "elfwriter.h"
 #include "encoder.h"
 #include "preprocessor.h"
+#include "utils.h"
 
 #include "aiebu/aiebu_error.h"
 

@@ -30,6 +30,28 @@ align_op_serializer::size(assembler_state& state)
   return ((state.get_pos() % align) > 0 ) ? (align - (state.get_pos() % align)) : 0;
 }
 
+offset_type
+isa_op::encoded_size_in_text(assembler_state& state,
+                             const std::vector<std::string>& args) const
+{
+  if (!m_opname.compare(".long"))
+    return 4;
+  if (!m_opname.compare(".align")) {
+    const uint32_t align = std::stoi(args.at(0));
+    const offset_type pos = state.get_pos();
+    return ((pos % align) > 0) ? static_cast<offset_type>(align - (pos % align)) : 0;
+  }
+  if (!m_opname.compare("uc_dma_bd"))
+    return 16;
+  if (state.is_optimization_enabled_for_op(m_opname))
+    return 0;
+  offset_type result = 2;
+  constexpr uint8_t width_8 = 8;
+  for (const auto& arg : m_args)
+    result += arg.m_width / width_8;
+  return result;
+}
+
 
 std::vector<uint8_t>
 isa_op_serializer::
