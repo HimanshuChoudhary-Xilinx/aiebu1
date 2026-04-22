@@ -215,17 +215,26 @@ public:
 // violating the One Definition Rule (ODR).
 namespace detail {
   inline thread_local std::vector<std::string> g_filename_table;
+  inline thread_local std::unordered_map<std::string, uint32_t> g_filename_index;
 
   inline uint32_t intern_filename(const std::string& fname) {
-    auto& tbl = g_filename_table;
-    for (uint32_t i = 0; i < static_cast<uint32_t>(tbl.size()); ++i)
-      if (tbl[i] == fname) return i;
-    tbl.push_back(fname);
-    return static_cast<uint32_t>(tbl.size() - 1);
+    auto it = g_filename_index.find(fname);
+    if (it != g_filename_index.end())
+      return it->second;
+    const uint32_t idx = static_cast<uint32_t>(g_filename_table.size());
+    g_filename_table.push_back(fname);
+    g_filename_index.emplace(g_filename_table.back(), idx);
+    return idx;
   }
 
   inline const std::string& lookup_filename(uint32_t idx) {
     return g_filename_table[idx];
+  }
+
+  // Cached index for synthetic ops that are not tied to a real source path.
+  inline uint32_t default_source_file_idx() {
+    thread_local const uint32_t idx = intern_filename(std::string("default"));
+    return idx;
   }
 } // namespace detail
 
@@ -251,16 +260,14 @@ public:
             m_pagenum(pgnum), m_linenumber(ln),
             m_file_idx(detail::intern_filename(file)) {}
 
-  asm_data( asm_data* a)
-  {
-    a->m_op = m_op;
-    a->m_optype = m_optype;
-    a->m_section = m_section;
-    a->m_size = m_size;
-    a->m_pagenum = m_pagenum;
-    a->m_linenumber = m_linenumber;
-    a->m_file_idx = m_file_idx;
-  }
+  asm_data(operation op, operation_type optype,
+           code_section sec, offset_type size, uint32_t pgnum,
+           uint32_t ln, uint32_t file_idx)
+           :m_op(std::move(op)), m_optype(optype), m_section(sec), m_size(size),
+            m_pagenum(pgnum), m_linenumber(ln),
+            m_file_idx(file_idx) {}
+
+  // Rule of Zero: implicit copy/move keeps insert_col_asmdata / vector growth cheap.
 
   HEADER_ACCESS_GET_SET(code_section, section);
   HEADER_ACCESS_GET_SET(offset_type, size);
@@ -295,12 +302,12 @@ public:
     return n + ' ' + a;
   }
 
-  bool isLabel() { return m_optype == operation_type::label; }
-  bool isOpcode() { return m_optype == operation_type::op; }
-  bool isAnnotation() { return m_optype == operation_type::annotation; }
+  bool isLabel() const { return m_optype == operation_type::label; }
+  bool isOpcode() const { return m_optype == operation_type::op; }
+  bool isAnnotation() const { return m_optype == operation_type::annotation; }
   const operation& get_operation() const { return m_op; }
   void update_operation(operation op) { m_op = std::move(op); }
-  int get_annotation_index() { return m_annotation_index; }
+  int get_annotation_index() const { return m_annotation_index; }
   void set_annotation_index(int annotation_index) { m_annotation_index = annotation_index; }
 };
 

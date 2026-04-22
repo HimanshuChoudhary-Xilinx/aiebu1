@@ -29,7 +29,7 @@ namespace aiebu {
   using cmatch = boost::cmatch;
   using sregex_iterator = boost::sregex_iterator;
   using regex_error = boost::regex_error;
-  
+
   // Import functions into aiebu namespace
   using boost::regex_match;
   using boost::regex_search;
@@ -47,7 +47,6 @@ namespace aiebu {
   using cmatch = std::cmatch;
   using sregex_iterator = std::sregex_iterator;
   using regex_error = std::regex_error;
-  
   // Import functions into aiebu namespace
   using std::regex_match;
   using std::regex_search;

@@ -172,6 +172,7 @@ parse_lines(const std::vector<char>& data, std::string& file)
       str += c;
     }
   }
+  const uint32_t parse_file_idx = detail::intern_filename(file);
   // Scan str for newlines directly instead of copying it into an istringstream
   size_t pos = 0;
   const size_t str_len = str.size();
@@ -202,8 +203,12 @@ parse_lines(const std::vector<char>& data, std::string& file)
 
     smatch sm;
 
-    // Check for Directive (starts with .) - only check regex if prefix matches
-    if (line[0] == '.' && operate_directive(line))
+    if (line[0] == '.' &&
+        line.substr(0,5).compare(".long") != 0 &&
+        line.substr(0,6).compare(".align") != 0 &&
+        line.substr(0,4).compare(".eof") != 0 &&
+        line.substr(0,4).compare(".eop") != 0 &&
+        operate_directive(line))
     {
       if (!get_annotation_state())
         continue;
@@ -236,9 +241,9 @@ parse_lines(const std::vector<char>& data, std::string& file)
         m_current_label = m_current_label + ":" + sm[1].str();
         set_data_state(false);
       } else
-        insert_col_asmdata(std::make_shared<asm_data>(operation(sm[1].str(), ""),
-                                                      operation_type::label, code_section::unknown, 0,
-                                                      (uint32_t)-1, linenumber, file));
+        insert_col_asmdata(std::make_shared<asm_data>(operation(sm[1].str(), ""), operation_type::label,
+                                                      code_section::unknown, 0, (uint32_t)-1, linenumber,
+                                                      parse_file_idx));
       continue;
     }
     // check for operation
@@ -323,10 +328,9 @@ parse_lines(const std::vector<char>& data, std::string& file)
 
         line = op_name + "\t" + arg_str;
       }
-
-      insert_col_asmdata(std::make_shared<asm_data>(operation(op_name, arg_str),
-                                                    operation_type::op, code_section::unknown, 0, (uint32_t)-1,
-                                                    linenumber, file));
+      insert_col_asmdata(std::make_shared<asm_data>(operation(op_name, arg_str), operation_type::op,
+                                                    code_section::unknown, 0, (uint32_t)-1, linenumber,
+                                                    parse_file_idx));
       if (!op_name.compare("eof"))
         set_data_state(true);
     }
@@ -1234,8 +1238,8 @@ operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm)
 
   // dummy eof added if col change happens before eof
   m_parserptr->insert_col_asmdata(std::make_shared<asm_data>(operation("eof", ""),
-                                                    operation_type::op, code_section::unknown, 0, (uint32_t)-1,
-                                                    0, "default"));
+                                                              operation_type::op, code_section::unknown, 0,
+                                                              (uint32_t)-1, 0, detail::default_source_file_idx()));
   m_parserptr->set_current_col(std::stoi(sm[2].str()));
   m_parserptr->set_data_state(false);
 }
