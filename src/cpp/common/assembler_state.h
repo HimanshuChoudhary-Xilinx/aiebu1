@@ -149,6 +149,7 @@ protected:
   assembler_state(assembler_state &&s) = default;
 
 public:
+  static std::chrono::nanoseconds m_cumulative_assembler_state_ns;
   std::shared_ptr<std::map<std::string, std::shared_ptr<isa_op>>> m_isa;
   std::vector<std::shared_ptr<asm_data>>& m_data;
   std::vector<jobid_type> m_jobids;
@@ -165,6 +166,7 @@ public:
 
   void printstate() const;
 
+  static void printtime();
   inline std::string gen_job_name(bool makeunique, const std::shared_ptr<asm_data> data, uint32_t eopnum)
   {
     // Include eopnum in job name to allow same job ID across page boundaries in single file.

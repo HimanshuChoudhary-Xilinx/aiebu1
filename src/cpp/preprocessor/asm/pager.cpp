@@ -347,6 +347,7 @@ uint32_t
 pager::
 pagify(assembler_state& state, uint32_t col, std::vector<page>& pages, uint32_t relative_page_index)
 {
+  opcode_handle_timer pagify_timer(&m_cumulative_pagify_ns);
   // pagify the content
   offset_type page_tsize = 0;
   offset_type page_dsize = 0;
