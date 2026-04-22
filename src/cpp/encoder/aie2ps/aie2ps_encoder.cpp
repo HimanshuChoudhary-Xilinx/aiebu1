@@ -64,6 +64,7 @@ process(std::shared_ptr<preprocessed_output> input)
   auto& ctrlpkt_id_map = tinput->get_ctrlpkt_id_map();
   m_dump_flag = tinput->get_debug();
 
+  print_aiebu_wall_timing_message("encoder started  ");
   // for each colnum encode each page
   for (const auto& coldata: totalcoldata) {
     auto colnum = coldata.first;
@@ -84,6 +85,8 @@ process(std::shared_ptr<preprocessed_output> input)
       twriter.push_back(ctrlpktwriter);
     }
   }
+  print_aiebu_wall_timing_message("encoder completed");
+  print_aiebu_wall_timing_message("reporting started");
   // Report (only if log level is info or higher)
   if (get_log_level() >= log_level::info)
     m_report.summary(std::cout);
@@ -121,6 +124,7 @@ process(std::shared_ptr<preprocessed_output> input)
     dumpwriter->set_data(dump_data);
     twriter.push_back(dumpwriter);
   }
+  print_aiebu_wall_timing_message("reporting completed");
   return twriter;
 }
 

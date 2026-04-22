@@ -17,6 +17,7 @@
 #include "elfwriter.h"
 #include "encoder.h"
 #include "preprocessor.h"
+#include "utils.h"
 
 #include "aiebu/aiebu_error.h"
 
@@ -220,6 +221,7 @@ process(const std::vector<char>& buffer1,
         const std::map<uint32_t, std::vector<char> >& ctrlpkt,
         const file_artifact* artifacts)
 {
+  print_aiebu_wall_timing_message("assembler started");
   m_ppi->set_args(buffer1, patch_json, buffer2, libs, libpaths, ctrlpkt, artifacts);
   auto ppo = m_preprocessor->process(m_ppi);
 
@@ -259,6 +261,7 @@ process(const std::vector<char>& buffer1,
 
   auto w = m_enoder->process(ppo);
   auto u = m_elfwriter->process(w);
+  print_aiebu_wall_timing_message("assembler completed");
   return u;
 }
 

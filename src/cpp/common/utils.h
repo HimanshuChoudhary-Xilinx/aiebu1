@@ -301,5 +301,21 @@ std::string version_string();
 
 std::string metrics_report();
 
+void print_aiebu_wall_timing_message(const std::string& message);
+
+
+struct opcode_handle_timer {
+  std::chrono::steady_clock::time_point t0;
+  std::chrono::nanoseconds* acc;
+  explicit opcode_handle_timer(std::chrono::nanoseconds* a)
+      : t0(std::chrono::steady_clock::now()), acc(a)
+  {}
+  ~opcode_handle_timer()
+  {
+    *acc += std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::steady_clock::now() - t0);
+  }
+};
+
 }
 #endif // AIEBU_COMMOM_UTILS_H_
