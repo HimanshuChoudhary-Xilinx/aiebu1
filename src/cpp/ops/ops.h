@@ -276,6 +276,11 @@ public:
     else
       return std::make_shared<isa_op_serializer>(get_shared_ptr(), args);
   }
+
+  // Same result as serializer(args)->size(state) without copying args or heap
+  // allocating a serializer (hot path in assembler_state::process).
+  offset_type encoded_size_in_text(assembler_state& state,
+                                   const std::vector<std::string>& args) const;
 };
 
   inline std::unique_ptr<op_deserializer> isa_op_disasm::create_deserializer() const

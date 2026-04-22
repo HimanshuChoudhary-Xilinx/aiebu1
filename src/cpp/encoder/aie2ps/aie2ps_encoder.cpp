@@ -125,6 +125,7 @@ process(std::shared_ptr<preprocessed_output> input)
     twriter.push_back(dumpwriter);
   }
   print_aiebu_wall_timing_message("reporting completed");
+  assembler_state::printtime();
   return twriter;
 }
 

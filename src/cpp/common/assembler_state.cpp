@@ -7,6 +7,8 @@
 #include "regex_wrapper.h"
 #include "aiebu/aiebu_error.h"
 
+#include <unordered_map>
+
 namespace aiebu {
 
 std::chrono::nanoseconds assembler_state::m_cumulative_assembler_state_ns{0};
@@ -32,6 +34,7 @@ printtime()
   std::cout << "\t\tCumulative assembler_state time: "
   << std::chrono::duration<double, std::milli>(m_cumulative_assembler_state_ns).count()
   << " ms\n";
+  m_cumulative_assembler_state_ns = std::chrono::nanoseconds::zero();
 }
 // makeunique: make the job and label name unique by adding file name with it,
 //             this is only needed before paging as different file can have same
@@ -47,7 +50,7 @@ process(bool makeunique)
   std::string clabelname;
   jobid_type cjob_id = "";
   std::map<std::string, uint32_t> apply_label_map;
-  for (auto data : m_data)
+  for (const auto& data : m_data)
   {
     if (data->isLabel())
     {
@@ -55,19 +58,21 @@ process(bool makeunique)
       clabelname = gen_label_name(makeunique, data);
 
       data->set_size(0);
-      if (m_labelmap.find(clabelname) != m_labelmap.end())
+      auto lb_it = m_labelmap.lower_bound(clabelname);
+      if (lb_it != m_labelmap.end() && lb_it->first == clabelname)
         throw error(error::error_code::invalid_asm, "Label " + clabelname + " present multiple time in asm\n");
-      m_labelmap[clabelname] = std::make_shared<label>(clabelname, m_pos, index);
+      m_labelmap.emplace_hint(lb_it, clabelname, std::make_shared<label>(clabelname, m_pos, index));
       m_labellist.emplace_back(clabelname);
     } else if (data->isOpcode()){
-      std::string name = data->get_operation().get_name();
+      const std::string& name = data->get_operation().get_name();
       if (!name.compare("start_job") || !name.compare("start_job_deferred") || !name.compare("start_cond_job_preempt"))
       {
         clabelname.clear();
         cjob_id = gen_job_name(makeunique, data, eopnum);
-        if (m_jobmap.find(cjob_id) != m_jobmap.end())
+        auto j_it = m_jobmap.lower_bound(cjob_id);
+        if (j_it != m_jobmap.end() && j_it->first == cjob_id)
           throw error(error::error_code::invalid_asm, "Job " + cjob_id + " present multiple time in asm\n");
-        m_jobmap[cjob_id] = std::make_shared<job>(cjob_id, m_pos, index, eopnum, !name.compare("start_job_deferred"));
+        m_jobmap.emplace_hint(j_it, cjob_id, std::make_shared<job>(cjob_id, m_pos, index, eopnum, !name.compare("start_job_deferred")));
         m_jobids.push_back(cjob_id);
       }
 
@@ -77,9 +82,11 @@ process(bool makeunique)
         m_jobids.push_back(EOF_ID);
       }
 
-      if ((*m_isa).count(name) > 0)
+      const auto isa_it = m_isa->find(name);
+      if (isa_it != m_isa->end())
       {
-        offset_type size = (*m_isa)[name]->serializer(data->get_operation().get_args())->size(*this);
+        const auto& op_args = data->get_operation().get_args();
+        offset_type size = isa_it->second->encoded_size_in_text(*this, op_args);
         m_pos += size;
         data->set_size(size);
         if (!name.compare("eof"))
@@ -89,8 +96,9 @@ process(bool makeunique)
           cjob_id = std::to_string(-1);
         }
       } else if (!name.compare(".eop")) {
-        m_jobmap[gen_eop_name(eopnum)] = std::make_shared<job>(gen_eop_name(eopnum), m_pos, index, eopnum, false);
-        m_jobids.push_back(gen_eop_name(eopnum));
+        const std::string eop_name = gen_eop_name(eopnum);
+        m_jobmap[eop_name] = std::make_shared<job>(eop_name, m_pos, index, eopnum, false);
+        m_jobids.push_back(eop_name);
         ++eopnum;
       } else {
         throw error(error::error_code::internal_error, "Invalid operation:" + name);
@@ -99,10 +107,7 @@ process(bool makeunique)
       if (!name.compare("local_barrier"))
       {
         barrierid_type lbid = parse_barrier(data->get_operation().get_args()[0]);
-        auto it = m_localbarriermap.find(lbid);
-        if (it == m_localbarriermap.end())
-          m_localbarriermap[lbid] = std::vector<jobid_type>();
-        m_jobmap[cjob_id].get()->m_barrierids.push_back(lbid);
+        m_jobmap[cjob_id]->m_barrierids.push_back(lbid);
         m_localbarriermap[lbid].push_back(cjob_id);
       }
 
@@ -111,9 +116,6 @@ process(bool makeunique)
         jobid_type launchjobid;
         launchjobid = gen_job_name(makeunique, data, eopnum);
         m_jobmap[cjob_id]->m_dependentjobs.push_back(launchjobid);
-        auto it = m_joblaunchmap.find(launchjobid);
-        if (it == m_joblaunchmap.end())
-          m_joblaunchmap[launchjobid] = std::vector<jobid_type>();
         m_joblaunchmap[launchjobid].push_back(cjob_id);
       }
 
@@ -134,24 +136,33 @@ process(bool makeunique)
       throw error(error::error_code::internal_error, "Unknown type found!!!");
     }
 
-    if (!clabelname.empty()
-        && data->get_operation().get_name().compare(".align")
-        && data->get_operation().get_name().compare(".eop")
-        && data->get_operation().get_name().compare("eof"))
+    if (!clabelname.empty())
     {
-      m_labelmap[clabelname]->increment_count(1);
-      m_labelmap[clabelname]->increment_size(data->get_size());
+      const std::string& opnm = data->get_operation().get_name();
+      if (opnm != ".align" && opnm != ".eop" && opnm != "eof")
+      {
+        m_labelmap[clabelname]->increment_count(1);
+        m_labelmap[clabelname]->increment_size(data->get_size());
+      }
     }
     ++index;
     data->set_section(csection);
   }
 
   //convert label and num_entries to map of label and dependent labels
+  std::unordered_map<std::string, size_t> label_index;
+  label_index.reserve(m_labellist.size() * 2 + 1);
+  for (size_t li = 0; li < m_labellist.size(); ++li)
+    label_index.emplace(m_labellist[li], li);
+
   for (const auto& pair : apply_label_map)
   {
     if (pair.second == 1)
       continue;
-    size_t label_idx = find_label_entry(pair.first);
+    auto lit = label_index.find(pair.first);
+    if (lit == label_index.end())
+      throw error(error::error_code::internal_error, "label " + pair.first + " not found in label list!!!");
+    const size_t label_idx = lit->second;
     for (uint32_t i = 0; i < pair.second; ++i)
     {
       auto label = get_label_at(label_idx+i);
