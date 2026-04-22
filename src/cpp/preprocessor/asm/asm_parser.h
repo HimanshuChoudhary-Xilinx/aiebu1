@@ -10,6 +10,7 @@
 #include "common/regex_wrapper.h"
 #include "logger.h"
 
+#include <chrono>
 #include <map>
 #include <memory>
 #include <set>
@@ -432,6 +433,10 @@ class asm_parser: public std::enable_shared_from_this<asm_parser>
   std::shared_ptr<aie_row_topology_info> m_aie_row_topology;
   const std::string m_target_type;
   const file_artifact* m_artifacts;
+  std::chrono::nanoseconds m_cumulative_artifact_file_read_ns{0};
+  std::chrono::nanoseconds m_cumulative_read_next_line_ns{0};
+  std::chrono::nanoseconds m_cumulative_preempt_opcode_handle_ns{0};
+  std::chrono::nanoseconds m_cumulative_insert_col_asmdata_ns{0};
   std::map<int, std::pair<std::string, std::string>> m_preempt_labels;  // group -> (save_label, restore_label)
   std::map<int, std::vector<std::string>> m_preempt_hintmaps;  // group -> vector of hintmap_labels (multiple PREEMPT opcodes per group)
   std::map<std::string, std::pair<std::string, std::string>> m_hintmap_labels;  // hintmap_label -> (save_label, restore_label)
@@ -676,6 +681,8 @@ public:
   void set_num_north_shim(uint32_t val) { m_aie_row_topology->set_num_north_shim(val); }
 
   void set_aie_row_topology_is_set(bool val) { m_aie_row_topology->set_is_set(val); }
+
+  void record_artifact_file_read_time(std::chrono::nanoseconds duration);
 
   void parse_lines();
 

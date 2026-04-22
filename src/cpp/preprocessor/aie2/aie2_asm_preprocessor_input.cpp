@@ -577,6 +577,8 @@ std::vector<char>
 aie2_asm_preprocessor_input::encode(const std::vector<char>& mc_asm_code) {
   std::shared_ptr<asm_parser> a(new asm_parser(mc_asm_code, {}, "aie2"));
   a->parse_lines();
+  print_aiebu_wall_timing_message("parsing");
+
   std::stringstream store;
 
   auto collist = a->get_col_list();
@@ -616,6 +618,7 @@ aie2_asm_preprocessor_input::encode(const std::vector<char>& mc_asm_code) {
   std::vector<char> result(size);
   const std::string binary = store.str();
   std::copy(binary.begin(), binary.end(), result.begin());
+  print_aiebu_wall_timing_message("preprocessing");
   return result;
 }
 }

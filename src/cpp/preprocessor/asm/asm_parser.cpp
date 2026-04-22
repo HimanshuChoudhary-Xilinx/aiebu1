@@ -5,8 +5,11 @@
 
 #include "aiebu/aiebu_error.h"
 
+#include <chrono>
+#include <cstdint>
 #include <fstream>
 #include <iomanip>
+#include <iostream>
 #include <optional>
 #include <sstream>
 
@@ -45,6 +48,13 @@ static inline int aiebu_clz(unsigned int x)      { return __builtin_clz(x);     
 #endif
 
 namespace aiebu {
+
+void
+asm_parser::
+record_artifact_file_read_time(std::chrono::nanoseconds duration)
+{
+  m_cumulative_artifact_file_read_ns += duration;
+}
 
 void
 asm_parser::
@@ -136,6 +146,11 @@ void
 asm_parser::
 parse_lines()
 {
+  m_cumulative_artifact_file_read_ns = std::chrono::nanoseconds{0};
+  m_cumulative_read_next_line_ns = std::chrono::nanoseconds{0};
+  m_cumulative_preempt_opcode_handle_ns = std::chrono::nanoseconds{0};
+  m_cumulative_insert_col_asmdata_ns = std::chrono::nanoseconds{0};
+  reset_regex_match_cumulative_time();
   directive_list[".attach_to_group"] = std::make_shared<attach_to_group_directive>();
   directive_list[".include"] = std::make_shared<include_directive>();
   directive_list[".endl"] = std::make_shared<end_of_label_directive>();
@@ -146,9 +161,25 @@ parse_lines()
   directive_list[".aie_row_topology"] = std::make_shared<aie_row_topology_directive>();
   std::string file = "default";
   parse_lines(m_data, file);
+  print_aiebu_wall_timing_message("parse_lines completed");
 
   // After all parsing is done, inject actual save/restore code
   finalize_preempt();
+
+  std::cout << "Cumulative artifact file read time: "
+             << std::chrono::duration<double, std::milli>(m_cumulative_artifact_file_read_ns).count()
+             << " ms\n";
+  const std::uint64_t regex_match_ns = get_regex_match_cumulative_nanoseconds();
+  std::cout << "Cumulative regex_match time: " << (static_cast<double>(regex_match_ns) / 1e6) << " ms\n";
+  std::cout << "Cumulative read_next_line time: "
+             << std::chrono::duration<double, std::milli>(m_cumulative_read_next_line_ns).count()
+             << " ms\n";
+  std::cout << "Cumulative PREEMPT opcode handling time: "
+             << std::chrono::duration<double, std::milli>(m_cumulative_preempt_opcode_handle_ns).count()
+             << " ms\n";
+  std::cout << "Cumulative insert_col_asmdata time: "
+             << std::chrono::duration<double, std::milli>(m_cumulative_insert_col_asmdata_ns).count()
+             << " ms\n";
 }
 
 void
@@ -175,7 +206,20 @@ parse_lines(const std::vector<char>& data, std::string& file)
   // Scan str for newlines directly instead of copying it into an istringstream
   size_t pos = 0;
   const size_t str_len = str.size();
+  struct read_next_line_timer {
+    std::chrono::steady_clock::time_point t0;
+    std::chrono::nanoseconds* acc;
+    explicit read_next_line_timer(std::chrono::nanoseconds* a)
+        : t0(std::chrono::steady_clock::now()), acc(a)
+    {}
+    ~read_next_line_timer()
+    {
+      *acc += std::chrono::duration_cast<std::chrono::nanoseconds>(
+          std::chrono::steady_clock::now() - t0);
+    }
+  };
   auto read_next_line = [&](std::string& out) -> bool {
+    read_next_line_timer timer(&m_cumulative_read_next_line_ns);
     if (pos > str_len) return false;
     const size_t nl = str.find('\n', pos);
     if (nl == std::string::npos) {
@@ -235,10 +279,12 @@ parse_lines(const std::vector<char>& data, std::string& file)
       if (!get_data_state()) {
         m_current_label = m_current_label + ":" + sm[1].str();
         set_data_state(false);
-      } else
+      } else {
+        opcode_handle_timer insert_col_asmdata_timer(&m_cumulative_insert_col_asmdata_ns);
         insert_col_asmdata(std::make_shared<asm_data>(operation(sm[1].str(), ""),
                                                       operation_type::label, code_section::unknown, 0,
                                                       (uint32_t)-1, linenumber, file));
+      }
       continue;
     }
     // check for operation
@@ -250,6 +296,8 @@ parse_lines(const std::vector<char>& data, std::string& file)
 
       // Handle PREEMPT opcode - record label for current group
       if (!op_name.compare("preempt")) {
+        opcode_handle_timer preempt_handle_timer(&m_cumulative_preempt_opcode_handle_ns);
+
         if (get_target_type() == "aie2ps")
           throw error(error::error_code::internal_error, "PREEMPT opcode is not supported for aie2ps target");
 
@@ -323,10 +371,12 @@ parse_lines(const std::vector<char>& data, std::string& file)
 
         line = op_name + "\t" + arg_str;
       }
-
+      {
+      opcode_handle_timer insert_col_asmdata_timer(&m_cumulative_insert_col_asmdata_ns);
       insert_col_asmdata(std::make_shared<asm_data>(operation(op_name, arg_str),
                                                     operation_type::op, code_section::unknown, 0, (uint32_t)-1,
                                                     linenumber, file));
+      }
       if (!op_name.compare("eof"))
         set_data_state(true);
     }
@@ -1346,7 +1396,11 @@ read_include_file(std::string filename)
   log_info() << "Reading contents from virtual or disk file:" << filename << "\n";
   try {
     if (!m_parserptr->get_artifacts()) return false;
+    const auto t0 = std::chrono::steady_clock::now();
     data = m_parserptr->get_artifacts()->get(filename, m_parserptr->get_include_list());
+    const auto t1 = std::chrono::steady_clock::now();
+    m_parserptr->record_artifact_file_read_time(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0));
   } catch (const std::runtime_error& e) {
     log_error() << "Error reading buffer from artifacts: " << e.what() << "\n";
     return false;
@@ -1437,7 +1491,11 @@ read_pad_file(std::string& name, std::string& filename)
   std::vector<char> data;
   try {
     if (!m_parserptr->get_artifacts()) return false;
+    const auto t0 = std::chrono::steady_clock::now();
     data = m_parserptr->get_artifacts()->get(filename, m_parserptr->get_include_list());
+    const auto t1 = std::chrono::steady_clock::now();
+    m_parserptr->record_artifact_file_read_time(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0));
   } catch (const std::runtime_error& e) {
     log_error() << "Error reading buffer from artifacts: " << e.what() << "\n";
     return false;

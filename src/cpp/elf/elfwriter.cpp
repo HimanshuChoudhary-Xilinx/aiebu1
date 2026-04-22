@@ -3,6 +3,7 @@
 
 #include "elfwriter.h"
 #include "logger.h"
+#include "utils.h"
 
 namespace aiebu {
 
@@ -294,7 +295,9 @@ process(std::vector<std::shared_ptr<writer>>& mwriter)
   process_common_helper(mwriter, "");
   if (dstr_sec)
     add_dynamic_section();
-  return finalize();
+  auto out = finalize();
+  print_aiebu_wall_timing_message("elfwriter");
+  return out;
 }
 
 void

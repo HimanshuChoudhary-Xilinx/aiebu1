@@ -6,6 +6,7 @@
 
 #include <elfwriter.h>
 #include <aie_elf_constants.h>
+#include "utils.h"
 
 namespace aiebu {
 
@@ -35,6 +36,7 @@ public:
   std::vector<char>
   process(std::vector<std::shared_ptr<writer>>& mwriter) override
   {
+    print_aiebu_wall_timing_message("elfwriter started");
     auto mconfig_writer = std::dynamic_pointer_cast<config_writer>(mwriter[0]);
     init_symtab();
     uint32_t index=0;
@@ -61,7 +63,9 @@ public:
     std::memcpy(configuration_vec.data(), &col, sizeof(uint32_t));
 
     add_note(NT_XRT_PARTITION_SIZE, xrt_configuration, configuration_vec);
-    return finalize();
+    auto out = finalize();
+    print_aiebu_wall_timing_message("elfwriter completed");
+    return out;
   }
 };
 }
