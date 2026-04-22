@@ -9,6 +9,7 @@
 
 namespace aiebu {
 
+std::chrono::nanoseconds assembler_state::m_cumulative_assembler_state_ns{0};
 assembler_state::
 assembler_state(std::shared_ptr<std::map<std::string, std::shared_ptr<isa_op>>> isa,
                 std::vector<std::shared_ptr<asm_data>>& data,
@@ -18,11 +19,20 @@ assembler_state(std::shared_ptr<std::map<std::string, std::shared_ptr<isa_op>>> 
                 : m_isa(std::move(isa)), m_data(data), m_scratchpad(scratchpad),
                   m_labelpageindex(labelpageindex), m_ctrlpkt_id_map(ctrlpkt_id_map)
 {
+  opcode_handle_timer process_optimization_timer(&m_cumulative_assembler_state_ns);
   process_optimization(optimize_level);
   process(makeunique);
   //printstate();
 }
 
+void
+assembler_state::
+printtime()
+{
+  std::cout << "\t\tCumulative assembler_state time: "
+  << std::chrono::duration<double, std::milli>(m_cumulative_assembler_state_ns).count()
+  << " ms\n";
+}
 // makeunique: make the job and label name unique by adding file name with it,
 //             this is only needed before paging as different file can have same
 //             job number and label but after pafing its not needed as on a page
