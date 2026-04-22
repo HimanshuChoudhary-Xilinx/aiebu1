@@ -215,6 +215,10 @@ parse_lines()
 
   // After all parsing is done, inject actual save/restore code
   finalize_preempt();
+
+  std::cout << "Cumulative readfile time: "
+  << std::chrono::duration<double, std::milli>(m_cumulative_readfile_ns).count()
+  << " ms\n";
 }
 
 void
@@ -1419,6 +1423,7 @@ read_include_file(std::string filename)
   std::vector<char> data;
   log_info() << "Reading contents from virtual or disk file:" << filename << "\n";
   try {
+    opcode_handle_timer readfile_timer(&m_parserptr->m_cumulative_readfile_ns);
     if (!m_parserptr->get_artifacts()) return false;
     data = m_parserptr->get_artifacts()->get(filename, m_parserptr->get_include_list());
   } catch (const std::runtime_error& e) {
@@ -1515,6 +1520,7 @@ read_pad_file(std::string& name, std::string& filename)
   m_parserptr->set_data_state(false);
   std::vector<char> data;
   try {
+    opcode_handle_timer readfile_timer(&m_parserptr->m_cumulative_readfile_ns);
     if (!m_parserptr->get_artifacts()) return false;
     data = m_parserptr->get_artifacts()->get(filename, m_parserptr->get_include_list());
   } catch (const std::runtime_error& e) {
@@ -1524,5 +1530,4 @@ read_pad_file(std::string& name, std::string& filename)
   m_parserptr->insert_scratchpad(name, static_cast<offset_type>(data.size()), data);
   return true;
 }
-
 }
