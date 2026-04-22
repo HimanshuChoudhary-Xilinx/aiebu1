@@ -3,6 +3,10 @@
 #include <map>
 #include <string>
 #include <sstream>
+#include <chrono>
+#include <ctime>
+#include <iomanip>
+#include <iostream>
 
 #include "utils.h"
 #include "common/build_info.h"
@@ -86,5 +90,25 @@ metrics_report()
   const process_metrics met = get_process_metrics();
   stream << "CPU " << met.m_cpu_ms << " ms, Memory " << met.m_peak_kb << " KB";
   return stream.str();
+}
+
+void
+print_aiebu_wall_timing_message(const std::string& message)
+{
+  using clock = std::chrono::system_clock;
+  const clock::time_point now = clock::now();
+  const std::time_t t = clock::to_time_t(now);
+  std::tm tm_buf{};
+#if defined(_WIN32)
+  localtime_s(&tm_buf, &t);
+#else
+  localtime_r(&t, &tm_buf);
+#endif
+  const auto since_epoch = now.time_since_epoch();
+  const auto whole_sec = std::chrono::duration_cast<std::chrono::seconds>(since_epoch);
+  const auto frac_us =
+      std::chrono::duration_cast<std::chrono::microseconds>(since_epoch - whole_sec).count();
+
+  std::cout << "[aiebu timing] " << message << ":\t\t" << std::put_time(&tm_buf, "%Y-%m-%d %H:%M:%S") << '.' << std::setfill('0') << std::setw(6) << frac_us << '\n';
 }
 }

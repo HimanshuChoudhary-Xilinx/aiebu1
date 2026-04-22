@@ -86,7 +86,9 @@ public:
     
     std::shared_ptr<asm_parser> parser(new asm_parser(tinput->get_ctrlcode_data(), tinput->get_include_paths(), get_target_name(), tinput->get_artifacts()));
 
+    print_aiebu_wall_timing_message("parsing started  ");
     parser->parse_lines();
+    print_aiebu_wall_timing_message("parsing completed");
 
     // Verify PREEMPT opcode count is equal across all columns in the control code.
     // All controllers must have the same number of preemption points to ensure consistent
@@ -130,6 +132,7 @@ public:
     toutput->set_ctrlpkt_id_map(ctrlpkt_id_map);
     toutput->set_annotations(parser->get_annotations());
 
+    print_aiebu_wall_timing_message("pagifying started");
     uint32_t total_pages = 0;
     for (auto col: collist)
     {
@@ -167,6 +170,7 @@ public:
         throw error(error::error_code::invalid_asm,
           "Maximum pages limit reached beyond which is not supported due to elfio max section limitation\n");
     }
+    print_aiebu_wall_timing_message("pagifying completed");
     toutput->add_symbols(tinput->get_symbols());
     return toutput;
   }
