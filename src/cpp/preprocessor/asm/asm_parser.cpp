@@ -216,7 +216,7 @@ parse_lines()
   // After all parsing is done, inject actual save/restore code
   finalize_preempt();
 
-  std::cout << "Cumulative readfile time: "
+  std::cout << "\t\tCumulative readfile time: "
   << std::chrono::duration<double, std::milli>(m_cumulative_readfile_ns).count()
   << " ms\n";
 }
