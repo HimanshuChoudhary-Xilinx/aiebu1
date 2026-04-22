@@ -51,10 +51,12 @@ public:
        {
          auto instance_index = add_symtab_section(iname, kernel_index);
          std::vector<uint32_t> group_data = process_common_helper(instance, get_section_prefix(index));
-         // first word is GRP_COMDAT
-         group_data.insert(group_data.begin(), 1);
+         std::vector<uint32_t> grouped;
+         grouped.reserve(group_data.size() + 1);
+         grouped.push_back(1);
+         grouped.insert(grouped.end(), group_data.begin(), group_data.end());
          //group_data.insert(group_data.end(), common_data.begin(), common_data.end());
-         add_group(get_group_name(index), group_data, instance_index);
+         add_group(get_group_name(index), grouped, instance_index);
          index++;
        }
     }

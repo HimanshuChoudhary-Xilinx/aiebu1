@@ -3,8 +3,50 @@
 
 #include "elfwriter.h"
 #include "logger.h"
+#include "aiebu/aiebu_error.h"
+
+#include <sstream>
+#include <cstring>
 
 namespace aiebu {
+
+ELFIO::section*
+elf_writer::
+add_section_by_name(const std::string& section_name)
+{
+  if (m_elfio.sections.size() > max_sections)
+    throw error(error::error_code::invalid_asm, "Maximum number of sections reached");
+  ELFIO::section* sec = m_elfio.sections.add(section_name);
+  m_section_by_name[section_name] = sec;
+  return sec;
+}
+
+void
+elf_writer::
+resync_section_name_map()
+{
+  for (unsigned i = 0; i < m_elfio.sections.size(); ++i) {
+    ELFIO::section* s = m_elfio.sections[i];
+    if (!s)
+      continue;
+    const std::string& n = s->get_name();
+    if (!n.empty())
+      m_section_by_name[n] = s;
+  }
+}
+
+ELFIO::section*
+elf_writer::
+lookup_section(const std::string& name)
+{
+  auto it = m_section_by_name.find(name);
+  if (it != m_section_by_name.end())
+    return it->second;
+  ELFIO::section* s = m_elfio.sections[name];
+  if (s)
+    m_section_by_name.emplace(name, s);
+  return s;
+}
 
 ELFIO::section*
 elf_writer::
@@ -15,14 +57,14 @@ add_section(const elf_section& data)
   sec->set_type(data.get_type());
   sec->set_flags(data.get_flags());
   sec->set_addr_align(data.get_align());
-  const std::vector<uint8_t> buf = data.get_buffer();
+  const std::vector<uint8_t>& buf = data.get_buffer();
 
-  if(buf.size())
+  if (!buf.empty())
     sec->set_data(reinterpret_cast<const char*>(buf.data()), static_cast<ELFIO::Elf_Word>(buf.size()));
   sec->set_info( data.get_info() );
   if (!data.get_link().empty())
   {
-    const ELFIO::section* lsec = m_elfio.sections[data.get_link()];
+    const ELFIO::section* lsec = lookup_section(data.get_link());
     sec->set_link(lsec->get_index());
   }
   // set section address
@@ -43,7 +85,7 @@ add_segment(const elf_segment& data)
   seg->set_align(data.get_align());
   if (!data.get_link().empty())
   {
-    const ELFIO::section* sec = m_elfio.sections[data.get_link()];
+    const ELFIO::section* sec = lookup_section(data.get_link());
     seg->add_section_index(sec->get_index(),
                            sec->get_addr_align());
   }
@@ -64,20 +106,23 @@ add_dynsym_section(ELFIO::string_section_accessor* stra, std::vector<symbol>& sy
 {
   // Create symbol table writer
   ELFIO::symbol_section_accessor syma( m_elfio, dsym_sec );
-  std::map<std::string, ELFIO::Elf_Word> hash;
+  std::unordered_map<std::string, ELFIO::Elf_Word> hash;
+  hash.reserve(syms.size() * 2 + 16);
   for (auto & sym : syms) {
     std::string key = sym.get_section_name() + index_string + "_" + sym.get_name() + "_" +
                       std::to_string(sym.get_size());
     auto it = hash.find(key);
     if (it == hash.end())
     {
-      const ELFIO::section* sec = m_elfio.sections[sym.get_section_name()+ index_string];
+      const ELFIO::section* sec = lookup_section(sym.get_section_name()+ index_string);
       auto index = syma.add_symbol(*stra, sym.get_name().c_str(), 0,
                                    sym.get_size(), ELFIO::STB_GLOBAL, ELFIO::STT_OBJECT,
                                    0, sec->get_index());
-      hash[key] = index;
+      hash.emplace(std::move(key), index);
+      sym.set_index(index);
     }
-    sym.set_index(hash[key]);
+    else
+      sym.set_index(it->second);
   }
 
 }
@@ -120,15 +165,13 @@ finalize()
 {
   add_note(NT_XRT_UID, ".note.xrt.UID", m_uid.calculate());
   log_info() << "UID:" << m_uid.str() << "\n";
-  std::stringstream stream;
-  stream << std::noskipws;
-  //m_elfio.save( "hello_32" );
-  m_elfio.save( stream );
-  std::vector<char> v;
-  std::copy(std::istream_iterator<char>(stream),
-            std::istream_iterator<char>( ),
-            std::back_inserter(v));
-  return v;
+  std::ostringstream oss;
+  m_elfio.save( oss );
+  const std::string bytes = oss.str();
+  std::vector<char> out(bytes.size());
+  if (!bytes.empty())
+    std::memcpy(out.data(), bytes.data(), bytes.size());
+  return out;
 }
 
 std::vector<uint32_t>
@@ -136,11 +179,15 @@ elf_writer::
 add_text_data_section(const std::vector<std::shared_ptr<writer>>& mwriter, std::vector<symbol>& syms, const std::string& index_string)
 {
   std::vector<uint32_t> section_index_list;
-  for(auto element : mwriter)
+  for (const auto& element : mwriter)
   {
     auto buffer = std::dynamic_pointer_cast<section_writer>(element);
     if (buffer->get_data().size() == 0)
       continue;
+
+    // Size must be captured before take_data_for_emit() clears the writer buffer;
+    // prev_seg_size drives the next section's virtual address via get_virtual_addr().
+    const uint64_t emit_size = buffer->get_data().size();
 
     m_uid.update(buffer->get_data());
     elf_section sec_data;
@@ -157,7 +204,7 @@ add_text_data_section(const std::vector<std::shared_ptr<writer>>& mwriter, std::
     else
       sec_data.set_flags(ELFIO::SHF_ALLOC | ELFIO::SHF_WRITE);
     sec_data.set_align(align);
-    sec_data.set_buffer(buffer->get_data());
+    sec_data.set_buffer(buffer->take_data_for_emit());
     // set section address equal to segment virtual address as segment:section has 1:1 mapping
     cur_addr = get_virtual_addr(prev_virtual_addr, prev_seg_size);
     sec_data.set_addr(cur_addr);
@@ -184,7 +231,7 @@ add_text_data_section(const std::vector<std::shared_ptr<writer>>& mwriter, std::
 
     // Update for next iteration
     prev_virtual_addr = cur_addr;
-    prev_seg_size = buffer->get_data().size();
+    prev_seg_size = emit_size;
   }
   return section_index_list;
 }
@@ -311,7 +358,7 @@ add_group(const std::string& name, const std::vector<uint32_t>& member, ELFIO::E
   if(member.size())
     sec->set_data(reinterpret_cast<const char*>(member.data()), static_cast<ELFIO::Elf_Word>(member.size()*4));
 
-  const ELFIO::section* lsec = m_elfio.sections[".symtab"];
+  const ELFIO::section* lsec = lookup_section(".symtab");
   sec->set_link(lsec->get_index());
 }
 

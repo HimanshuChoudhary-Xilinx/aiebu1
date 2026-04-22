@@ -4,9 +4,9 @@
 #ifndef _AIEBU_ELF_ELF_WRITER_H_
 #define _AIEBU_ELF_ELF_WRITER_H_
 
-#include <sstream>
-#include <iterator>
 #include <mutex>
+#include <string>
+#include <unordered_map>
 #include "writer.h"
 #include "symbol.h"
 #include "elfio/elfio.hpp"
@@ -47,7 +47,8 @@ public:
   HEADER_ACCESS_GET_SET(int, flags);
   HEADER_ACCESS_GET_SET(int, info);
   HEADER_ACCESS_GET_SET(uint64_t, align);
-  HEADER_ACCESS_GET_SET(std::vector<uint8_t>,  buffer);
+  const std::vector<uint8_t>& get_buffer() const { return m_buffer; }
+  void set_buffer(std::vector<uint8_t> val) { m_buffer = std::move(val); }
   HEADER_ACCESS_GET_SET(std::string, link);
   HEADER_ACCESS_GET_SET(uint64_t, addr);
 
@@ -91,6 +92,12 @@ protected:  // NOLINT(cppcoreguidelines-non-private-member-variables-in-classes)
   uint64_t cur_addr = 0;
   uint64_t prev_seg_size = 0;
 
+  // ELFIO::sections[name] scans all sections O(n); this map is updated on add and used on hot paths.
+  std::unordered_map<std::string, ELFIO::section*> m_section_by_name;
+
+  ELFIO::section* lookup_section(const std::string& name);
+  void resync_section_name_map();
+
   ELFIO::section* add_section(const elf_section& data);
   ELFIO::segment* add_segment(const elf_segment& data);
   ELFIO::string_section_accessor add_dynstr_section();
@@ -111,13 +118,7 @@ protected:  // NOLINT(cppcoreguidelines-non-private-member-variables-in-classes)
   void add_group(const std::string& name, const std::vector<uint32_t>& member, ELFIO::Elf_Word info_index);
   uint64_t get_virtual_addr(uint64_t in_prev_virtual_addr, uint64_t in_prev_seg_size);
   uint64_t align_address(uint64_t address);
-  // Helper function to return ELFIO::section* and take section name as input
-  ELFIO::section* add_section_by_name(const std::string& section_name) {
-    if (m_elfio.sections.size() > max_sections)
-      throw error(error::error_code::invalid_asm, "Maximum number of sections reached");
-
-    return m_elfio.sections.add(section_name);
-  }
+  ELFIO::section* add_section_by_name(const std::string& section_name);
 
 public:
 
@@ -141,6 +142,7 @@ public:
     seg->set_file_size(0x0);
     seg->set_memory_size(0x0);
 
+    resync_section_name_map();
   }
 
   // Methods to update OS ABI and version after construction (for .target directive support)
