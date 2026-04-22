@@ -19,6 +19,8 @@
 #include <tuple>
 #include <unordered_map>
 #include <vector>
+#include <chrono>
+#include <iostream>
 
 namespace aiebu {
 
@@ -497,6 +499,7 @@ class asm_parser: public std::enable_shared_from_this<asm_parser>
                              const std::vector<std::string>& restore_membd);
 
 public:
+  std::chrono::nanoseconds m_cumulative_readfile_ns{0};
   asm_parser(const std::vector<char>& data, const std::vector<std::string>& include_list, const std::string& target_type, const file_artifact* artifacts = nullptr)
     :m_data(data),  m_include_list(include_list), m_target_type(target_type), m_artifacts(artifacts)
   {

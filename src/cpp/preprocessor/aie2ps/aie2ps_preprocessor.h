@@ -171,6 +171,7 @@ public:
           "Maximum pages limit reached beyond which is not supported due to elfio max section limitation\n");
     }
     print_aiebu_wall_timing_message("pagifying completed");
+    pager(PAGE_SIZE).printtime();
     toutput->add_symbols(tinput->get_symbols());
     return toutput;
   }
