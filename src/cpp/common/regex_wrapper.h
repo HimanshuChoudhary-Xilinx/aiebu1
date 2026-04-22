@@ -47,7 +47,7 @@ get_regex_match_cumulative_nanoseconds()
 {
   return regex_match_cumulative_nanoseconds_storage().load(std::memory_order_relaxed);
 }
-
+/*
 template<typename... Args>
 bool
 regex_match(Args&&... args)
@@ -66,7 +66,7 @@ regex_match(Args&&... args)
         static_cast<std::uint64_t>(elapsed), std::memory_order_relaxed);
   return ok;
 }
-
+*/
 #ifdef USE_BOOST_REGEX
   // Use Boost.Regex
   using regex = boost::regex;
@@ -74,7 +74,9 @@ regex_match(Args&&... args)
   using cmatch = boost::cmatch;
   using sregex_iterator = boost::sregex_iterator;
   using regex_error = boost::regex_error;
-
+  
+  // Import functions into aiebu namespace
+  using boost::regex_match;
   using boost::regex_search;
   using boost::regex_replace;
   
@@ -90,7 +92,8 @@ regex_match(Args&&... args)
   using cmatch = std::cmatch;
   using sregex_iterator = std::sregex_iterator;
   using regex_error = std::regex_error;
-
+  // Import functions into aiebu namespace
+  using std::regex_match;
   using std::regex_search;
   using std::regex_replace;
   

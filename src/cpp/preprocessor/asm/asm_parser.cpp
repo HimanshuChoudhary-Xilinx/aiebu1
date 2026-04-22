@@ -60,6 +60,7 @@ void
 asm_parser::
 insert_col_asmdata(std::shared_ptr<asm_data> data)
 {
+  //opcode_handle_timer insert_ensure_label_timer(&m_cumulative_insert_ensure_label_ns);
   // insert asm_data in col list
   if (m_current_col == -1)
     m_current_col = 0;
@@ -72,9 +73,9 @@ insert_col_asmdata(std::shared_ptr<asm_data> data)
   auto& label_data = cdata.get_label_data();
 
   if (get_data_state())
-    label_data[m_current_label].data.emplace_back(data);
+    label_data[m_current_label].data.emplace_back(std::move(data));
   else
-    label_data[m_current_label].text.emplace_back(data);
+    label_data[m_current_label].text.emplace_back(std::move(data));
 
   auto pagelabel = get_pagelabel(m_current_label);
   m_col[m_current_col].set_labelpageindex(pagelabel, 0);
@@ -150,6 +151,9 @@ parse_lines()
   m_cumulative_read_next_line_ns = std::chrono::nanoseconds{0};
   m_cumulative_preempt_opcode_handle_ns = std::chrono::nanoseconds{0};
   m_cumulative_insert_col_asmdata_ns = std::chrono::nanoseconds{0};
+  m_cumulative_insert_ensure_label_ns = std::chrono::nanoseconds{0};
+  m_cumulative_op_create_ns = std::chrono::nanoseconds{0};
+  m_cumulative_asmdata_create_ns = std::chrono::nanoseconds{0};
   reset_regex_match_cumulative_time();
   directive_list[".attach_to_group"] = std::make_shared<attach_to_group_directive>();
   directive_list[".include"] = std::make_shared<include_directive>();
@@ -169,6 +173,12 @@ parse_lines()
   std::cout << "Cumulative artifact file read time: "
              << std::chrono::duration<double, std::milli>(m_cumulative_artifact_file_read_ns).count()
              << " ms\n";
+  std::cout << "Cumulative line_trim time: "
+             << std::chrono::duration<double, std::milli>(m_cumulative_line_trim_ns).count()
+             << " ms\n";
+  std::cout << "Cumulative directive time: "
+             << std::chrono::duration<double, std::milli>(m_cumulative_directive_ns).count()
+             << " ms\n";
   const std::uint64_t regex_match_ns = get_regex_match_cumulative_nanoseconds();
   std::cout << "Cumulative regex_match time: " << (static_cast<double>(regex_match_ns) / 1e6) << " ms\n";
   std::cout << "Cumulative read_next_line time: "
@@ -180,7 +190,30 @@ parse_lines()
   std::cout << "Cumulative insert_col_asmdata time: "
              << std::chrono::duration<double, std::milli>(m_cumulative_insert_col_asmdata_ns).count()
              << " ms\n";
-}
+  std::cout << "Cumulative insert_ensure_label time: "
+             << std::chrono::duration<double, std::milli>(m_cumulative_insert_ensure_label_ns).count()
+             << " ms\n";
+  std::cout << "Cumulative op_create time: "
+             << std::chrono::duration<double, std::milli>(m_cumulative_op_create_ns).count()
+             << " ms\n";
+  std::cout << "Cumulative asmdata_create time: "
+             << std::chrono::duration<double, std::milli>(m_cumulative_asmdata_create_ns).count()
+             << " ms\n";
+  std::cout << "Cumulative insert_timer time: "
+             << std::chrono::duration<double, std::milli>(m_cumulative_insert_timer_ns).count()
+             << " ms\n";
+  const std::chrono::nanoseconds total_parse_ns =
+      m_cumulative_artifact_file_read_ns
+      + m_cumulative_line_trim_ns
+      + m_cumulative_directive_ns
+      + std::chrono::nanoseconds(static_cast<std::chrono::nanoseconds::rep>(regex_match_ns))
+      + m_cumulative_read_next_line_ns
+      + m_cumulative_preempt_opcode_handle_ns
+      + m_cumulative_insert_timer_ns;
+  std::cout << "TOTAL (cumulative parse phases above): "
+            << std::chrono::duration<double, std::milli>(total_parse_ns).count()
+            << " ms\n";
+ }
 
 void
 asm_parser::
@@ -203,6 +236,7 @@ parse_lines(const std::vector<char>& data, std::string& file)
       str += c;
     }
   }
+  const uint32_t parse_file_idx = detail::intern_filename(file);
   // Scan str for newlines directly instead of copying it into an istringstream
   size_t pos = 0;
   const size_t str_len = str.size();
@@ -219,7 +253,7 @@ parse_lines(const std::vector<char>& data, std::string& file)
     }
   };
   auto read_next_line = [&](std::string& out) -> bool {
-    read_next_line_timer timer(&m_cumulative_read_next_line_ns);
+    //read_next_line_timer timer(&m_cumulative_read_next_line_ns);
     if (pos > str_len) return false;
     const size_t nl = str.find('\n', pos);
     if (nl == std::string::npos) {
@@ -237,7 +271,10 @@ parse_lines(const std::vector<char>& data, std::string& file)
 
   while (read_next_line(line)) {
     ++linenumber;
+    {
+    //opcode_handle_timer line_trim_timer(&m_cumulative_line_trim_ns);
     line = trim(line);
+    }
     if(line.empty())
       continue;
 
@@ -246,9 +283,14 @@ parse_lines(const std::vector<char>& data, std::string& file)
 
     smatch sm;
 
-    // Check for Directive (starts with .) - only check regex if prefix matches
-    if (line[0] == '.' && operate_directive(line))
+    if (line[0] == '.' &&
+        line.substr(0,5).compare(".long") != 0 &&
+        line.substr(0,6).compare(".align") != 0 &&
+        line.substr(0,4).compare(".eof") != 0 &&
+        line.substr(0,4).compare(".eop") != 0 &&
+        operate_directive(line))
     {
+      //opcode_handle_timer directive_timer(&m_cumulative_directive_ns);
       if (!get_annotation_state())
         continue;
       std::string aline, id_line, name_line, description_line;
@@ -280,10 +322,25 @@ parse_lines(const std::vector<char>& data, std::string& file)
         m_current_label = m_current_label + ":" + sm[1].str();
         set_data_state(false);
       } else {
+        //opcode_handle_timer insert_timer(&m_cumulative_insert_timer_ns);
+        /*
+        operation op;
+        asm_data asmdata;
+        {
+        opcode_handle_timer op_create_timer(&m_cumulative_op_create_ns);
+        op = operation(sm[1].str(), "");
+        }
+        {
+        opcode_handle_timer asmdata_create_timer(&m_cumulative_asmdata_create_ns);
+        asmdata = asm_data(std::move(op), operation_type::label, code_section::unknown, 0, (uint32_t)-1,
+                           linenumber, parse_file_idx);
+        }
         opcode_handle_timer insert_col_asmdata_timer(&m_cumulative_insert_col_asmdata_ns);
-        insert_col_asmdata(std::make_shared<asm_data>(operation(sm[1].str(), ""),
-                                                      operation_type::label, code_section::unknown, 0,
-                                                      (uint32_t)-1, linenumber, file));
+        insert_col_asmdata(std::move(asmdata));
+        */
+        insert_col_asmdata(std::make_shared<asm_data>(operation(sm[1].str(), ""), operation_type::label,
+                                                      code_section::unknown, 0, (uint32_t)-1, linenumber,
+                                                      parse_file_idx));
       }
       continue;
     }
@@ -296,7 +353,7 @@ parse_lines(const std::vector<char>& data, std::string& file)
 
       // Handle PREEMPT opcode - record label for current group
       if (!op_name.compare("preempt")) {
-        opcode_handle_timer preempt_handle_timer(&m_cumulative_preempt_opcode_handle_ns);
+        //opcode_handle_timer preempt_handle_timer(&m_cumulative_preempt_opcode_handle_ns);
 
         if (get_target_type() == "aie2ps")
           throw error(error::error_code::internal_error, "PREEMPT opcode is not supported for aie2ps target");
@@ -372,10 +429,27 @@ parse_lines(const std::vector<char>& data, std::string& file)
         line = op_name + "\t" + arg_str;
       }
       {
+      //opcode_handle_timer insert_timer(&m_cumulative_insert_timer_ns);
+      /*
+      operation op;
+      asm_data asmdata;
+      {
+      opcode_handle_timer op_create_timer(&m_cumulative_op_create_ns);
+      op = operation(op_name, arg_str);
+      }
+      {
+      opcode_handle_timer asmdata_create_timer(&m_cumulative_asmdata_create_ns);
+      asmdata = asm_data(std::move(op), operation_type::op, code_section::unknown, 0, (uint32_t)-1, linenumber,
+                         parse_file_idx);
+      }
+      {
       opcode_handle_timer insert_col_asmdata_timer(&m_cumulative_insert_col_asmdata_ns);
-      insert_col_asmdata(std::make_shared<asm_data>(operation(op_name, arg_str),
-                                                    operation_type::op, code_section::unknown, 0, (uint32_t)-1,
-                                                    linenumber, file));
+      insert_col_asmdata(std::move(asmdata));
+      }
+      */
+      insert_col_asmdata(std::make_shared<asm_data>(operation(op_name, arg_str), operation_type::op,
+                                                    code_section::unknown, 0, (uint32_t)-1, linenumber,
+                                                    parse_file_idx));
       }
       if (!op_name.compare("eof"))
         set_data_state(true);
@@ -1284,8 +1358,8 @@ operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm)
 
   // dummy eof added if col change happens before eof
   m_parserptr->insert_col_asmdata(std::make_shared<asm_data>(operation("eof", ""),
-                                                    operation_type::op, code_section::unknown, 0, (uint32_t)-1,
-                                                    0, "default"));
+                                                              operation_type::op, code_section::unknown, 0,
+                                                              (uint32_t)-1, 0, detail::default_source_file_idx()));
   m_parserptr->set_current_col(std::stoi(sm[2].str()));
   m_parserptr->set_data_state(false);
 }
@@ -1396,11 +1470,7 @@ read_include_file(std::string filename)
   log_info() << "Reading contents from virtual or disk file:" << filename << "\n";
   try {
     if (!m_parserptr->get_artifacts()) return false;
-    const auto t0 = std::chrono::steady_clock::now();
     data = m_parserptr->get_artifacts()->get(filename, m_parserptr->get_include_list());
-    const auto t1 = std::chrono::steady_clock::now();
-    m_parserptr->record_artifact_file_read_time(
-        std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0));
   } catch (const std::runtime_error& e) {
     log_error() << "Error reading buffer from artifacts: " << e.what() << "\n";
     return false;
