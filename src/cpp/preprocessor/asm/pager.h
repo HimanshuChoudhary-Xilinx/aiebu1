@@ -22,13 +22,6 @@ class pager
 
   std::map<std::string , offset_type> ALIGNMAP = {{"uc_dma_bd", ALIGNMENT_16}, {".long", ALIGNMENT_4}};
   std::vector<std::string> OOO = {"load_pdi", "preempt", "load_cores"};
-  static std::chrono::nanoseconds m_cumulative_extractjobsandlabels_ns;
-  static std::chrono::nanoseconds m_cumulative_dsectionaligner_ns;
-  static std::chrono::nanoseconds m_cumulative_getdatasectionsize_ns;
-  static std::chrono::nanoseconds m_cumulative_jobdsectionaligner_ns;
-  static std::chrono::nanoseconds m_cumulative_add_to_page_ns;
-  static std::chrono::nanoseconds m_cumulative_assignpagenumber_ns;
-  static std::chrono::nanoseconds m_cumulative_pagify_ns;
 
   template <typename T>
   std::vector<T> union_of_lists_inorder(std::vector<T> &vec1, std::vector<T>& vec2);
@@ -72,7 +65,6 @@ class pager
 public:
   pager(uint32_t page_size): m_page_size(page_size) {}  
   uint32_t pagify(assembler_state& state, uint32_t col, std::vector<page>& pages, uint32_t relative_page_index);
-  void printtime();
 };
 
 }
