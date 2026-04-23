@@ -46,6 +46,52 @@ static inline int aiebu_clz(unsigned int x)      { return __builtin_clz(x);     
 
 namespace aiebu {
 
+namespace {
+
+// Order must match asm_directive_id and asm_parser::parse_lines() handler registration.
+constexpr const char* k_asm_directive_pattern_literals[] = {
+  ".attach_to_group",
+  ".aie_row_topology",
+  ".include",
+  ".endl",
+  ".setpad",
+  ".section",
+  ".partition",
+  ".target",
+};
+static_assert(sizeof(k_asm_directive_pattern_literals) / sizeof(k_asm_directive_pattern_literals[0])
+                  == asm_directive_count,
+              "directive literal table vs asm_directive_count");
+
+// sm[1] directive token, sm[2] optional remainder (same layout as prior directive regex).
+const regex k_known_asm_directive_re(
+    R"(^(\.attach_to_group|\.aie_row_topology|\.include|\.endl|\.setpad|\.section|\.partition|\.target)(?:[ \t]+(.+))?$)");
+
+std::size_t index_for_known_directive_name(const std::string& name)
+{
+  for (std::size_t i = 0; i < asm_directive_count; ++i) {
+    if (name == k_asm_directive_pattern_literals[i])
+      return i;
+  }
+  return asm_directive_count;
+}
+
+} // namespace
+
+bool
+asm_parser::
+operate_directive(const std::string& line)
+{
+  smatch sm;
+  if (!regex_match(line, sm, k_known_asm_directive_re))
+    return false;
+  const std::size_t idx = index_for_known_directive_name(sm[1].str());
+  if (idx >= asm_directive_count || !directive_list[idx])
+    return false;
+  directive_list[idx]->operate(shared_from_this(), sm);
+  return true;
+}
+
 void
 asm_parser::
 insert_col_asmdata(std::shared_ptr<asm_data> data)
@@ -136,14 +182,16 @@ void
 asm_parser::
 parse_lines()
 {
-  directive_list[".attach_to_group"] = std::make_shared<attach_to_group_directive>();
-  directive_list[".include"] = std::make_shared<include_directive>();
-  directive_list[".endl"] = std::make_shared<end_of_label_directive>();
-  directive_list[".setpad"] = std::make_shared<pad_directive>();
-  directive_list[".section"] = std::make_shared<section_directive>();
-  directive_list[".partition"] = std::make_shared<partition_directive>();
-  directive_list[".target"] = std::make_shared<target_directive>();
-  directive_list[".aie_row_topology"] = std::make_shared<aie_row_topology_directive>();
+  directive_list[static_cast<std::size_t>(asm_directive_id::attach_to_group)] =
+      std::make_shared<attach_to_group_directive>();
+  directive_list[static_cast<std::size_t>(asm_directive_id::aie_row_topology)] =
+      std::make_shared<aie_row_topology_directive>();
+  directive_list[static_cast<std::size_t>(asm_directive_id::include)] = std::make_shared<include_directive>();
+  directive_list[static_cast<std::size_t>(asm_directive_id::endl)] = std::make_shared<end_of_label_directive>();
+  directive_list[static_cast<std::size_t>(asm_directive_id::setpad)] = std::make_shared<pad_directive>();
+  directive_list[static_cast<std::size_t>(asm_directive_id::section)] = std::make_shared<section_directive>();
+  directive_list[static_cast<std::size_t>(asm_directive_id::partition)] = std::make_shared<partition_directive>();
+  directive_list[static_cast<std::size_t>(asm_directive_id::target)] = std::make_shared<target_directive>();
   std::string file = "default";
   parse_lines(m_data, file);
 
@@ -159,7 +207,6 @@ parse_lines(const std::vector<char>& data, std::string& file)
   const static regex COMMENT_REGEX("^;(.*)$");
   const static regex LABEL_REGEX("^([a-zA-Z0-9_]+):$");
   const static regex OP_REGEX("^([.a-zA-Z0-9_]+)(?:[ \\t]+(.+))?$");
-  const static regex DIRCETIVE_REGEX(".^([a-zA-Z0-9_]+)(?:[ \\t]+(.+))?$");
 
   // Sanitize input data: filter out non-printable characters except newline, tab, and carriage return
   // This prevents corrupted operation names during parsing
@@ -203,12 +250,7 @@ parse_lines(const std::vector<char>& data, std::string& file)
 
     smatch sm;
 
-    if (line[0] == '.' &&
-        line.substr(0,5).compare(".long") != 0 &&
-        line.substr(0,6).compare(".align") != 0 &&
-        line.substr(0,4).compare(".eof") != 0 &&
-        line.substr(0,4).compare(".eop") != 0 &&
-        operate_directive(line))
+    if (line[0] == '.' && operate_directive(line))
     {
       if (!get_annotation_state())
         continue;

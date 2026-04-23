@@ -10,6 +10,7 @@
 #include "common/regex_wrapper.h"
 #include "logger.h"
 
+#include <array>
 #include <map>
 #include <memory>
 #include <set>
@@ -221,7 +222,7 @@ namespace detail {
     auto it = g_filename_index.find(fname);
     if (it != g_filename_index.end())
       return it->second;
-    const uint32_t idx = static_cast<uint32_t>(g_filename_table.size());
+    const auto idx = static_cast<uint32_t>(g_filename_table.size());
     g_filename_table.push_back(fname);
     g_filename_index.emplace(g_filename_table.back(), idx);
     return idx;
@@ -253,13 +254,14 @@ class asm_data
 
 public:
   asm_data() = default;
+  /*
   asm_data(operation op, operation_type optype,
            code_section sec, offset_type size, uint32_t pgnum,
            uint32_t ln, const std::string& file)
            :m_op(std::move(op)), m_optype(optype), m_section(sec), m_size(size),
             m_pagenum(pgnum), m_linenumber(ln),
             m_file_idx(detail::intern_filename(file)) {}
-
+  */
   asm_data(operation op, operation_type optype,
            code_section sec, offset_type size, uint32_t pgnum,
            uint32_t ln, uint32_t file_idx)
@@ -423,11 +425,25 @@ class partition_directive;
 class target_directive;
 class aie_row_topology_directive;
 
+// Indices for asm_parser::directive_list — keep in sync with k_known_asm_directive_re in asm_parser.cpp.
+enum class asm_directive_id : uint8_t {
+  attach_to_group = 0,
+  aie_row_topology,
+  include,
+  endl,
+  setpad,
+  section,
+  partition,
+  target,
+};
+inline constexpr std::size_t asm_directive_count =
+  static_cast<std::size_t>(asm_directive_id::target) + 1U;
+
 class asm_parser: public std::enable_shared_from_this<asm_parser>
 {
   std::unordered_map<uint32_t, col_data> m_col;
   const std::vector<char> &m_data;
-  std::map<std::string, std::shared_ptr<directive>> directive_list;
+  std::array<std::shared_ptr<directive>, asm_directive_count> directive_list{};
   std::stack<bool> isdatastack;
   std::string m_current_label = "default";
   int m_current_col = -1;
@@ -709,20 +725,7 @@ public:
 
   std::map<std::string, std::shared_ptr<scratchpad_info>>& getcolscratchpad(int col) { return m_col[col].get_scratchpads(); }
 
-  bool operate_directive(const std::string& line)
-  {
-    smatch sm;
-    const static regex DIRCETIVE_REGEX("^([.a-zA-Z0-9_]+)(?:[ \\t]+(.+))?$");
-    regex_match(line, sm, DIRCETIVE_REGEX);
-    if (sm.size() == 0)
-      return false;
-
-    if (directive_list.count(sm[1].str()) == 0)
-      return false;
-
-    directive_list[sm[1].str()]->operate(shared_from_this(), sm);
-    return true;
-  }
+  bool operate_directive(const std::string& line);
 };
 
 
