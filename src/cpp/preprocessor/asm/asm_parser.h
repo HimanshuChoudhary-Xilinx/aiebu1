@@ -34,9 +34,9 @@ inline std::string trim(const std::string& line)
     return (start == end && start == std::string::npos) ? std::string() : line.substr(start, end - start + 1);
 }
 
-inline void verify_match(const smatch& sm, error::error_code ecode, const char* msg)
+inline void verify_nonempty_args(const std::string& args_tail, error::error_code ecode, const char* msg)
 {
-  if (sm.size() < 3 || !sm[2].matched || sm[2].length() == 0)
+  if (args_tail.empty())
     throw error(ecode, msg);
 }
 
@@ -105,7 +105,9 @@ public:
   std::shared_ptr<asm_parser> m_parserptr;
 public:
   directive() {}
-  virtual void operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm) = 0;
+  virtual void operate(std::shared_ptr<asm_parser> parserptr,
+                       const std::string& directive_line,
+                       const std::string& args_tail) = 0;
   virtual ~directive() = default;
 };
 
@@ -113,7 +115,9 @@ class attach_to_group_directive: public directive
 {
 public:
   attach_to_group_directive() = default;
-  void operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm) override;
+  void operate(std::shared_ptr<asm_parser> parserptr,
+               const std::string& directive_line,
+               const std::string& args_tail) override;
   ~attach_to_group_directive() override = default;
 };
 
@@ -122,7 +126,9 @@ class include_directive: public directive
   bool read_include_file(std::string filename);
 public:
   include_directive() = default;
-  void operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm) override;
+  void operate(std::shared_ptr<asm_parser> parserptr,
+               const std::string& directive_line,
+               const std::string& args_tail) override;
   ~include_directive() override = default;
 };
 
@@ -130,7 +136,9 @@ class end_of_label_directive: public directive
 {
 public:
   end_of_label_directive() = default;
-  void operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm) override;
+  void operate(std::shared_ptr<asm_parser> parserptr,
+               const std::string& directive_line,
+               const std::string& args_tail) override;
   ~end_of_label_directive() override = default;
 };
 
@@ -156,7 +164,9 @@ public:
   }
   void add_scratchpad(std::string& name, std::string& str);
   pad_directive() = default;
-  void operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm) override;
+  void operate(std::shared_ptr<asm_parser> parserptr,
+               const std::string& directive_line,
+               const std::string& args_tail) override;
   ~pad_directive() override = default;
 };
 
@@ -167,7 +177,9 @@ class section_directive: public directive
   bool is_annotation_section(const std::string& str) {return !str.substr(0,10).compare("annotation"); }
 public:
   section_directive() = default;
-  void operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm) override;
+  void operate(std::shared_ptr<asm_parser> parserptr,
+               const std::string& directive_line,
+               const std::string& args_tail) override;
   ~section_directive() override = default;
 };
 
@@ -175,7 +187,9 @@ class partition_directive: public directive
 {
 public:
   partition_directive() = default;
-  void operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm) override;
+  void operate(std::shared_ptr<asm_parser> parserptr,
+               const std::string& directive_line,
+               const std::string& args_tail) override;
   ~partition_directive() override = default;
   partition_directive(const partition_directive&) = default;
   partition_directive& operator=(const partition_directive&) = default;
@@ -187,7 +201,9 @@ class target_directive: public directive
 {
 public:
   target_directive() = default;
-  void operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm) override;
+  void operate(std::shared_ptr<asm_parser> parserptr,
+               const std::string& directive_line,
+               const std::string& args_tail) override;
   ~target_directive() override = default;
   target_directive(const target_directive&) = default;
   target_directive& operator=(const target_directive&) = default;
@@ -199,7 +215,9 @@ class aie_row_topology_directive: public directive
 {
 public:
   aie_row_topology_directive() = default;
-  void operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm) override;
+  void operate(std::shared_ptr<asm_parser> parserptr,
+               const std::string& directive_line,
+               const std::string& args_tail) override;
   ~aie_row_topology_directive() override = default;
   aie_row_topology_directive(const aie_row_topology_directive&) = default;
   aie_row_topology_directive& operator=(const aie_row_topology_directive&) = default;
@@ -425,7 +443,8 @@ class partition_directive;
 class target_directive;
 class aie_row_topology_directive;
 
-// Indices for asm_parser::directive_list — keep in sync with k_known_asm_directive_re in asm_parser.cpp.
+// Indices for asm_parser::directive_list — keep in sync with DIRECTIVE_ALT_RE in asm_parser.cpp.
+// (same eight directives) in asm_parser.cpp.
 enum class asm_directive_id : uint8_t {
   attach_to_group = 0,
   aie_row_topology,
