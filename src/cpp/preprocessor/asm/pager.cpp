@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (C) 2024-2025, Advanced Micro Devices, Inc. All rights reserved.
 #include "pager.h"
-#include "utils.h"
 
 #include "aiebu/aiebu_error.h"
 
@@ -89,14 +88,6 @@ extract_externallabels_accum(const std::shared_ptr<asm_data>& token,
 }
 
 } // namespace
-
-std::chrono::nanoseconds pager::m_cumulative_extractjobsandlabels_ns{0};
-std::chrono::nanoseconds pager::m_cumulative_dsectionaligner_ns{0};
-std::chrono::nanoseconds pager::m_cumulative_getdatasectionsize_ns{0};
-std::chrono::nanoseconds pager::m_cumulative_jobdsectionaligner_ns{0};
-std::chrono::nanoseconds pager::m_cumulative_add_to_page_ns{0};
-std::chrono::nanoseconds pager::m_cumulative_assignpagenumber_ns{0};
-std::chrono::nanoseconds pager::m_cumulative_pagify_ns{0};
 
 template <typename T>
 std::vector<T>
@@ -285,7 +276,6 @@ assignpagenumber(assembler_state& state, uint32_t colnum,
                  bool islastpage, uint32_t tsize, uint32_t dsize,
                  uint32_t relative_page_index)
 {
-  opcode_handle_timer assignpagenumber_timer(&m_cumulative_assignpagenumber_ns);
   // assign pagenumber to all instruction and create text and data section lists
   page lpage;
   lpage.set_colnum(colnum);
@@ -347,7 +337,6 @@ uint32_t
 pager::
 pagify(assembler_state& state, uint32_t col, std::vector<page>& pages, uint32_t relative_page_index)
 {
-  opcode_handle_timer pagify_timer(&m_cumulative_pagify_ns);
   // pagify the content
   offset_type page_tsize = 0;
   offset_type page_dsize = 0;
@@ -385,29 +374,17 @@ pagify(assembler_state& state, uint32_t col, std::vector<page>& pages, uint32_t 
     // don't return jobs/labels for a job which is already in this page a second time (note that multiple jobs might depend on
     // the same job)
     offset_type tsize;
-    {
-    opcode_handle_timer extractjobsandlabels_timer(&m_cumulative_extractjobsandlabels_ns);
     tsize = extractjobsandlabels(state, pjob, job_list, labels_list, external_labels_list);
-    }
     // calculate alignment bytes needed bet text and data section
     // NOTE: data section is always 16 Byte aligned
     offset_type dsectionaligner;
-    {
-    opcode_handle_timer dsectionaligner_timer(&m_cumulative_dsectionaligner_ns);
     dsectionaligner = datasectionaligner(page_tsize + tsize);
-    }
     // get data section size for jobs(related to current job)
     offset_type dsize;
-    {
-    opcode_handle_timer getdatasectionsize_timer(&m_cumulative_getdatasectionsize_ns);
     dsize = getdatasectionsize(state, labels_list);
-    }
 
     offset_type jobdsectionaligner;
-    {
-    opcode_handle_timer jobdsectionaligner_timer(&m_cumulative_jobdsectionaligner_ns);
     jobdsectionaligner = datasectionaligner(tsize);
-    }
 
     //check if job can fit in one page
     if ((tsize + jobdsectionaligner + dsize + EOF_SIZE + PAGE_HEADER_SIZE) > m_page_size)
@@ -426,14 +403,11 @@ pagify(assembler_state& state, uint32_t col, std::vector<page>& pages, uint32_t 
       page_external_labels.clear();
     }
 
-    {
-    opcode_handle_timer add_to_page_timer(&m_cumulative_add_to_page_ns);
     page_tsize += tsize;
     page_dsize += dsize;
     page_jobs.insert( page_jobs.end(), job_list.begin(), job_list.end() );
     page_labels = union_of_lists_inorder<std::string>(page_labels, labels_list);
     page_external_labels = union_of_lists_inorder<std::string>(page_external_labels, external_labels_list);
-    }
   }
 
   if (page_jobs.size())
@@ -445,31 +419,4 @@ pagify(assembler_state& state, uint32_t col, std::vector<page>& pages, uint32_t 
   return page_index;
 }
 
-
-void
-pager::
-printtime()
-{
-  std::cout << "\t\tCumulative extractjobsandlabels time: "
-  << std::chrono::duration<double, std::milli>(m_cumulative_extractjobsandlabels_ns).count()
-  << " ms\n";
-  std::cout << "\t\tCumulative dsectionaligner time: "
-  << std::chrono::duration<double, std::milli>(m_cumulative_dsectionaligner_ns).count()
-  << " ms\n";
-  std::cout << "\t\tCumulative getdatasectionsize time: "
-  << std::chrono::duration<double, std::milli>(m_cumulative_getdatasectionsize_ns).count()
-  << " ms\n";
-  std::cout << "\t\tCumulative jobdsectionaligner time: "
-  << std::chrono::duration<double, std::milli>(m_cumulative_jobdsectionaligner_ns).count()
-  << " ms\n";
-  std::cout << "\t\tCumulative add_to_page time: "
-  << std::chrono::duration<double, std::milli>(m_cumulative_add_to_page_ns).count()
-  << " ms\n";
-  std::cout << "\t\tCumulative assignpagenumber time: "
-  << std::chrono::duration<double, std::milli>(m_cumulative_assignpagenumber_ns).count()
-  << " ms\n";
-  std::cout << "\t\tCumulative pagify time: "
-  << std::chrono::duration<double, std::milli>(m_cumulative_pagify_ns).count()
-  << " ms\n";
-}
 }
