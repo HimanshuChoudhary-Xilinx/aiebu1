@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <map>
+#include <stdexcept>
 #include <vector>
 #include <unordered_map>
 #include <string>
@@ -75,7 +76,8 @@ protected:
 
   std::map<std::string, std::vector<uint8_t>> parse_custom_sections(
       const boost::property_tree::ptree& pt,
-      const std::vector<std::string>& paths)
+      const std::vector<std::string>& paths,
+      const file_artifact* artifacts = nullptr)
   {
     std::map<std::string, std::vector<uint8_t>> custom_sections;
     const auto& pt_custom_sections = pt.get_child_optional("custom_section");
@@ -86,7 +88,16 @@ protected:
           throw error(error::error_code::invalid_input,
                      "custom_section: duplicate section_name \"" + section_name + "\"");
         auto section_path = section.get<std::string>("path");
-        auto section_data = readfile(section_path, paths);
+        std::vector<char> section_data;
+        try {
+          if (artifacts)
+            section_data = artifacts->get(section_path, paths);
+          else
+            throw error(error::error_code::invalid_input, "artifacts is null");
+        } catch (const std::runtime_error& e) {
+          throw error(error::error_code::invalid_input,
+                     "custom_section: error reading buffer from artifacts for \"" + section_path + "\": " + e.what());
+        }
         custom_sections[section_name] = std::vector<uint8_t>(section_data.begin(), section_data.end());
       }
     }

@@ -149,7 +149,7 @@ public:
     boost::property_tree::read_json(patch_json, pt);
 
     // Parse global-level custom_section
-    m_global_custom_sections.assign(parse_custom_sections(pt, paths));
+    m_global_custom_sections.assign(parse_custom_sections(pt, paths, m_artifacts));
 
     const auto& pt_xrt_kernel_instance = pt.get_child_optional("xrt-kernels");
     if (!pt_xrt_kernel_instance) {
