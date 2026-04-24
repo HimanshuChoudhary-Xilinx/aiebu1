@@ -93,7 +93,7 @@ protected:
           if (artifacts)
             section_data = artifacts->get(section_path, paths);
           else
-            throw std::runtime_error("artifacts is null");
+            throw error(error::error_code::invalid_input, "artifacts is null");
         } catch (const std::runtime_error& e) {
           throw error(error::error_code::invalid_input,
                      "custom_section: error reading buffer from artifacts for \"" + section_path + "\": " + e.what());
