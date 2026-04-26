@@ -46,6 +46,70 @@ static inline int aiebu_clz(unsigned int x)      { return __builtin_clz(x);     
 
 namespace aiebu {
 
+namespace {
+
+// One capture per directive token; capture 13 is optional args. Handled directives are captures 1–8
+// (same eight as asm_directive_id / directive_list). Captures 9–12 are recognized but not dispatched here.
+// Order of groups 1–8 must match k_alt_capture_to_handler_idx below.
+const regex DIRECTIVE_ALT_RE(
+    R"(^(?:(\.attach_to_group)|(\.include)|(\.endl)|(\.setpad)|(\.section)|(\.partition)|(\.target)|(\.aie_row_topology)|(\.align)|(\.long)|(\.eop))(?:[ \t]+(.+))?$)");
+
+// Map DIRECTIVE_ALT_RE capture index 1..8 -> asm_parser::directive_list index (asm_directive_id order).
+constexpr std::array<std::size_t, 8> k_alt_capture_to_handler_idx = {
+    static_cast<std::size_t>(asm_directive_id::attach_to_group),
+    static_cast<std::size_t>(asm_directive_id::include),
+    static_cast<std::size_t>(asm_directive_id::endl),
+    static_cast<std::size_t>(asm_directive_id::setpad),
+    static_cast<std::size_t>(asm_directive_id::section),
+    static_cast<std::size_t>(asm_directive_id::partition),
+    static_cast<std::size_t>(asm_directive_id::target),
+    static_cast<std::size_t>(asm_directive_id::aie_row_topology),
+};
+
+} // namespace
+
+bool
+asm_parser::
+operate_directive(const std::string& line)
+{
+  smatch m;
+  if (!regex_match(line, m, DIRECTIVE_ALT_RE) || m.size() < 13U)  // NOLINT
+    return false;
+
+  // match .align, .long, .eop
+  if (m[9].matched || m[10].matched || m[11].matched)  //NOLINT
+    return false;
+
+  std::size_t idx = asm_directive_count;
+  if (m[1].matched)  // NOLINT .attach_to_group
+    idx = k_alt_capture_to_handler_idx[0];  // NOLINT
+  else if (m[2].matched)   // NOLINT .include
+    idx = k_alt_capture_to_handler_idx[1]; // NOLINT
+  else if (m[3].matched)   // NOLINT .endl
+    idx = k_alt_capture_to_handler_idx[2]; // NOLINT
+  else if (m[4].matched)   // NOLINT .setpad
+    idx = k_alt_capture_to_handler_idx[3]; // NOLINT
+  else if (m[5].matched)   // NOLINT .section
+    idx = k_alt_capture_to_handler_idx[4]; // NOLINT
+  else if (m[6].matched)   // NOLINT .partition
+    idx = k_alt_capture_to_handler_idx[5]; // NOLINT
+  else if (m[7].matched)   // NOLINT .target
+    idx = k_alt_capture_to_handler_idx[6]; // NOLINT
+  else if (m[8].matched)   // NOLINT .aie_row_topology
+    idx = k_alt_capture_to_handler_idx[7]; // NOLINT
+
+  if (idx >= asm_directive_count)
+    return false;
+
+  const auto& op = directive_list[idx];
+  if (!op)
+    return false;
+
+  const std::string args_tail = m[12].matched ? m[12].str() : std::string(); // NOLINT
+  op->operate(shared_from_this(), line, args_tail);
+  return true;
+}
+
 void
 asm_parser::
 insert_col_asmdata(std::shared_ptr<asm_data> data)
@@ -136,14 +200,16 @@ void
 asm_parser::
 parse_lines()
 {
-  directive_list[".attach_to_group"] = std::make_shared<attach_to_group_directive>();
-  directive_list[".include"] = std::make_shared<include_directive>();
-  directive_list[".endl"] = std::make_shared<end_of_label_directive>();
-  directive_list[".setpad"] = std::make_shared<pad_directive>();
-  directive_list[".section"] = std::make_shared<section_directive>();
-  directive_list[".partition"] = std::make_shared<partition_directive>();
-  directive_list[".target"] = std::make_shared<target_directive>();
-  directive_list[".aie_row_topology"] = std::make_shared<aie_row_topology_directive>();
+  directive_list[static_cast<std::size_t>(asm_directive_id::attach_to_group)] =
+      std::make_shared<attach_to_group_directive>();
+  directive_list[static_cast<std::size_t>(asm_directive_id::aie_row_topology)] =
+      std::make_shared<aie_row_topology_directive>();
+  directive_list[static_cast<std::size_t>(asm_directive_id::include)] = std::make_shared<include_directive>();
+  directive_list[static_cast<std::size_t>(asm_directive_id::endl)] = std::make_shared<end_of_label_directive>();
+  directive_list[static_cast<std::size_t>(asm_directive_id::setpad)] = std::make_shared<pad_directive>();
+  directive_list[static_cast<std::size_t>(asm_directive_id::section)] = std::make_shared<section_directive>();
+  directive_list[static_cast<std::size_t>(asm_directive_id::partition)] = std::make_shared<partition_directive>();
+  directive_list[static_cast<std::size_t>(asm_directive_id::target)] = std::make_shared<target_directive>();
   std::string file = "default";
   parse_lines(m_data, file);
 
@@ -159,7 +225,6 @@ parse_lines(const std::vector<char>& data, std::string& file)
   const static regex COMMENT_REGEX("^;(.*)$");
   const static regex LABEL_REGEX("^([a-zA-Z0-9_]+):$");
   const static regex OP_REGEX("^([.a-zA-Z0-9_]+)(?:[ \\t]+(.+))?$");
-  const static regex DIRCETIVE_REGEX(".^([a-zA-Z0-9_]+)(?:[ \\t]+(.+))?$");
 
   // Sanitize input data: filter out non-printable characters except newline, tab, and carriage return
   // This prevents corrupted operation names during parsing
@@ -172,6 +237,7 @@ parse_lines(const std::vector<char>& data, std::string& file)
       str += c;
     }
   }
+  const uint32_t parse_file_idx = detail::intern_filename(file);
   // Scan str for newlines directly instead of copying it into an istringstream
   size_t pos = 0;
   const size_t str_len = str.size();
@@ -202,7 +268,6 @@ parse_lines(const std::vector<char>& data, std::string& file)
 
     smatch sm;
 
-    // Check for Directive (starts with .) - only check regex if prefix matches
     if (line[0] == '.' && operate_directive(line))
     {
       if (!get_annotation_state())
@@ -236,9 +301,9 @@ parse_lines(const std::vector<char>& data, std::string& file)
         m_current_label = m_current_label + ":" + sm[1].str();
         set_data_state(false);
       } else
-        insert_col_asmdata(std::make_shared<asm_data>(operation(sm[1].str(), ""),
-                                                      operation_type::label, code_section::unknown, 0,
-                                                      (uint32_t)-1, linenumber, file));
+        insert_col_asmdata(std::make_shared<asm_data>(operation(sm[1].str(), ""), operation_type::label,
+                                                      code_section::unknown, 0, (uint32_t)-1, linenumber,
+                                                      parse_file_idx));
       continue;
     }
     // check for operation
@@ -323,10 +388,9 @@ parse_lines(const std::vector<char>& data, std::string& file)
 
         line = op_name + "\t" + arg_str;
       }
-
-      insert_col_asmdata(std::make_shared<asm_data>(operation(op_name, arg_str),
-                                                    operation_type::op, code_section::unknown, 0, (uint32_t)-1,
-                                                    linenumber, file));
+      insert_col_asmdata(std::make_shared<asm_data>(operation(op_name, arg_str), operation_type::op,
+                                                    code_section::unknown, 0, (uint32_t)-1, linenumber,
+                                                    parse_file_idx));
       if (!op_name.compare("eof"))
         set_data_state(true);
     }
@@ -1227,27 +1291,31 @@ finalize_preempt()
 
 void
 attach_to_group_directive::
-operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm)
+operate(std::shared_ptr<asm_parser> parserptr,
+        const std::string& /*directive_line*/,
+        const std::string& args_tail)
 {
   m_parserptr = parserptr;
-  verify_match(sm, error::error_code::invalid_asm, "Invalid attach_to_group directive argument\n");
+  verify_nonempty_args(args_tail, error::error_code::invalid_asm, "Invalid attach_to_group directive argument\n");
 
   // dummy eof added if col change happens before eof
   m_parserptr->insert_col_asmdata(std::make_shared<asm_data>(operation("eof", ""),
-                                                    operation_type::op, code_section::unknown, 0, (uint32_t)-1,
-                                                    0, "default"));
-  m_parserptr->set_current_col(std::stoi(sm[2].str()));
+                                                              operation_type::op, code_section::unknown, 0,
+                                                              (uint32_t)-1, 0, detail::default_source_file_idx()));
+  m_parserptr->set_current_col(std::stoi(args_tail));
   m_parserptr->set_data_state(false);
 }
 
 void
 section_directive::
-operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm)
+operate(std::shared_ptr<asm_parser> parserptr,
+        const std::string& /*directive_line*/,
+        const std::string& args_tail)
 {
   m_parserptr = parserptr;
-  verify_match(sm, error::error_code::invalid_asm, ".section directive requires arguments\n");
+  verify_nonempty_args(args_tail, error::error_code::invalid_asm, ".section directive requires arguments\n");
 
-  std::vector<std::string> args = splitoption(sm[2].str().c_str(), ',');
+  std::vector<std::string> args = splitoption(args_tail.c_str(), ',');
   if (is_test_section(args[0]))
     m_parserptr->set_data_state(false);
   else if (is_data_section(args[0]))
@@ -1260,13 +1328,15 @@ operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm)
 
 void
 partition_directive::
-operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm)
+operate(std::shared_ptr<asm_parser> parserptr,
+        const std::string& directive_line,
+        const std::string& /*args_tail*/)
 {
   m_parserptr = parserptr;
   static const regex pattern(R"(\.partition\s+(\d+)(column|core:(\d+)mem))");
   smatch match;
-  log_info() << "PARTITION:" << sm[0].str() << "\n";
-  std::string line = sm[0].str();
+  log_info() << "PARTITION:" << directive_line << "\n";
+  std::string line = directive_line;
   if (regex_match(line, match, pattern)) {
     if (match[2] == "column") {
       log_info() << "Column count: " << match[1] << "\n";
@@ -1283,14 +1353,16 @@ operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm)
 
 void
 target_directive::
-operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm)
+operate(std::shared_ptr<asm_parser> parserptr,
+        const std::string& directive_line,
+        const std::string& /*args_tail*/)
 {
   m_parserptr = parserptr;
   // Pattern: .target <arch>-<sub-arch> or .target <arch>
   static const regex pattern(R"(\.target\s+([a-zA-Z0-9]+)(?:-([a-zA-Z0-9]+))?)");
   smatch match;
-  log_info() << "TARGET:" << sm[0].str() << std::endl;
-  std::string line = sm[0].str();
+  log_info() << "TARGET:" << directive_line << std::endl;
+  std::string line = directive_line;
   if (regex_match(line, match, pattern)) {
     std::string arch = match[1].str();
     log_info() << "Target architecture: " << arch << std::endl;
@@ -1307,7 +1379,9 @@ operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm)
 
 void
 aie_row_topology_directive::
-operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm)
+operate(std::shared_ptr<asm_parser> parserptr,
+        const std::string& directive_line,
+        const std::string& /*args_tail*/)
 {
   m_parserptr = parserptr;
   // Pattern: .aie_row_topology A-B-C-D
@@ -1315,8 +1389,8 @@ operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm)
   // Example: .aie_row_topology 1-1-4-0
   static const regex pattern(R"(\.aie_row_topology\s+(\d+)-(\d+)-(\d+)-(\d+))");
   smatch match;
-  log_info() << "AIE_ROW_TOPOLOGY:" << sm[0].str() << std::endl;
-  std::string line = sm[0].str();
+  log_info() << "AIE_ROW_TOPOLOGY:" << directive_line << std::endl;
+  std::string line = directive_line;
   if (regex_match(line, match, pattern)) {
     uint32_t num_south_shim = to_uinteger<uint32_t>(match[1]);
     uint32_t num_memtile_row = to_uinteger<uint32_t>(match[2]);
@@ -1358,11 +1432,12 @@ read_include_file(std::string filename)
 
 void
 include_directive::
-operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm)
+operate(std::shared_ptr<asm_parser> parserptr,
+        const std::string& /*directive_line*/,
+        const std::string& args_tail)
 {
   m_parserptr = parserptr;
-  //std::vector<std::string> args = splitoption(sm[2].str().c_str(), ',');
-  std::string file = sm[2].str();//args[0];
+  std::string file = args_tail;
   if (file.size() >= 2 && file.front() == '"' && file.back() == '"')
     file =  file.substr(1, file.size() - 2);
 
@@ -1373,16 +1448,18 @@ operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm)
 
 void
 end_of_label_directive::
-operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm)
+operate(std::shared_ptr<asm_parser> parserptr,
+        const std::string& /*directive_line*/,
+        const std::string& args_tail)
 {
   m_parserptr = parserptr;
 
   std::string label = m_parserptr->top_label();
   m_parserptr->pop_label();
 
-  verify_match(sm, error::error_code::invalid_asm, ".endl directive requires a label argument\n");
+  verify_nonempty_args(args_tail, error::error_code::invalid_asm, ".endl directive requires a label argument\n");
 
-  std::vector<std::string> args = splitoption(sm[2].str().c_str(), ',');
+  std::vector<std::string> args = splitoption(args_tail.c_str(), ',');
   if (label.compare(args[0]))
     throw error(error::error_code::internal_error, "endl label mismatch (" + label + " != " + args[0] + ")\n");
   m_parserptr->pop_data_state();
@@ -1390,12 +1467,14 @@ operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm)
 
 void
 pad_directive::
-operate(std::shared_ptr<asm_parser> parserptr, const smatch& sm)
+operate(std::shared_ptr<asm_parser> parserptr,
+        const std::string& /*directive_line*/,
+        const std::string& args_tail)
 {
   m_parserptr = parserptr;
-  verify_match(sm, error::error_code::invalid_asm, ".setpad directive requires arguments\n");
+  verify_nonempty_args(args_tail, error::error_code::invalid_asm, ".setpad directive requires arguments\n");
 
-  std::vector<std::string> args = splitoption(sm[2].str().c_str(), ',');
+  std::vector<std::string> args = splitoption(args_tail.c_str(), ',');
 
   add_scratchpad(args[0], args[1]);
 }
