@@ -268,7 +268,7 @@ parse_lines(const std::vector<char>& data, std::string& file)
 
     smatch sm;
 
-    if (line[0] == '.' && operate_directive(line))
+    if (line[0] == '.' &&  line.substr(0,5).compare(".long") && operate_directive(line))
     {
       if (!get_annotation_state())
         continue;
