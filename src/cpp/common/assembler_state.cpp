@@ -140,7 +140,6 @@ process(bool makeunique)
 
   //convert label and num_entries to map of label and dependent labels
   std::unordered_map<std::string, size_t> label_index;
-  label_index.reserve(m_labellist.size() * 2 + 1);
   for (size_t li = 0; li < m_labellist.size(); ++li)
     label_index.emplace(m_labellist[li], li);
 

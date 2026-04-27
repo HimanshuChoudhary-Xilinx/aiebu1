@@ -221,8 +221,6 @@ extractjobsandlabels(assembler_state& state, std::shared_ptr<job> pjob,
   const auto& dependent_labelmap = state.get_dependent_labelmap();
   std::unordered_set<std::string> labels_seen;
   std::unordered_set<std::string> external_seen;
-  labels_seen.reserve(32);
-  external_seen.reserve(8);
   for (auto djid : job_list)
   {
     tsize +=  state.m_jobmap[djid]->get_end() - state.m_jobmap[djid]->get_start();
@@ -373,18 +371,14 @@ pagify(assembler_state& state, uint32_t col, std::vector<page>& pages, uint32_t 
     // get total text section size, jobs and labels releated to jobid(current job) which are not already taken in current page
     // don't return jobs/labels for a job which is already in this page a second time (note that multiple jobs might depend on
     // the same job)
-    offset_type tsize;
-    tsize = extractjobsandlabels(state, pjob, job_list, labels_list, external_labels_list);
+    offset_type tsize = extractjobsandlabels(state, pjob, job_list, labels_list, external_labels_list);
     // calculate alignment bytes needed bet text and data section
     // NOTE: data section is always 16 Byte aligned
-    offset_type dsectionaligner;
-    dsectionaligner = datasectionaligner(page_tsize + tsize);
+    offset_type dsectionaligner = datasectionaligner(page_tsize + tsize);
     // get data section size for jobs(related to current job)
-    offset_type dsize;
-    dsize = getdatasectionsize(state, labels_list);
+    offset_type dsize = getdatasectionsize(state, labels_list);
 
-    offset_type jobdsectionaligner;
-    jobdsectionaligner = datasectionaligner(tsize);
+    offset_type jobdsectionaligner = datasectionaligner(tsize);
 
     //check if job can fit in one page
     if ((tsize + jobdsectionaligner + dsize + EOF_SIZE + PAGE_HEADER_SIZE) > m_page_size)

@@ -14,7 +14,7 @@ ELFIO::section*
 elf_writer::
 add_section_by_name(const std::string& section_name)
 {
-  if (m_elfio.sections.size() > max_sections)
+  if (m_elfio.sections.size() >= max_sections)
     throw error(error::error_code::invalid_asm, "Maximum number of sections reached");
   ELFIO::section* sec = m_elfio.sections.add(section_name);
   m_section_by_name[section_name] = sec;
@@ -25,13 +25,10 @@ void
 elf_writer::
 resync_section_name_map()
 {
-  for (unsigned i = 0; i < m_elfio.sections.size(); ++i) {
-    ELFIO::section* s = m_elfio.sections[i];
-    if (!s)
-      continue;
+  for (auto& s : m_elfio.sections) {
     const std::string& n = s->get_name();
     if (!n.empty())
-      m_section_by_name[n] = s;
+      m_section_by_name[n] = s.get();
   }
 }
 
@@ -107,7 +104,6 @@ add_dynsym_section(ELFIO::string_section_accessor* stra, std::vector<symbol>& sy
   // Create symbol table writer
   ELFIO::symbol_section_accessor syma( m_elfio, dsym_sec );
   std::unordered_map<std::string, ELFIO::Elf_Word> hash;
-  hash.reserve(syms.size() * 2 + 16);
   for (auto & sym : syms) {
     std::string key = sym.get_section_name() + index_string + "_" + sym.get_name() + "_" +
                       std::to_string(sym.get_size());
