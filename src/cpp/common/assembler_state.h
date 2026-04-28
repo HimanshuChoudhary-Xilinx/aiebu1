@@ -143,7 +143,7 @@ protected:
                   std::vector<std::shared_ptr<asm_data>>& data,
                   std::map<std::string, std::shared_ptr<scratchpad_info>>& scratchpad,
                   std::map<std::string, uint32_t>& labelpageindex, std::map<uint32_t, std::string>& ctrlpkt_id_map,
-                  uint32_t optimize_level, bool makeunique);
+                  uint32_t optimize_level, bool makeunique, bool merged_ctrltext_elf);
   assembler_state(const assembler_state& rhs) = default;
   assembler_state& operator=(const assembler_state& rhs) = delete;
   assembler_state(assembler_state &&s) = default;
@@ -160,6 +160,7 @@ public:
   std::map<std::string, std::vector<std::string>> m_patch;
   std::map<std::string, uint32_t>& m_labelpageindex;
   std::map<uint32_t, std::string>& m_ctrlpkt_id_map;
+  bool m_merged_ctrltext_elf = false;
 
   HEADER_ACCESS_GET_SET(offset_type, pos);
 
@@ -246,6 +247,8 @@ public:
      return (m_opt_opcodes.count(name)> 0);
   }
 
+  bool merged_ctrltext_elf() const { return m_merged_ctrltext_elf; }
+
   virtual symbol::patch_schema get_shim_dma_patching() const = 0;
   virtual symbol::patch_schema get_control_packet_patching() const = 0;
   virtual ~assembler_state() = default;
@@ -321,8 +324,9 @@ class assembler_state_aie2ps : public assembler_state
                          std::vector<std::shared_ptr<asm_data>>& data,
                          std::map<std::string, std::shared_ptr<scratchpad_info>>& scratchpad,
                          std::map<std::string, uint32_t>& labelpageindex, std::map<uint32_t, std::string>& ctrlpkt_id_map,
-                         uint32_t optimize_level, bool makeunique)
-                  : assembler_state(isa, data, scratchpad, labelpageindex, ctrlpkt_id_map, optimize_level, makeunique)
+                         uint32_t optimize_level, bool makeunique, bool merged_ctrltext_elf)
+                  : assembler_state(isa, data, scratchpad, labelpageindex, ctrlpkt_id_map, optimize_level, makeunique,
+                                    merged_ctrltext_elf)
   {
     //shim_dma_patching = symbol::patch_schema::shim_dma_57;
     //control_packet_patching = symbol::patch_schema::control_packet_57;
@@ -385,8 +389,9 @@ class assembler_state_aie4 : public assembler_state
                        std::vector<std::shared_ptr<asm_data>>& data,
                        std::map<std::string, std::shared_ptr<scratchpad_info>>& scratchpad,
                        std::map<std::string, uint32_t>& labelpageindex, std::map<uint32_t, std::string>& ctrlpkt_id_map,
-                       uint32_t optimize_level, bool makeunique)
-                  : assembler_state(isa, data, scratchpad, labelpageindex, ctrlpkt_id_map, optimize_level, makeunique)
+                       uint32_t optimize_level, bool makeunique, bool merged_ctrltext_elf)
+                  : assembler_state(isa, data, scratchpad, labelpageindex, ctrlpkt_id_map, optimize_level, makeunique,
+                                    merged_ctrltext_elf)
   {
     //shim_dma_patching = symbol::patch_schema::shim_dma_57_aie4;
     //control_packet_patching = symbol::patch_schema::control_packet_57_aie4;

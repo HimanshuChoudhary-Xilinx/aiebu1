@@ -14,9 +14,10 @@ assembler_state(std::shared_ptr<std::map<std::string, std::shared_ptr<isa_op>>> 
                 std::vector<std::shared_ptr<asm_data>>& data,
                 std::map<std::string, std::shared_ptr<scratchpad_info>>& scratchpad,
                 std::map<std::string, uint32_t>& labelpageindex, std::map<uint32_t, std::string>& ctrlpkt_id_map,
-                uint32_t optimize_level, bool makeunique)
+                uint32_t optimize_level, bool makeunique, bool merged_ctrltext_elf)
                 : m_isa(std::move(isa)), m_data(data), m_scratchpad(scratchpad),
-                  m_labelpageindex(labelpageindex), m_ctrlpkt_id_map(ctrlpkt_id_map)
+                  m_labelpageindex(labelpageindex), m_ctrlpkt_id_map(ctrlpkt_id_map),
+                  m_merged_ctrltext_elf(merged_ctrltext_elf)
 {
   process_optimization(optimize_level);
   process(makeunique);
