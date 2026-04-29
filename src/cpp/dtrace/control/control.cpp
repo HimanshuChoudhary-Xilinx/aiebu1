@@ -2,6 +2,7 @@
 // Copyright (C) 2024-2025 Advanced Micro Devices, Inc. All rights reserved.
 
 // This file defines the control class which is responsible for creating control buffers and result files.
+#include "json/nlohmann/json.hpp"
 #include "control.h"
 
 #include <fstream>
@@ -16,23 +17,11 @@
 
 namespace dtrace
 {
+// variable to store output format
+dtrace_output_format g_current_output_format = dtrace_output_format::python; // NOLINT
 
-//-------------------------Log Level-------------------------//
-// variable to store the current log level
-// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
-static dtrace_log_level g_current_log_level = dtrace_log_level::dtrace_error;
-
-// Function to set the log level
-void set_log_level(uint32_t log_level) 
-{
-    g_current_log_level = static_cast<dtrace_log_level>(log_level);
-}
-
-// Function to get the current log level
-dtrace_log_level get_current_log_level() 
-{
-    return g_current_log_level;
-}
+// variable to store current log level
+dtrace_log_level g_current_log_level = dtrace_log_level::dtrace_error;  // NOLINT
 
 //-------------------------control::control-------------------------//
 /**
@@ -47,15 +36,15 @@ dtrace_log_level get_current_log_level()
  * file, and setting up control and memory buffers based on the parsed data.
  */
 control::
-control(std::string script_file, const std::string& map_data, uint32_t log_level)
+control(std::string script_file, const std::string& map_data)
     : m_pager(true)
     , m_parser(map_data)
+    , m_output_format(dtrace::get_output_format())
     , m_num_uCs(0)
     , m_mem_action_present(false)
 {
-    // Set the log level
-    dtrace::set_log_level(log_level);
-    DTRACE_INFO("DTRACE LOG LEVEL " << log_level);
+    DTRACE_INFO("DTRACE LOG LEVEL " << static_cast<int>(dtrace::get_current_log_level()));
+    DTRACE_INFO("DTRACE OUTPUT FORMAT " << static_cast<int>(m_output_format));
 
     // Read the script file
     // Open file in "at end" mode to check size
@@ -357,35 +346,82 @@ create_result_file(std::unordered_map<uint32_t, std::vector<uint32_t>>& result_b
             actions.emplace_back(action, uC_index);
     }
 
-    // Create python script
-    std::ofstream script_output(output_file);
-    if (!script_output)
-        DTRACE_ERROR("DTRACE_CONTROL_RESULT_FILE_NOT_FOUND", "result file: " << output_file);
-        
-    script_output << "#! /usr/bin/env python3\n";
-    script_output << "import sys\n\n";
-    script_output << "if __name__ == '__main__':\n";
-    for (const auto& item : actions)
+    if (m_output_format == dtrace::dtrace_output_format::python)
     {
-        const auto& action = item.first;
-        uint32_t loop_uC_index = item.second;
-        try 
+        // Create python script
+        std::ofstream script_output(output_file);
+        if (!script_output)
+            DTRACE_ERROR("DTRACE_CONTROL_RESULT_FILE_NOT_FOUND", "result file: " << output_file);
+            
+        script_output << "#! /usr/bin/env python3\n";
+        script_output << "import sys\n\n";
+        script_output << "if __name__ == '__main__':\n";
+        for (const auto& item : actions)
         {
-            script_output << action->serialize(
-                result_buffers.at(loop_uC_index), 
-                mem_buffers.at(loop_uC_index), 
-                m_pager.get_action_location_mapping(loop_uC_index)
-            );
-        } 
-        catch (const std::exception& e) 
-        {
-            DTRACE_ERROR("DTRACE_ACTION_SERIALIZE_FAILED", "Failed to serialize action " 
-                << action->create_string() << " for uC index " << loop_uC_index << ". Exception: " << e.what() 
-            );
+            const auto& action = item.first;
+            uint32_t loop_uC_index = item.second;
+            try 
+            {
+                // Serialize action to build python script
+                action->serialize(
+                    result_buffers.at(loop_uC_index), 
+                    mem_buffers.at(loop_uC_index), 
+                    m_pager.get_action_location_mapping(loop_uC_index),
+                    script_output
+                );
+            } 
+            catch (const std::exception& e) 
+            {
+                DTRACE_ERROR("DTRACE_ACTION_SERIALIZE_FAILED", "Failed to serialize action " 
+                    << action->create_string() << " for uC index " << loop_uC_index << ". Exception: " << e.what() 
+                );
+            }
         }
+        script_output << "  " << "sys.exit(0)\n";
+        script_output.close();
     }
-    script_output << "  " << "sys.exit(0)\n";
-    script_output.close();
+    else if (m_output_format == dtrace::dtrace_output_format::json)
+    {
+        // Create JSON output
+        using json = nlohmann::ordered_json;
+        json json_output = json::object();
+
+        for (const auto& item : actions)
+        {
+            const auto& action = item.first;
+            uint32_t loop_uC_index = item.second;
+            try
+            {
+                // Serialize action to build JSON result
+                action->serialize(
+                    result_buffers.at(loop_uC_index),
+                    mem_buffers.at(loop_uC_index),
+                    m_pager.get_action_location_mapping(loop_uC_index),
+                    json_output
+                );
+            }
+            catch (const std::exception& e)
+            {
+                DTRACE_ERROR("DTRACE_ACTION_SERIALIZE_FAILED", "Failed to serialize action "
+                    << action->create_string() << " for uC index " << loop_uC_index << ". Exception: " << e.what()
+                );
+            }
+        }
+
+        // Write JSON to file
+        std::ofstream json_file(output_file);
+        if (!json_file)
+            DTRACE_ERROR("DTRACE_CONTROL_RESULT_FILE_NOT_FOUND", "result file: " << output_file);
+
+        json_file << json_output.dump(4) << "\n";
+        json_file.close();
+    }
+    else 
+    {
+        DTRACE_ERROR("DTRACE_OUTPUT_FORMAT_NOT_SUPPORTED", 
+            "Output format " << static_cast<int>(m_output_format) << " not supported yet."
+        );
+    }
 }
 
 } // namespace dtrace

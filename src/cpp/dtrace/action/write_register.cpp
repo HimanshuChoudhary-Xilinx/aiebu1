@@ -26,7 +26,7 @@ write_reg_action(std::string token, uint32_t probe_type, const std::string& prob
     std::stringstream token_stream(token);
     std::string item;
     while (std::getline(token_stream, item, '='))
-        fields.push_back(strip(item));
+        fields.push_back(action::strip(item));
 
     aiebu::smatch action;
     if (!aiebu::regex_match(fields[0], action, action_name::action_regex))
@@ -39,7 +39,7 @@ write_reg_action(std::string token, uint32_t probe_type, const std::string& prob
     // Validate and parse the length argument
     std::stringstream argument_stream(argument_string);
     while (std::getline(argument_stream, item, ','))
-        m_arguments.push_back(strip(item));
+        m_arguments.push_back(action::strip(item));
 
     if (m_arguments.size() < 2)
         DTRACE_ERROR("DTRACE_ACTION_INVALID_TOKEN_ARGUMENTS", 
@@ -72,23 +72,35 @@ actionize(uint32_t last, std::vector<uint32_t>& control_buffer, std::vector<uint
 
 //-------------------------write_reg_action::serialize-------------------------//
 /**
- * serialize() - Serializes the register write action into a string format.
+ * serialize() - Serializes the write register action into a string format.
  *
  * @param result_buffer
  * @param mem_buffer
  * @param mapping
- *
- * @return 
- *  String representing the serialized register write action.
+ * @param script_output
  */
-std::string
+void
 write_reg_action::
 serialize(std::vector<uint32_t>&, std::vector<uint32_t>&, 
-    const std::unordered_map<uint32_t, uint32_t>&) const
+    const std::unordered_map<uint32_t, uint32_t>&, std::ostream&) const
 {
-    std::ostringstream output_action;
-    output_action << "  " << "#" << " " << m_action_name << "\n";
-    return output_action.str();
 }
+
+//-------------------------write_reg_action::serialize-------------------------//
+/**
+ * serialize() - Serializes the write register action into json format.
+ *
+ * @param result_buffer
+ * @param mem_buffer
+ * @param mapping
+ * @param json_output
+ */
+void
+write_reg_action::
+serialize(std::vector<uint32_t>&, std::vector<uint32_t>&, 
+    const std::unordered_map<uint32_t, uint32_t>&, json&) const
+{
+}
+
 
 } // namespace dtrace::action

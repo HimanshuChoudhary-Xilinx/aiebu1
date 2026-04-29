@@ -26,7 +26,7 @@ timestamps32_action(std::string token, uint32_t probe_type, const std::string& p
     std::stringstream token_stream(token);
     std::string item;
     while (std::getline(token_stream, item, '='))
-        fields.push_back(strip(item));
+        fields.push_back(action::strip(item));
 
     if (fields.size() != 2)
         DTRACE_ERROR("DTRACE_ACTION_INVALID_TOKEN", 
@@ -76,6 +76,34 @@ actionize(uint32_t last, std::vector<uint32_t>& control_buffer, std::vector<uint
     control_buffer.insert(control_buffer.end(), m_length, dtrace::dtrace_ctrl::result_value_init);
 }
 
+//-------------------------timestamps32_action::serialize_helper-------------------------//
+/**
+ * serialize_helper() - Helper function to serialize action.
+ *
+ * @param result_buffer
+ * @param mapping
+ *
+ * @return 
+ *  The value from the result buffer based on the location mapping and
+ *  resets the value in the result buffer after serialization.
+ */
+std::vector<uint32_t>
+timestamps32_action::
+serialize_helper(std::vector<uint32_t>& result_buffer, 
+    const std::unordered_map<uint32_t, uint32_t>& mapping) const
+{
+    std::vector<uint32_t> result;
+    for (uint32_t i = 0; i < m_length; ++i) 
+    {
+        // action location + length word + timestamp value
+        uint32_t location = mapping.at(get_location(false)) + 1 + i;
+        result.push_back(result_buffer[location]);
+        // reset value after serialization
+        result_buffer[location] = dtrace::dtrace_ctrl::result_value_init;
+    }
+    return result;
+}
+
 //-------------------------timestamps32_action::serialize-------------------------//
 /**
  * serialize() - Serializes the multiple timestamp 32-bit action into a string format.
@@ -83,34 +111,46 @@ actionize(uint32_t last, std::vector<uint32_t>& control_buffer, std::vector<uint
  * @param result_buffer
  * @param mem_buffer
  * @param mapping
- *
- * @return 
- *  String representing the serialized multiple timestamp 32-bit action.
+ * @param script_output
  */
-std::string
+void
 timestamps32_action::
 serialize(std::vector<uint32_t>& result_buffer, std::vector<uint32_t>&, 
-    const std::unordered_map<uint32_t, uint32_t>& mapping) const
+    const std::unordered_map<uint32_t, uint32_t>& mapping, std::ostream& script_output) const
 {
-    
-    std::vector<uint32_t> result;
-    for (uint32_t i = 0; i < m_length; ++i) {
-        // action location + length word + timestamp value
-        uint32_t location = mapping.at(get_location(false)) + 1 + i;
-        result.push_back(result_buffer[location]);
-        // reset value after serialization
-        result_buffer[location] = 0;
-    }
-
-    std::ostringstream output_action;
-    output_action << "  " << m_result << " = [";
+    std::vector<uint32_t> result = timestamps32_action::serialize_helper(result_buffer, mapping);
+    // serialize string format
+    script_output << "  " << m_result << " = [";
     for (size_t i = 0; i < result.size(); ++i) {
-        output_action << result[i];
+        script_output << result[i];
         if (i != result.size() - 1)
-            output_action << ", ";
+            script_output << ", ";
     }
-    output_action << "]\n";
-    return output_action.str();
+    script_output << "]\n";
+}
+
+
+//-------------------------timestamps32_action::serialize-------------------------//
+/**
+ * serialize() - Serializes the multiple timestamp 32-bit action into json format.
+ *
+ * @param result_buffer
+ * @param mem_buffer
+ * @param mapping
+ * @param json_output
+ */
+void
+timestamps32_action::
+serialize(std::vector<uint32_t>& result_buffer, std::vector<uint32_t>&, 
+    const std::unordered_map<uint32_t, uint32_t>& mapping, json& json_output) const
+{
+    std::vector<uint32_t> result = timestamps32_action::serialize_helper(result_buffer, mapping);
+    // serialize json format
+    json json_result = json::array();
+    for (uint32_t i = 0; i < result.size(); ++i)
+        json_result.push_back(result[i]);
+
+    json_output[m_probe_name][m_result] = json_result;
 }
 
 } // namespace dtrace::action

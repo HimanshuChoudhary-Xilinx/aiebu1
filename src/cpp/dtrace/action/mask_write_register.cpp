@@ -28,7 +28,7 @@ mask_write_reg_action(std::string token, uint32_t probe_type, const std::string&
     std::stringstream token_stream(token);
     std::string item;
     while (std::getline(token_stream, item, '='))
-        fields.push_back(strip(item));
+        fields.push_back(action::strip(item));
 
     aiebu::smatch action;
     if (!aiebu::regex_match(fields[0], action, action_name::action_regex))
@@ -41,7 +41,7 @@ mask_write_reg_action(std::string token, uint32_t probe_type, const std::string&
     // Validate and parse the length argument
     std::stringstream argument_stream(argument_string);
     while (std::getline(argument_stream, item, ','))
-        m_arguments.push_back(strip(item));
+        m_arguments.push_back(action::strip(item));
 
     if (m_arguments.size() < 3)
         DTRACE_ERROR("DTRACE_ACTION_INVALID_TOKEN_ARGUMENTS", 
@@ -56,7 +56,6 @@ mask_write_reg_action(std::string token, uint32_t probe_type, const std::string&
         // check if write buffer name exists in the map and get the values
         if (buffer_map.find(write_buffer_name) != buffer_map.end())
         {
-            m_result = write_buffer_name;
             m_write_buffer_values = buffer_map.at(write_buffer_name).second;
 
             // set mode and value argument based on HIGH or LOW
@@ -128,6 +127,30 @@ actionize(uint32_t last, std::vector<uint32_t>& control_buffer, std::vector<uint
     }
 }
 
+//-------------------------mask_write_reg_action::serialize_helper-------------------------//
+/**
+ * serialize_helper() - Helper function to serialize action.
+ *
+ * @param mem_buffer
+ *
+ * @return 
+ *  The value from the result buffer based on the location mapping and
+ *  resets the value in the result buffer after serialization.
+ */
+void
+mask_write_reg_action::
+serialize_helper(std::vector<uint32_t>& mem_buffer) const
+{
+    if (m_mode == 2)
+    {
+        uint32_t index = get_location(true);
+        auto length = static_cast<uint32_t>(m_write_buffer_values.size());
+        // reset value after serialization
+        for (uint32_t i = index; i < index+length; ++i)
+            mem_buffer[i] = m_write_buffer_values[i - index];
+    }
+}
+
 //-------------------------mask_write_reg_action::serialize-------------------------//
 /**
  * serialize() - Serializes the register mask write action into a string format.
@@ -135,34 +158,31 @@ actionize(uint32_t last, std::vector<uint32_t>& control_buffer, std::vector<uint
  * @param result_buffer
  * @param mem_buffer
  * @param mapping
- *
- * @return 
- *  String representing the serialized register mask write action.
+ * @param script_output
  */
-std::string
+void
 mask_write_reg_action::
 serialize(std::vector<uint32_t>&, std::vector<uint32_t>& mem_buffer, 
-    const std::unordered_map<uint32_t, uint32_t>&) const
+    const std::unordered_map<uint32_t, uint32_t>&, std::ostream&) const
 {
-    std::ostringstream output_action;
-    output_action << "  " << "#" << " " << m_action_name << "\n";
-    if (m_mode == 2)
-    {
-        std::ostringstream readable_result;
-        uint32_t index = get_location(true);
-        auto length = static_cast<uint32_t>(m_write_buffer_values.size());
-        for (uint32_t i = index; i < index+length; ++i)
-        {
-            readable_result << "  0x" << std::hex << mem_buffer[i];
-            if (i < index+length - 1)
-                readable_result << "\n";
+    mask_write_reg_action::serialize_helper(mem_buffer);
+}
 
-            // reset value after serialization
-            mem_buffer[i] = 0;
-        }
-        output_action << "  " << m_result << " = \"\"\"\n" << readable_result.str() << "\"\"\"\n";
-    }
-    return output_action.str();
+//-------------------------mask_write_reg_action::serialize-------------------------//
+/**
+ * serialize() - Serializes the timestamp action into json format.
+ *
+ * @param result_buffer
+ * @param mem_buffer
+ * @param mapping
+ * @param json_output
+ */
+void
+mask_write_reg_action::
+serialize(std::vector<uint32_t>&, std::vector<uint32_t>& mem_buffer, 
+    const std::unordered_map<uint32_t, uint32_t>&, json&) const
+{
+    mask_write_reg_action::serialize_helper(mem_buffer);
 }
 
 } // namespace dtrace::action
