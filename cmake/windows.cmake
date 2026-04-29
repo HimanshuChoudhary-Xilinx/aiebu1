@@ -28,6 +28,15 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   add_compile_options(/Qspectre)  # compile with the Spectre mitigations switch
 endif()
 
+# Release: explicit max-speed opts (/O2; /Ot favors fast code over smaller code) and
+# no checked STL iterators. Base CMAKE_CXX_FLAGS_RELEASE from CMake is /O2 /Ob2 /DNDEBUG;
+# we restate /O2 here so Release tuning stays explicit in this file.
+# NOTE: Put /O2 and /Ot in separate genexes — a single "$<...:/O2;/Ot>" breaks because ';'
+# splits the generator-expression parse and can leak "$<1:/O2" onto the cl command line.
+add_compile_options("$<$<STREQUAL:$<CONFIG>,Release>:/O2>")
+add_compile_options("$<$<STREQUAL:$<CONFIG>,Release>:/Ot>")
+add_compile_definitions($<$<STREQUAL:$<CONFIG>,Release>:_ITERATOR_DEBUG_LEVEL=0>)
+
 add_link_options(
   /DEBUG      # instruct linker to create debugging info
   /guard:cf   # enable linker control guard feature (CFG) to prevent attackers from redirecting execution to unsafe locations

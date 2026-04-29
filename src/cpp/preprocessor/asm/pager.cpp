@@ -1,13 +1,93 @@
 // SPDX-License-Identifier: MIT
 // Copyright (C) 2024-2025, Advanced Micro Devices, Inc. All rights reserved.
 #include "pager.h"
-#include "utils.h"
 
 #include "aiebu/aiebu_error.h"
 
 #include <unordered_set>
 
 namespace aiebu {
+namespace {
+
+inline bool
+opcode_is_out_of_order_list(const std::string& op_name)
+{
+  return op_name == "load_pdi" || op_name == "preempt" || op_name == "load_cores";
+}
+
+void
+extractlabels_accum(assembler_state& state,
+                    const std::shared_ptr<asm_data>& token,
+                    std::vector<std::string>& out,
+                    std::unordered_set<std::string>& seen,
+                    const std::map<std::string, std::vector<std::string>>& dependent_labelmap)
+{
+  if (!token || token->isLabel())
+    return;
+  if (opcode_is_out_of_order_list(token->get_operation().get_name()))
+    return;
+
+  const std::vector<std::string> args = token->get_operation().get_args();
+  for (const auto& arg : args) {
+    if (arg.empty() || arg[0] != '@')
+      continue;
+
+    std::string lb = arg.substr(1);
+    if (state.containscratchpads(lb))
+      continue;
+    lb = token->get_qualify_label(lb);
+
+    const auto lit = state.m_labelmap.find(lb);
+    if (lit == state.m_labelmap.end())
+      throw error(error::error_code::internal_error, "Label not found " + lb);
+
+    if (!seen.insert(lb).second)
+      continue;
+
+    out.push_back(lb);
+
+    const auto dit = dependent_labelmap.find(lb);
+    if (dit != dependent_labelmap.end()) {
+      for (const auto& dep : dit->second) {
+        if (seen.insert(dep).second)
+          out.push_back(dep);
+      }
+    }
+
+    const uint32_t index = lit->second->get_index();
+    const int32_t count = lit->second->get_count();
+    for (int32_t i = 0; i <= count; ++i) {
+      extractlabels_accum(state,
+                            state.m_data[static_cast<size_t>(index) + static_cast<size_t>(i)],
+                            out,
+                            seen,
+                            dependent_labelmap);
+    }
+  }
+}
+
+void
+extract_externallabels_accum(const std::shared_ptr<asm_data>& token,
+                             std::vector<std::string>& out,
+                             std::unordered_set<std::string>& seen)
+{
+  if (!token || token->isLabel())
+    return;
+  if (!opcode_is_out_of_order_list(token->get_operation().get_name()))
+    return;
+
+  const std::vector<std::string> args = token->get_operation().get_args();
+  for (const auto& arg : args) {
+    if (arg.empty() || arg[0] != '@')
+      continue;
+    std::string lb = arg.substr(1);
+    lb = token->get_qualify_label(lb);
+    if (seen.insert(lb).second)
+      out.push_back(lb);
+  }
+}
+
+} // namespace
 
 template <typename T>
 std::vector<T>
@@ -108,38 +188,9 @@ std::vector<std::string>
 pager::
 extractlabels(assembler_state& state, std::shared_ptr<asm_data> token)
 {
-  // Extract all labels connected to token
   std::vector<std::string> labels;
-  if (token->isLabel())
-    return labels;
-
-  auto dependent_labelmap = state.get_dependent_labelmap();
-  for (auto &arg : token->get_operation().get_args())
-  {
-    auto it = std::find(OOO.begin(), OOO.end(), token->get_operation().get_name());
-    if (arg.rfind("@") == 0 && it == OOO.end())
-    {
-      auto lb = arg.substr(1);
-      if (state.containscratchpads(lb))
-        continue;
-      lb = token->get_qualify_label(lb);
-      if (state.m_labelmap.find(lb) == state.m_labelmap.end())
-      {
-        throw error(error::error_code::internal_error, "Label not found " + lb);
-      }
-      std::vector<std::string> vlb {lb};
-      if (dependent_labelmap.find(lb) != dependent_labelmap.end())
-        vlb.insert(vlb.end(), dependent_labelmap[lb].begin(), dependent_labelmap[lb].end());
-
-      labels = union_of_lists_inorder<std::string>(labels, vlb);
-      auto index = state.m_labelmap[lb]->get_index();
-      for (auto i = 0; i <= state.m_labelmap[lb]->get_count(); ++i)
-      {
-        auto elb = extractlabels(state, state.m_data[index+i]);
-        labels = union_of_lists_inorder<std::string>(labels, elb);
-      }
-    }
-  }
+  std::unordered_set<std::string> seen;
+  extractlabels_accum(state, token, labels, seen, state.get_dependent_labelmap());
   return labels;
 }
 
@@ -147,26 +198,10 @@ std::vector<std::string>
 pager::
 extract_externallabels(assembler_state& /*state*/, std::shared_ptr<asm_data> token)
 {
-  // extract all external labels connected to token
   std::vector<std::string> labels;
-  if (token->isLabel())
-    return labels;
-
-  for (auto &arg : token->get_operation().get_args())
-  {
-    if (arg.rfind("@") != 0)
-      continue;
-
-    auto it = std::find(OOO.begin(), OOO.end(), token->get_operation().get_name());
-    if (it == OOO.end())
-      continue;
-
-    auto lb = arg.substr(1);
-    lb = token->get_qualify_label(lb);
-    std::vector<std::string> vlb {lb};
-    labels = union_of_lists_inorder<std::string>(labels, vlb);
-  }
-  return labels;  
+  std::unordered_set<std::string> seen;
+  extract_externallabels_accum(token, labels, seen);
+  return labels;
 }
 
 offset_type
@@ -183,16 +218,17 @@ extractjobsandlabels(assembler_state& state, std::shared_ptr<job> pjob,
 
   job_list = extractjobs(state, pjob);
   offset_type tsize = 0;
+  const auto& dependent_labelmap = state.get_dependent_labelmap();
+  std::unordered_set<std::string> labels_seen;
+  std::unordered_set<std::string> external_seen;
   for (auto djid : job_list)
   {
     tsize +=  state.m_jobmap[djid]->get_end() - state.m_jobmap[djid]->get_start();
     for (auto j = state.m_jobmap[djid]->get_start_index(); j < state.m_jobmap[djid]->get_end_index() + 1; ++j)
     {
-      auto token = state.m_data[j];
-      auto elb = extractlabels(state, token);
-      labels_list = union_of_lists_inorder<std::string>(labels_list, elb);
-      auto eelb = extract_externallabels(state, token);
-      external_labels_list = union_of_lists_inorder<std::string>(external_labels_list, eelb);
+      const auto& token = state.m_data[j];
+      extractlabels_accum(state, token, labels_list, labels_seen, dependent_labelmap);
+      extract_externallabels_accum(token, external_labels_list, external_seen);
     }
   }
   return tsize;
@@ -335,16 +371,14 @@ pagify(assembler_state& state, uint32_t col, std::vector<page>& pages, uint32_t 
     // get total text section size, jobs and labels releated to jobid(current job) which are not already taken in current page
     // don't return jobs/labels for a job which is already in this page a second time (note that multiple jobs might depend on
     // the same job)
-    auto tsize = extractjobsandlabels(state, pjob, job_list, labels_list, external_labels_list);
-
+    offset_type tsize = extractjobsandlabels(state, pjob, job_list, labels_list, external_labels_list);
     // calculate alignment bytes needed bet text and data section
     // NOTE: data section is always 16 Byte aligned
-    auto dsectionaligner = datasectionaligner(page_tsize + tsize);
-
+    offset_type dsectionaligner = datasectionaligner(page_tsize + tsize);
     // get data section size for jobs(related to current job)
-    auto dsize = getdatasectionsize(state, labels_list);
+    offset_type dsize = getdatasectionsize(state, labels_list);
 
-    auto jobdsectionaligner = datasectionaligner(tsize);
+    offset_type jobdsectionaligner = datasectionaligner(tsize);
 
     //check if job can fit in one page
     if ((tsize + jobdsectionaligner + dsize + EOF_SIZE + PAGE_HEADER_SIZE) > m_page_size)
