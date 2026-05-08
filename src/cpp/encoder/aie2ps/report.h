@@ -96,7 +96,9 @@ public:
   }
 
   std::string add_function(uint32_t file_idx, const std::string& name, offset_type high_pc, offset_type low_pc, uint32_t col, pageid_type pagenum) {
-    std::string key = std::to_string(file_idx) + "_" + std::to_string(col) + "_" + name;
+    // source/file/column/page do not overwrite previously recorded functions.
+    std::string key = std::to_string(file_idx) + "_" + std::to_string(col) + "_"
+                      + std::to_string(pagenum) + "_" + name;
     functions[key] = std::make_shared<Function>(file_idx, name, high_pc, low_pc, col, pagenum);
     insertion_order.push_back(key);
     return key;
