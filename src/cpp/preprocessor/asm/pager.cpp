@@ -408,8 +408,8 @@ pagify(assembler_state& state, uint32_t col, std::vector<page>& pages, uint32_t 
   {
     assignpagenumber(state, col, page_jobs, page_labels, page_external_labels, page_index, pages, true, page_tsize, page_dsize, relative_page_index);
     page_index += 1;
-  } else if (page_index-relative_page_index > 0)
-    pages[page_index-relative_page_index-1].set_islastpage(true);
+  } else if (page_index > relative_page_index)
+    pages[page_index - relative_page_index - 1].set_islastpage(true);
   return page_index;
 }
 
