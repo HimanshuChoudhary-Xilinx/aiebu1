@@ -52,8 +52,8 @@ void read_file(const std::filesystem::path& path, std::vector<char>& out)
 void add_asm_tree(const std::filesystem::path& root, aiebu::file_artifact& artifact)
 {
   const std::pair<const char*, const char*> dirs[] = {
-      {"../ml_asm/", "ml_asm"},
-      {"../asm/", "asm"},
+      {"./ml_asm/", "ml_asm"},
+      {"./asm/", "asm"},
   };
   for (const auto& ent : dirs) {
     const std::filesystem::path dir = root / ent.second;
@@ -99,8 +99,9 @@ int main(int argc, char** argv)
     config_json.assign(k_config_json, k_config_json + std::strlen(k_config_json));
 
     aiebu::file_artifact artifact;
-    std::string main_key("./ml_asm/merged_control.asm");
-    artifact.add_vfile(main_key, merged_asm);
+    // dont add ./ml_asm/merged_control.asm in artifact as it get added in add_asm_tree
+    //std::string main_key("./ml_asm/merged_control.asm");
+    //artifact.add_vfile(main_key, merged_asm);
     std::string patch_key("./external_buffer_id.json");
     artifact.add_vfile(patch_key, patch_json);
     add_asm_tree(root, artifact);

@@ -1,0 +1,36 @@
+{
+    "xrt-kernels": [
+      {
+        "name" : "CTRL",
+       "arguments" : [
+        {
+          "name" : "arg0",
+          "type" : "char *",
+          "offset" : "0x00"
+        },
+        {
+          "name" : "arg1",
+          "type" : "char *",
+          "offset" : "0x08"
+        },
+        {
+          "name" : "arg2",
+          "type" : "char *",
+          "offset" : "0x10"
+        },
+        {
+          "name" : "arg3",
+          "type" : "char *",
+          "offset" : "0x18"
+        }
+        ],
+        "instance" : [
+            {
+              "id" : "inst0",
+              "ctrl_code_file" : "./ml_asm/merged_control.asm",
+              "patch_info_file": "./external_buffer_id.json"
+            }
+        ]
+      }
+   ]
+}
