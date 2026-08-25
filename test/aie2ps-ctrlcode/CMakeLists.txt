@@ -87,4 +87,5 @@ add_subdirectory(legal_duplicate_include)
 add_subdirectory(decode_opcode)
 
 add_subdirectory(plip)
+add_subdirectory(plio_col0_23_shim_mm2s_s2mm_4plio)
 add_subdirectory(ctrlcode_filename)
