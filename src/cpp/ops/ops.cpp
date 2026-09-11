@@ -412,13 +412,40 @@ handle_barrier_arg(uint32_t val)
 
 std::string
 isa_op_deserializer::
-handle_page_id_arg(uint32_t /*val*/,
-                    std::shared_ptr<disassembler_state> state)
+handle_page_id_arg(uint32_t val,
+                    std::shared_ptr<disassembler_state> state,
+                    const std::string& arg_name)
 {
-  // PAGE_ID arguments reference text sections that come later
-  // Add to OOO label queue to be written at the start of the target section
-  std::string sym_label = get_label();
-  state->add_ooo_label(sym_label);
+  // PAGE_ID arguments reference text sections that come later.
+  // For preempt save/restore args, use named @save_N/@restore_N labels so the
+  // disassembled output is human-readable and reassemblable.
+  std::string sym_label;
+  if (m_opcode->get_code_name() == "preempt") {
+    if (arg_name == "save_control_code_offset") {
+      sym_label = state->alloc_save_label(val);
+      // Mark save page tracking (no OOO label emitted — save pages are auto-generated)
+      if (!state->is_preempt_save_page(sym_label)) {
+        state->mark_preempt_save_label(sym_label);
+      }
+      state->mark_preempt_save_page_id(val);
+    } else if (arg_name == "restore_control_code_offset") {
+      sym_label = state->alloc_restore_label(val);
+      if (!state->is_preempt_restore_page(sym_label)) {
+        state->mark_preempt_restore_label(sym_label);
+      }
+      state->mark_preempt_restore_page_id(val);
+    } else {
+      sym_label = get_label();
+      state->add_ooo_label(sym_label);
+    }
+  } else {
+    // For load_pdi and other PAGE_ID ops: register label for both formats.
+    // - Merged-page: consumed by page_idx_to_load_label at the exact NOP page boundary.
+    // - Separate-page (legacy): consumed by the outer process_sections() OOO label loop.
+    sym_label = get_label();
+    state->add_load_pdi_label(val, sym_label);
+    state->add_ooo_label(sym_label);
+  }
   return sym_label;
 }
 
@@ -471,11 +498,34 @@ deserialize(asm_writer& writer, std::shared_ptr<disassembler_state> state, const
                 break;
 
             case opArg::optype::PAGE_ID:
-                result.push_back(handle_page_id_arg(val, state));
+                result.push_back(handle_page_id_arg(val, state, arg.get_name()));
                 break;
 
             default:
                 throw std::runtime_error("Invalid argument type!");
+        }
+    }
+
+    // For preempt, append the hintmap label as a 4th argument so roundtrip works.
+    // The save page ID was stored in result[1] via handle_page_id_arg; look it up by
+    // the page_id value that was recorded in state when marking the save page.
+    if (m_opcode->get_code_name() == "preempt") {
+        // Find the save page id: iterate args to locate save_control_code_offset PAGE_ID value
+        uint32_t scan = 2;
+        for (const auto& arg : m_opcode->get_args()) {
+            uint32_t len = arg.get_width() / byte_to_bits;
+            if (arg.get_type() == opArg::optype::PAGE_ID && arg.get_name() == "save_control_code_offset") {
+                uint32_t save_page_id = get_arg_val(data + scan, len);
+                const uint32_t slot   = state->get_save_page_slot(save_page_id);
+                if (slot != UINT32_MAX) {
+                    const std::string hm_label = state->get_hintmap_label(slot);
+                    // Only append the hintmap arg if prescan confirmed non-zero data for it
+                    if (!hm_label.empty() && state->is_hintmap_label_valid(hm_label))
+                        result.push_back("@" + hm_label);
+                }
+                break;
+            }
+            scan += len;
         }
     }
 
@@ -537,6 +587,10 @@ deserialize(asm_writer& writer, std::shared_ptr<disassembler_state> state, const
     arg.push_back(read_uint32(data + count + remote_addr_low_offset));  // remote address low
     arg.push_back(read_uint32(data + count + remote_addr_high_offset)); // remote address high
 
+    // Collect local SRAM source address from save page BDs for hintmap reconstruction.
+    // local_ptr_offset (arg[2]) is resolved by long_op_deserializer in ctrldata;
+    // that value (SRAM address) is collected there via add_save_page_bd_address.
+
     // Format address fields
     {
       std::ostringstream a3, a4;
@@ -593,6 +647,12 @@ deserialize(asm_writer& writer, std::shared_ptr<disassembler_state> state, const
     std::vector<std::string> result;
 
     uint32_t val = read_uint32(data + pos);
+    // Collect local SRAM source address when processing save page ctrldata.
+    // Each .long in a save page local-ptr block is the SRAM chunk base address;
+    // chunk_index = val / CHUNK_SIZE gives the hintmap bit to set.
+    if (state->is_collecting_save_bd())
+      state->add_save_page_bd_address(val);
+
     std::ostringstream oss;
     oss << "0x" << std::uppercase << std::hex
         << std::setw(field_width) << std::setfill('0') << val;

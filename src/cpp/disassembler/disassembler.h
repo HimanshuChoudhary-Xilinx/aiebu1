@@ -51,6 +51,9 @@ protected:
                            std::shared_ptr<disassembler_state> state);
     void process_data_block(const char* data, size_t size,
                            std::shared_ptr<disassembler_state> state);
+    void process_data_block_with_writer(const char* data, size_t size,
+                                        std::shared_ptr<disassembler_state> state,
+                                        asm_writer& writer);
 
     // Create architecture-specific disassembler state
     [[nodiscard]] std::shared_ptr<disassembler_state> create_disassembler_state() const;
@@ -78,6 +81,13 @@ private:
     void process_pad_section(const ELFIO::section* /*section*/, std::shared_ptr<disassembler_state> /*state*/);
     bool is_text_section(const std::string& section_name) const;
     bool is_data_section(const std::string& section_name) const;
+    // Process data block with an explicit writer (used for silent save page BD collection)
+    void process_data_block_with_writer(const char* data, size_t size,
+                                        std::shared_ptr<disassembler_state> state,
+                                        asm_writer& writer);
+    // Emit hintmap reconstruction comment block after processing a save page
+    void emit_save_page_hintmap(uint32_t page_idx, const disassembler_state& state);
+    void prescan_hintmap_slots(std::shared_ptr<disassembler_state> state);
 };
 
 // Binary disassembler - handles raw binary files with architecture specification
@@ -97,7 +107,6 @@ private:
     void process_binary();
     void process_binary_data(const char* data, size_t size, std::shared_ptr<disassembler_state> state);
     void process_data_section_binary(const char* data, size_t size, std::shared_ptr<disassembler_state> state);
-    size_t detect_binary_header_offset() const;
 };
 
 } // namespace aiebu

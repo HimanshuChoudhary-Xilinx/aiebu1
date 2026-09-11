@@ -226,7 +226,7 @@ private:
   std::string handle_generic_const_arg(const opArg& arg, uint32_t val);
   std::string handle_register_arg(uint32_t val);
   std::string handle_barrier_arg(uint32_t val);
-  std::string handle_page_id_arg(uint32_t val, std::shared_ptr<disassembler_state> state);
+  std::string handle_page_id_arg(uint32_t val, std::shared_ptr<disassembler_state> state, const std::string& arg_name);
 
   // Inline helper functions for argument type checking
   inline bool is_tile_id(const opArg& arg) { return arg.get_name() == "tile_id"; }
