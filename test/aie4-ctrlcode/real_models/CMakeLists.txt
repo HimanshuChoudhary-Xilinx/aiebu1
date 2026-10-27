@@ -72,7 +72,8 @@ macro(add_aie4_real_model_test MODEL)
   set_tests_properties("${_test_prefix}_asm" PROPERTIES LABELS "benchmark")
 
   if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
-    if(NOT MODEL IN_LIST _aie4_skip_elftolegacy)
+    list(FIND _aie4_skip_elftolegacy "${MODEL}" _aie4_skip_elftolegacy_idx)
+    if(_aie4_skip_elftolegacy_idx EQUAL -1)
       add_test(NAME "${_test_prefix}_elftolegacy"
         COMMAND "${AIEBU_SOURCE_DIR}/src/python/aiebu/elf_to_legacy.py"
                 -o "${_test_bin}/control.out.txt" -i "${_elf}"
