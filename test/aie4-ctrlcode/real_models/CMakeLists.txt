@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: MIT
 # Copyright (C) 2026 Advanced Micro Devices, Inc.
 
-# Each model's config.json and ctrlcode asm live under
-# test/aie4-ctrlcode/real_models/DMA_compiler/<model>/.
+# DMA_compiler: <model>/config.json (asm cwd = model dir).
+# X3: <model>/Work/ps/elf/aiebu_config.json (asm cwd = Work/ps/elf).
 # Shared prebuilt asm: test/aie4-ctrlcode/real_models/prebuilt (via DMA_compiler/prebuilt).
 # If missing, link from build/real_test/prebuilt (see copy_models.sh).
 
@@ -24,14 +24,30 @@ set(_aie4_real_models
   DMA_compiler/psd3
   DMA_compiler/pso2_08_80_v2.3.1
   DMA_compiler/PSU0_2.5
+  X3/case_K2_1.2.3
+  X3/case_Model_V_A_v1.2.0.quant
+  X3/case_PSA1_1.3.0
+  X3/case_PSA3_1.0.1
+  X3/PSD7_build_log_18389
+)
+
+# No elf_to_legacy / control.txt gold (output too large for CI).
+set(_aie4_skip_elftolegacy
+  X3/PSD7_build_log_18389
 )
 
 macro(add_aie4_real_model_test MODEL)
   set(_model_dir "${CMAKE_CURRENT_SOURCE_DIR}/${MODEL}")
   set(_config "${_model_dir}/config.json")
+  set(_asm_work_dir "${_model_dir}")
 
   if(NOT EXISTS "${_config}")
-    message(STATUS "aie4 real_models: skipping ${MODEL} (no config at ${_config})")
+    set(_config "${_model_dir}/Work/ps/elf/aiebu_config.json")
+    set(_asm_work_dir "${_model_dir}/Work/ps/elf")
+  endif()
+
+  if(NOT EXISTS "${_config}")
+    message(STATUS "aie4 real_models: skipping ${MODEL} (no config.json or Work/ps/elf/aiebu_config.json)")
     return()
   endif()
 
@@ -45,7 +61,7 @@ macro(add_aie4_real_model_test MODEL)
 
   add_test(NAME "${_test_prefix}_asm"
     COMMAND aiebu-asm -t aie4_config -j "${_config}" -o "${_elf}" -f disabledump
-    WORKING_DIRECTORY "${_model_dir}")
+    WORKING_DIRECTORY "${_asm_work_dir}")
 
   add_test(NAME "${_test_prefix}_md5sum"
     COMMAND cmake -P "${AIEBU_SOURCE_DIR}/cmake/md5sum-compare.cmake"
@@ -56,21 +72,23 @@ macro(add_aie4_real_model_test MODEL)
   set_tests_properties("${_test_prefix}_asm" PROPERTIES LABELS "benchmark")
 
   if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
-    add_test(NAME "${_test_prefix}_elftolegacy"
-      COMMAND "${AIEBU_SOURCE_DIR}/src/python/aiebu/elf_to_legacy.py"
-              -o "${_test_bin}/control.out.txt" -i "${_elf}"
-      WORKING_DIRECTORY "${_test_bin}")
+    if(NOT MODEL IN_LIST _aie4_skip_elftolegacy)
+      add_test(NAME "${_test_prefix}_elftolegacy"
+        COMMAND "${AIEBU_SOURCE_DIR}/src/python/aiebu/elf_to_legacy.py"
+                -o "${_test_bin}/control.out.txt" -i "${_elf}"
+        WORKING_DIRECTORY "${_test_bin}")
 
-    add_test(NAME "${_test_prefix}_elftolegacy_compare"
-      COMMAND ${CMAKE_COMMAND} -E compare_files
-              "${_test_bin}/control.out.txt" "${_model_dir}/control.txt"
-      WORKING_DIRECTORY "${_test_bin}")
+      add_test(NAME "${_test_prefix}_elftolegacy_compare"
+        COMMAND ${CMAKE_COMMAND} -E compare_files
+                "${_test_bin}/control.out.txt" "${_model_dir}/control.txt"
+        WORKING_DIRECTORY "${_test_bin}")
 
-    set_tests_properties("${_test_prefix}_elftolegacy"
-      PROPERTIES DEPENDS "${_test_prefix}_asm"
-      ENVIRONMENT "PYTHONPATH=${AIEBU_SOURCE_DIR}/src/python")
-    set_tests_properties("${_test_prefix}_elftolegacy_compare"
-      PROPERTIES DEPENDS "${_test_prefix}_elftolegacy")
+      set_tests_properties("${_test_prefix}_elftolegacy"
+        PROPERTIES DEPENDS "${_test_prefix}_asm"
+        ENVIRONMENT "PYTHONPATH=${AIEBU_SOURCE_DIR}/src/python")
+      set_tests_properties("${_test_prefix}_elftolegacy_compare"
+        PROPERTIES DEPENDS "${_test_prefix}_elftolegacy")
+    endif()
 
     add_test(NAME "${_test_prefix}_readelf"
       COMMAND "${AIEBU_SOURCE_DIR}/test/aie2ps-ctrlcode/run-readelf.sh"
